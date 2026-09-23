@@ -1,0 +1,32 @@
+{
+  "name": "blast-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for blast, a pre-ship impact brief agent built on eve.",
+  "homepage": "https://github.com/irisgli/blast",
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build --filter='./packages/*'",
+    "changeset": "changeset",
+    "dev": "eve dev",
+    "fmt": "oxfmt",
+    "lint": "oxlint --fix",
+    "test": "pnpm test:unit && pnpm test:contract",
+    "test:contract": "turbo run test:contract",
+    "test:e2e": "turbo run test:e2e --concurrency=1",
+    "test:unit": "turbo run test:unit",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@changesets/cli": "3.0.3",
+    "@types/node": "catalog:",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "turbo": "2.11.3",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@12.5.1"
+}

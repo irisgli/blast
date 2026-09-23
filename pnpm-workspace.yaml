@@ -1,0 +1,9 @@
+packages:
+  - apps/fixtures/*
+  - packages/*
+
+catalog:
+  "@types/node": "24.13.3"
+  typescript: "7.0.2"
+  vitest: "4.1.10"
+  zod: "4.5.4"
