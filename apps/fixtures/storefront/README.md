@@ -17,8 +17,12 @@ comment, and it does three things a reviewer is unlikely to connect:
 - adds an edge endpoint and two database reads per request
 - drops the product page cache TTL from 3600s to 300s
 
-The third is the expensive one, and it is a one-line diff. Recovering that is the
-reason this tool exists.
+The third is the expensive one, and it is a one-line diff.
+
+It also ships no events of its own. The product page already emits impression and click
+events for the two features that shipped before it, so the gap is visible: a funnel
+movement after this merges cannot be separated from anything else released that week.
+The team would be paying for a carousel indefinitely with no way to show it earned it.
 
 ## Files
 
@@ -31,7 +35,8 @@ reason this tool exists.
 | `server-timing.json` | p95 server response per endpoint |
 | `billing.json` | Monthly spend by service, trailing three months |
 | `funnel.json` | Step conversion, volume, and revenue contribution |
-| `feature-history.json` | Features previously shipped to these surfaces, and what happened |
+| `feature-history.json` | Features previously shipped to these surfaces, and the effect sizes they produced |
+| `instrumentation.json` | Events each surface emits, and which feature each one isolates |
 
 ## A note on measurement method
 
