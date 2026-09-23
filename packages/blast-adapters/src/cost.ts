@@ -1,6 +1,6 @@
 import { FIXTURE_FILES } from "@blast-fixtures/storefront";
 import type { Adapter, Finding, SourceInfo } from "@blast/core";
-import { confidenceForBasis, fail, METRIC, ok } from "@blast/core";
+import { confidenceForBasis, fail, medianAbsolutePercentageError, METRIC, ok } from "@blast/core";
 import { z } from "zod";
 import type { CostEstimate } from "./cost-model.js";
 import { loadFixture } from "./fixture-store.js";
@@ -48,7 +48,30 @@ export interface UsageResult {
   surfaces: SurfaceUsage[];
 }
 
+const estimateHistorySchema = z.object({
+  generatedAt: z.string(),
+  note: z.string(),
+  records: z.array(
+    z.object({
+      id: z.string(),
+      description: z.string(),
+      month: z.string(),
+      estimatedUsd: z.number(),
+      observedUsd: z.number(),
+    }),
+  ),
+});
+
+export type EstimateRecord = z.output<typeof estimateHistorySchema>["records"][number];
+
+export interface EstimateHistoryResult {
+  records: EstimateRecord[];
+  /** Median absolute percentage error across the record, or null when there is none. */
+  medianErrorPct: number | null;
+}
+
 const BILLING_ID = "fixture-billing";
+const ESTIMATE_HISTORY_ID = "fixture-estimate-history";
 const USAGE_ID = "fixture-usage";
 
 export const billingAdapter: Adapter<ServiceQuery, BillingResult> = {
@@ -126,6 +149,64 @@ export function allSurfaceUsage(): UsageResult | null {
   return loaded.ok ? { surfaces: loaded.value.surfaces } : null;
 }
 
+/**
+ * What this model's past estimates turned out to be worth.
+ *
+ * Every other source describes the change. This one describes the tool, which is the
+ * question a reader asks second and nothing else in the brief answers.
+ */
+export const estimateHistoryAdapter: Adapter<Record<string, never>, EstimateHistoryResult> = {
+  id: ESTIMATE_HISTORY_ID,
+  dimension: "cost",
+  describe(): SourceInfo {
+    return {
+      id: ESTIMATE_HISTORY_ID,
+      displayName: "Estimate accuracy",
+      dimension: "cost",
+      metrics: [METRIC.estimateAccuracy],
+      cadence: "Appended a month after each estimated change merges.",
+      fixture: true,
+    };
+  },
+  async fetch() {
+    const loaded = loadFixture(FIXTURE_FILES.estimateHistory, estimateHistorySchema);
+    if (!loaded.ok) return loaded;
+    if (loaded.value.records.length === 0) {
+      return fail("no-data", "No estimate has been checked against a bill yet.");
+    }
+
+    const records = [...loaded.value.records];
+    return ok(
+      {
+        records,
+        medianErrorPct: medianAbsolutePercentageError(
+          records.map((record) => ({ estimated: record.estimatedUsd, observed: record.observedUsd })),
+        ),
+      },
+      loaded.freshness,
+    );
+  },
+};
+
+export function estimateAccuracyFindings(result: EstimateHistoryResult): Finding[] {
+  if (result.medianErrorPct === null) return [];
+  return [
+    {
+      dimension: "cost",
+      metric: METRIC.estimateAccuracy,
+      surface: null,
+      base: null,
+      head: { value: result.medianErrorPct, unit: "%" },
+      delta: null,
+      basis: "measured",
+      confidence: confidenceForBasis("measured"),
+      sourceId: ESTIMATE_HISTORY_ID,
+      assumptions: [],
+      note: `Median absolute error across ${result.records.length} estimates checked against the following month's bill. This is the tool's record, not a property of this change.`,
+    },
+  ];
+}
+
 export function costFindings(estimate: CostEstimate): Finding[] {
   return [
     {
@@ -139,7 +220,7 @@ export function costFindings(estimate: CostEstimate): Finding[] {
       confidence: confidenceForBasis("modeled"),
       sourceId: USAGE_ID,
       assumptions: estimate.assumptions,
-      note: `Modeled from measured traffic and published unit prices. ${estimate.items.length} cost drivers, largest: ${estimate.items[0]?.label ?? "none"}.`,
+      note: `Modeled from measured traffic and published unit prices, credibly $${estimate.lowUsd.toFixed(2)} to $${estimate.highUsd.toFixed(2)}. ${estimate.items.length} cost drivers, largest: ${estimate.items[0]?.label ?? "none"}.`,
     },
   ];
 }

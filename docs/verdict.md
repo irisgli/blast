@@ -42,6 +42,12 @@ number measures the preview runner and would fire the rule on every slow one.
 current spend on the services the change touches, so the stricter test governs. It is
 `unmeasured` when no source produced a monthly delta. Otherwise `acceptable`.
 
+The estimate carries a range, and when that range spans the ceiling the status still
+follows the point estimate — a verdict has to be one thing — but confidence drops to
+`low`. The threshold did not decide anything in that case: the same change is over or
+under depending on assumptions the model cannot check, and saying so is more useful than
+a confident answer that rests on one of them.
+
 **Measurability** is `acceptable` when the change touches no surface carrying a funnel
 step. It is `risk` when the change emits no events attributable to it on a touched
 funnel surface, or when the surface's minimum detectable effect exceeds the median

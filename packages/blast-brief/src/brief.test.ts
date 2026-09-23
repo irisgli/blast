@@ -109,3 +109,49 @@ describe("the full pipeline over the sample pull request", () => {
     }
   });
 });
+
+describe("determinism", () => {
+  /**
+   * The verdict rules are code rather than model judgement specifically so that an
+   * unchanged pull request cannot produce a different answer twice. That is the
+   * repository's central claim and nothing asserted it until now.
+   */
+  it("produces byte-identical evidence and verdict across runs", async () => {
+    const change = loadFixtureChangeProfile();
+    if (!change.ok) return;
+
+    const first = await collectEvidence(change.value);
+    const second = await collectEvidence(change.value);
+
+    expect(second.findings).toEqual(first.findings);
+    expect(second.context).toEqual(first.context);
+    expect(second.estimate).toEqual(first.estimate);
+
+    const a = assess({ findings: first.findings, context: first.context });
+    const b = assess({ findings: second.findings, context: second.context });
+    expect(b).toEqual(a);
+  });
+
+  it("renders the same brief given the same inputs", async () => {
+    const change = loadFixtureChangeProfile();
+    if (!change.ok) return;
+
+    const render = async () => {
+      const evidence = await collectEvidence(change.value);
+      const assessment = assess({ findings: evidence.findings, context: evidence.context });
+      return renderBrief(
+        buildBrief({
+          profile: change.value,
+          assessment,
+          findings: evidence.findings,
+          headline: "fixed",
+          watchAfterShip: {},
+          sources: evidence.sources,
+          generatedAt: "2026-09-22T00:00:00Z",
+        }),
+      );
+    };
+
+    expect(await render()).toBe(await render());
+  });
+});

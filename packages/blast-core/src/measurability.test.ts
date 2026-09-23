@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { medianAbsoluteEffectPp, minimumDetectableEffect } from "./measurability.js";
+import {
+  medianAbsoluteEffectPp,
+  medianAbsolutePercentageError,
+  minimumDetectableEffect,
+} from "./measurability.js";
 
 describe("minimum detectable effect", () => {
   it("resolves a fine effect on a high-traffic funnel step", () => {
@@ -56,5 +60,37 @@ describe("historical effect size", () => {
 
   it("has nothing to say about a surface with no history", () => {
     expect(medianAbsoluteEffectPp([])).toBeNull();
+  });
+});
+
+describe("estimate accuracy", () => {
+  it("measures error against what was observed, not what was predicted", () => {
+    // Predicting 180 when 171.40 was billed is a 5.0% miss of the real figure, not a
+    // 4.8% miss of the guess. The denominator is the quantity that was actually true.
+    expect(
+      medianAbsolutePercentageError([{ estimated: 180, observed: 171.4 }]),
+    ).toBeCloseTo(5.017, 2);
+  });
+
+  it("takes the median, so one bad miss neither defines nor disappears", () => {
+    const pairs = [
+      { estimated: 100, observed: 100 },
+      { estimated: 110, observed: 100 },
+      { estimated: 400, observed: 100 },
+    ];
+    // Mean error would be 103%, describing the model as far worse than it usually is.
+    expect(medianAbsolutePercentageError(pairs)).toBeCloseTo(10, 5);
+  });
+
+  it("handles savings, where both figures are negative", () => {
+    expect(
+      medianAbsolutePercentageError([{ estimated: -310, observed: -288.5 }]),
+    ).toBeCloseTo(7.452, 2);
+  });
+
+  it("has nothing to report without a record", () => {
+    expect(medianAbsolutePercentageError([])).toBeNull();
+    // An observed zero would divide by it.
+    expect(medianAbsolutePercentageError([{ estimated: 5, observed: 0 }])).toBeNull();
   });
 });

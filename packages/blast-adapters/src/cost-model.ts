@@ -1,5 +1,5 @@
 import type { ChangeProfile, UnitPrices } from "@blast/core";
-import { BYTES_PER_GB, SECONDS_PER_MONTH, UNIT_PRICES } from "@blast/core";
+import { BILLING_PERIOD_UNCERTAINTY, BYTES_PER_GB, SECONDS_PER_MONTH, UNIT_PRICES } from "@blast/core";
 import type { SurfaceUsage } from "./cost.js";
 
 /**
@@ -16,16 +16,32 @@ export interface CostItem {
   service: string;
   usd: number;
   detail: string;
+  /**
+   * How far this line could be wrong on its own terms, before the billing period is
+   * applied. A line derived from a measured render time is tight; one resting on an
+   * assumption about how often a client calls an endpoint is not.
+   */
+  spread: { low: number; high: number; reason: string };
 }
 
 export interface CostEstimate {
   totalUsd: number;
+  /** The range the total credibly falls in, at list prices. */
+  lowUsd: number;
+  highUsd: number;
   /** Cost drivers, largest first. */
   items: CostItem[];
   assumptions: string[];
   /** Billing services the change touches, for comparison against current spend. */
   touchedServices: string[];
 }
+
+/** A line the model can compute without assuming anything about caller behaviour. */
+const MEASURED: CostItem["spread"] = {
+  low: 1,
+  high: 1,
+  reason: "Derived from measured traffic and measured render cost.",
+};
 
 export interface CostModelInput {
   profile: ChangeProfile;
@@ -88,6 +104,7 @@ export function estimateMonthlyCost(input: CostModelInput): CostEstimate {
       label: `Origin renders from the ${change.surface} cache TTL drop`,
       service: "compute",
       usd: cents(gbHours * prices.computeGbHourUsd),
+      spread: MEASURED,
       detail: `TTL ${fromTtl}s to ${toTtl}s takes origin requests from ${Math.round(before).toLocaleString("en-US")} to ${Math.round(after).toLocaleString("en-US")} per month, ${Math.round(gbHours).toLocaleString("en-US")} GB-hours at ${usage.renderGbSeconds}s per render.`,
     });
 
@@ -97,6 +114,7 @@ export function estimateMonthlyCost(input: CostModelInput): CostEstimate {
         label: `Database reads from those extra renders`,
         service: "database",
         usd: cents((extraReads / 1_000_000) * prices.dbReadPerMillionUsd),
+        spread: MEASURED,
         detail: `${usage.queriesPerRender} queries per render across ${Math.round(extraRenders).toLocaleString("en-US")} additional renders.`,
       });
     }
@@ -112,6 +130,7 @@ export function estimateMonthlyCost(input: CostModelInput): CostEstimate {
       label: "Egress for the additional client JavaScript",
       service: "bandwidth",
       usd: cents(gb * prices.egressGbUsd),
+      spread: MEASURED,
       detail: `${(profile.clientBytesDelta / 1024).toFixed(1)} KB across ${touchedRequests.toLocaleString("en-US")} requests, ${gb.toFixed(1)} GB.`,
     });
   }
@@ -126,6 +145,13 @@ export function estimateMonthlyCost(input: CostModelInput): CostEstimate {
       label: `Invocations of ${endpoint.path}`,
       service: endpoint.runtime === "edge" ? "edge-requests" : "compute",
       usd: cents((touchedRequests / 1_000_000) * perMillion),
+      // One call per view is a guess. A client that polls, retries, or refetches on
+      // focus can multiply it; a lazily mounted component can halve it.
+      spread: {
+        low: 0.5,
+        high: 2,
+        reason: `Assumes one call to ${endpoint.path} per view of the surfaces it serves.`,
+      },
       detail: `${touchedRequests.toLocaleString("en-US")} invocations per month on the ${endpoint.runtime} runtime.`,
     });
     assumptions.push(`${endpoint.path} is called once per view of the surfaces it serves.`);
@@ -140,6 +166,13 @@ export function estimateMonthlyCost(input: CostModelInput): CostEstimate {
       label: `New ${query.kind}s against ${query.table}`,
       service: "database",
       usd: cents((operations / 1_000_000) * perMillion),
+      spread: query.indexed
+        ? MEASURED
+        : {
+            low: 1,
+            high: 3,
+            reason: `${query.table} is queried without an index, so the operation count is a floor.`,
+          },
       detail: `${query.perRequest} per request across ${touchedRequests.toLocaleString("en-US")} requests.`,
     });
     if (!query.indexed) {
@@ -151,7 +184,18 @@ export function estimateMonthlyCost(input: CostModelInput): CostEstimate {
 
   items.sort((left, right) => right.usd - left.usd);
   const totalUsd = cents(items.reduce((sum, item) => sum + item.usd, 0));
+  const lowUsd = cents(
+    items.reduce((sum, item) => sum + item.usd * item.spread.low * BILLING_PERIOD_UNCERTAINTY.low, 0),
+  );
+  const highUsd = cents(
+    items.reduce(
+      (sum, item) => sum + item.usd * item.spread.high * BILLING_PERIOD_UNCERTAINTY.high,
+      0,
+    ),
+  );
   const touchedServices = [...new Set(items.map((item) => item.service))];
 
-  return { totalUsd, items, assumptions, touchedServices };
+  assumptions.push("Priced at list. Committed-use or negotiated rates would be lower.");
+
+  return { totalUsd, lowUsd, highUsd, items, assumptions, touchedServices };
 }

@@ -53,6 +53,8 @@ export interface VerdictContext {
   surfaceTrafficPercentile: Record<string, number>;
   /** Current monthly spend across touched services, or null when billing is unavailable. */
   touchedServiceMonthlySpendUsd: number | null;
+  /** The range the modeled monthly delta credibly falls in, when one was produced. */
+  costRangeUsd: { low: number; high: number } | null;
   /** Touched surfaces carrying a funnel step. Empty means there is nothing to measure. */
   measurableSurfaces: string[];
   /** Surfaces where the change ships no events attributable to it. */
@@ -236,19 +238,35 @@ export function assessCost(
   }
 
   const ceiling = costCeilingUsd(context, thresholds);
+  const range = context.costRangeUsd;
+
+  /**
+   * A range spanning the ceiling means the threshold did not decide anything: the same
+   * change is over or under depending on assumptions the model cannot check. The status
+   * still follows the point estimate, because a verdict has to be one thing, but the
+   * confidence says the point estimate was not enough to settle it.
+   */
+  const straddles = range !== null && range.low <= ceiling && range.high > ceiling;
+  const confidence: Confidence = straddles ? "low" : monthly.confidence;
+  const band =
+    range === null ? "" : ` Range $${money(range.low)} to $${money(range.high)}.`;
+  const caveat = straddles
+    ? " The range spans the ceiling, so the assumptions decide this rather than the estimate."
+    : "";
+
   if (monthly.delta.value > ceiling) {
     return {
       status: "risk",
-      confidence: monthly.confidence,
-      rationale: `Monthly spend grows by $${money(monthly.delta.value)}, past the $${money(ceiling)} ceiling for the touched services.`,
+      confidence,
+      rationale: `Monthly spend grows by $${money(monthly.delta.value)}, past the $${money(ceiling)} ceiling for the touched services.${band}${caveat}`,
       triggeredBy: [monthly.metric],
     };
   }
 
   return {
     status: "acceptable",
-    confidence: monthly.confidence,
-    rationale: `Monthly spend grows by $${money(monthly.delta.value)}, inside the $${money(ceiling)} ceiling.`,
+    confidence,
+    rationale: `Monthly spend grows by $${money(monthly.delta.value)}, inside the $${money(ceiling)} ceiling.${band}${caveat}`,
     triggeredBy: [],
   };
 }

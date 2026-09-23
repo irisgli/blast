@@ -6,6 +6,7 @@ import serverTiming from "./data/server-timing.js";
 import billing from "./data/billing.js";
 import funnel from "./data/funnel.js";
 import featureHistory from "./data/feature-history.js";
+import estimateHistory from "./data/estimate-history.js";
 import instrumentation from "./data/instrumentation.js";
 
 /**
@@ -27,6 +28,7 @@ export const FIXTURE_FILES = {
   funnel: "funnel.json",
   featureHistory: "feature-history.json",
   instrumentation: "instrumentation.json",
+  estimateHistory: "estimate-history.json",
 } as const;
 
 export type FixtureFile = (typeof FIXTURE_FILES)[keyof typeof FIXTURE_FILES];
@@ -42,4 +44,5 @@ export const FIXTURE_DOCUMENTS: Readonly<Record<string, unknown>> = {
   "funnel.json": funnel,
   "feature-history.json": featureHistory,
   "instrumentation.json": instrumentation,
+  "estimate-history.json": estimateHistory,
 };
