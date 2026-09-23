@@ -1,36 +1,95 @@
 /*
- * The palette is the legend.
+ * Geist tokens.
  *
- * Three status colours carry meaning rather than decoration: amber is a risk, sage is
- * acceptable, violet is unmeasured. Money shares sage, so a bill that is fine reads the
- * same as a metric that is fine, and a bill that is not turns amber alongside it.
+ * The scales, the neutral-dominant palette, and the radii follow Vercel's design
+ * system rather than an aesthetic invented for this page. Colour appears only where it
+ * carries state: amber for something that needs attention, green for something that
+ * does not, grey for something unknown. Everything else is grey on grey, which is what
+ * lets the two numbers that matter read as the loudest things on the page.
  */
 :root {
-  --ink: #0b0e14;
-  --ink-2: #111620;
-  --ink-3: #161c28;
-  --rule: #1e2532;
-  --rule-bright: #2b3444;
-  --paper: #e9e7e2;
-  /* Two levels of de-emphasis, both clearing 4.5:1 on the ink ground. The first
-     draft's faint grey sat at 3.2:1, which is a legibility problem before it is a
-     compliance one: the arithmetic under each ledger line is the part a sceptical
-     reader goes to. */
-  --muted: #9aa1ae;
-  --faint: #848c9b;
+  color-scheme: light dark;
 
-  --risk: #e8a33d;
-  --ok: #7fa687;
-  --unmeasured: #8e86be;
-  --minus: #c96f6f;
+  --background-100: #ffffff;
+  --background-200: #fafafa;
 
-  --shell: min(1120px, 100% - 3rem);
-  --step--1: 0.78rem;
-  --step-0: 0.95rem;
-  --step-1: 1.15rem;
-  --step-2: 1.6rem;
-  --step-3: clamp(1.45rem, 0.85rem + 2.1vw, 2.5rem);
-  --step-4: clamp(2.1rem, 1rem + 4.6vw, 4.25rem);
+  --gray-100: #f2f2f2;
+  --gray-200: #ebebeb;
+  --gray-300: #e6e6e6;
+  --gray-400: #d4d4d4;
+  --gray-500: #a3a3a3;
+  --gray-600: #8f8f8f;
+  --gray-1000: #171717;
+
+  --text-primary: #171717;
+  --text-secondary: #666666;
+  --text-tertiary: #8f8f8f;
+
+  --border: #ebebeb;
+  --border-strong: #d4d4d4;
+
+  --amber-bg: #fff8e6;
+  --amber-border: #ffe0a3;
+  --amber-fg: #a35200;
+  --amber-solid: #f5a623;
+
+  --green-bg: #eefbf2;
+  --green-border: #b8e6c6;
+  --green-fg: #297c3b;
+  --green-solid: #45a557;
+
+  --neutral-bg: #f6f6f6;
+  --neutral-border: #e6e6e6;
+  --neutral-fg: #666666;
+
+  --red-fg: #cd2b31;
+  --blue-fg: #0761d1;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  --shell: min(1160px, 100% - 3rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-100: #0a0a0a;
+    --background-200: #000000;
+
+    --gray-100: #1a1a1a;
+    --gray-200: #1f1f1f;
+    --gray-300: #292929;
+    --gray-400: #2e2e2e;
+    --gray-500: #454545;
+    --gray-600: #878787;
+    --gray-1000: #ededed;
+
+    --text-primary: #ededed;
+    --text-secondary: #a1a1a1;
+    --text-tertiary: #7d7d7d;
+
+    --border: #2e2e2e;
+    --border-strong: #454545;
+
+    --amber-bg: #251e11;
+    --amber-border: #4a3410;
+    --amber-fg: #f1a10d;
+    --amber-solid: #f5a623;
+
+    --green-bg: #0f1e13;
+    --green-border: #1b4426;
+    --green-fg: #62c073;
+    --green-solid: #45a557;
+
+    --neutral-bg: #161616;
+    --neutral-border: #2e2e2e;
+    --neutral-fg: #a1a1a1;
+
+    --red-fg: #ff6369;
+    --blue-fg: #52a8ff;
+  }
 }
 
 *,
@@ -45,21 +104,24 @@ html {
 
 body {
   margin: 0;
-  background: var(--ink);
-  color: var(--paper);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: var(--step-0);
-  line-height: 1.65;
+  background: var(--background-200);
+  color: var(--text-primary);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: inherit;
+.mono {
+  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 :where(a, button):focus-visible {
-  outline: 2px solid var(--risk);
-  outline-offset: 3px;
+  outline: 2px solid var(--blue-fg);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .shell {
@@ -67,130 +129,411 @@ a {
   margin-inline: auto;
 }
 
-.mono {
-  font-family: var(--font-mono), ui-monospace, monospace;
+/* ── header ──────────────────────────────────────────────────────────────── */
+.nav {
+  border-bottom: 1px solid var(--border);
+  background: var(--background-200);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-/* ── eyebrow ─────────────────────────────────────────────────────────────── */
-.eyebrow {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--faint);
-  margin: 0 0 1.25rem;
-}
-
-/* ── top bar ─────────────────────────────────────────────────────────────── */
-.bar {
-  border-bottom: 1px solid var(--rule);
-}
-
-.bar__inner {
+.nav__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-block: 1.1rem;
+  height: 56px;
 }
 
-.bar__mark {
-  margin: 0;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step-1);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.bar__link {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  color: var(--muted);
-  text-decoration: none;
-  border: 1px solid var(--rule-bright);
-  padding: 0.4rem 0.75rem;
-  border-radius: 2px;
-  transition: color 140ms ease, border-color 140ms ease;
-}
-
-.bar__link:hover {
-  color: var(--paper);
-  border-color: var(--muted);
-}
-
-/* ── hero: the priced diff ───────────────────────────────────────────────── */
-.hero {
-  padding-block: clamp(3.5rem, 8vw, 7rem) clamp(2.5rem, 5vw, 4.5rem);
-}
-
-.hero__file {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  color: var(--faint);
-  margin: 0 0 1.4rem;
-}
-
-.diff {
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-}
-
-.diff__row {
-  display: grid;
-  grid-template-columns: 1.1em minmax(0, 1fr) auto;
-  gap: 0.35rem 0.75em;
-  align-items: baseline;
-  padding-block: 0.4em;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step-3);
-  letter-spacing: -0.03em;
-}
-
-/* Only the code scrolls. The price is the point of the page and never clips. */
-/* Focusable because it scrolls: a keyboard user needs to reach the rest of the line. */
-.diff__code {
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   min-width: 0;
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: none;
 }
 
-.diff__code:focus-visible {
-  outline: 2px solid var(--risk);
-  outline-offset: 4px;
+.crumbs__mark {
+  display: flex;
+  align-items: center;
+  color: var(--text-primary);
 }
 
-.diff__code::-webkit-scrollbar {
-  display: none;
-}
-
-.diff__row--removed {
-  color: var(--minus);
-}
-
-.diff__row--added {
-  color: var(--ok);
-}
-
-.diff__sign {
-  color: var(--faint);
+.crumbs__sep {
+  color: var(--gray-400);
+  font-size: 16px;
   user-select: none;
 }
 
-.diff__price {
-  justify-self: end;
-  font-size: var(--step-2);
-  font-weight: 500;
-  color: var(--risk);
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  animation: price-in 620ms cubic-bezier(0.2, 0.7, 0.2, 1) 1100ms both;
+.crumbs__item {
+  color: var(--text-secondary);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-@keyframes price-in {
+.crumbs__item--current {
+  color: var(--text-primary);
+  font-weight: 500;
+  /* The pull request number identifies the page; it never gives up space. */
+  flex-shrink: 0;
+}
+
+/* ── button ──────────────────────────────────────────────────────────────── */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 32px;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--background-100);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.button:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-500);
+}
+
+/* ── page header ─────────────────────────────────────────────────────────── */
+.page-head {
+  padding-block: 2rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+}
+
+.page-head__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.page-head__subtitle {
+  margin: 0.4rem 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.page-head__subtitle b {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ── stack ───────────────────────────────────────────────────────────────── */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 4rem;
+}
+
+/* ── card ────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--background-100);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.card__head--divided {
+  border-bottom: 1px solid var(--border);
+}
+
+.card__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.card__hint {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  max-width: 62ch;
+}
+
+.card__body {
+  padding: 1.25rem;
+}
+
+.card__foot {
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border);
+  background: var(--background-200);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ── verdict note ────────────────────────────────────────────────────────── */
+.note {
+  display: flex;
+  gap: 0.875rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--amber-border);
+  border-radius: var(--radius-lg);
+  background: var(--amber-bg);
+}
+
+.note--ok {
+  border-color: var(--green-border);
+  background: var(--green-bg);
+}
+
+.note--neutral {
+  border-color: var(--neutral-border);
+  background: var(--neutral-bg);
+}
+
+.note__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--amber-fg);
+}
+
+.note--ok .note__icon {
+  color: var(--green-fg);
+}
+
+.note--neutral .note__icon {
+  color: var(--neutral-fg);
+}
+
+.note__body {
+  min-width: 0;
+}
+
+.note__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+}
+
+.note__verdict {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.note__meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.note__text {
+  margin: 0.4rem 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 78ch;
+}
+
+/* ── badge ───────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 24px;
+  padding-inline: 0.55rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--neutral-border);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge--risk {
+  border-color: var(--amber-border);
+  background: var(--amber-bg);
+  color: var(--amber-fg);
+}
+
+.badge--ok {
+  border-color: var(--green-border);
+  background: var(--green-bg);
+  color: var(--green-fg);
+}
+
+.badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge--unmeasured .badge__dot {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+/* ── metric cards ────────────────────────────────────────────────────────── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 1rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.25rem;
+  background: var(--background-100);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.metric__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.metric__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.metric__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.metric__rows {
+  margin: auto 0 0;
+  padding: 0.875rem 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  list-style: none;
+}
+
+.metric__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.metric__value {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* ── code block and diff ─────────────────────────────────────────────────── */
+.code {
+  margin: 0;
+  padding: 0.875rem 0;
+  background: var(--gray-100);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow: hidden;
+}
+
+.code__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline: 0.875rem;
+}
+
+.code__row--add {
+  background: color-mix(in srgb, var(--green-solid) 12%, transparent);
+}
+
+.code__row--del {
+  background: color-mix(in srgb, var(--red-fg) 10%, transparent);
+}
+
+/* The line scrolls; nothing else in the row does. */
+.code__line {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+  scrollbar-width: none;
+}
+
+.code__line::-webkit-scrollbar {
+  display: none;
+}
+
+.code__line:focus-visible {
+  outline: 2px solid var(--blue-fg);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.code__sign {
+  color: var(--text-tertiary);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.code__row--add .code__sign {
+  color: var(--green-fg);
+}
+
+.code__row--del .code__sign {
+  color: var(--red-fg);
+}
+
+.code__cost {
+  flex-shrink: 0;
+  padding-inline: 0.5rem;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--amber-border);
+  background: var(--amber-bg);
+  color: var(--amber-fg);
+  font-size: 12px;
+  font-weight: 500;
+  animation: cost-in 500ms cubic-bezier(0.2, 0.7, 0.2, 1) 700ms both;
+}
+
+@keyframes cost-in {
   from {
     opacity: 0;
-    transform: translateX(0.75em);
+    transform: translateX(6px);
   }
   to {
     opacity: 1;
@@ -198,439 +541,220 @@ a {
   }
 }
 
-.hero__read {
-  margin: 2rem 0 0;
-  max-width: 54ch;
-  font-size: var(--step-1);
-  line-height: 1.55;
-  color: var(--paper);
+.code__meta {
+  padding: 0 0.875rem;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
-.hero__read em {
-  font-style: normal;
-  color: var(--risk);
+/* ── table ───────────────────────────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
-.hero__sub {
-  margin: 1.1rem 0 0;
-  max-width: 58ch;
-  color: var(--muted);
-}
-
-/* ── section frame ───────────────────────────────────────────────────────── */
-.band {
-  border-top: 1px solid var(--rule);
-  padding-block: clamp(2.75rem, 6vw, 4.5rem);
-}
-
-.band__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem 2rem;
-  margin-bottom: 2rem;
-}
-
-.band__title {
-  margin: 0;
-  max-width: 24ch;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step-2);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.band__note {
-  margin: 0;
-  max-width: 46ch;
-  color: var(--muted);
-  font-size: var(--step--1);
-}
-
-/* The pull request this brief is about, stated once under the section heading. */
-.subject {
-  margin: -0.75rem 0 1.75rem;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-.subject b {
+.table th {
+  text-align: left;
+  padding: 0.625rem 1.25rem;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--paper);
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border);
+  background: var(--background-200);
 }
 
-/* ── verdict ─────────────────────────────────────────────────────────────── */
-.verdict {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.6rem 1.25rem;
-  padding-bottom: 1.4rem;
-  border-bottom: 1px solid var(--rule);
+.table th:last-child,
+.table td:last-child {
+  text-align: right;
 }
 
-.verdict__value {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step-3);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  color: var(--risk);
+.table td {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
 }
 
-.verdict__value--ship {
-  color: var(--ok);
-}
-
-.verdict__value--caveats {
-  color: var(--unmeasured);
-}
-
-.verdict__meta {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  color: var(--faint);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.verdict__headline {
-  margin: 1.4rem 0 0;
-  max-width: 62ch;
-  font-size: var(--step-1);
-  line-height: 1.55;
-}
-
-/* ── dimension cards ─────────────────────────────────────────────────────── */
-.dims {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
-  gap: 1px;
-  margin-top: 2rem;
-  background: var(--rule);
-  border: 1px solid var(--rule);
-}
-
-.dim {
-  background: var(--ink-2);
-  padding: 1.4rem 1.35rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.dim__top {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.dim__glyph {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step-1);
-  line-height: 1;
-}
-
-.dim__name {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.dim__status {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step-2);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-
-.dim__rationale {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--step--1);
-  line-height: 1.6;
-}
-
-.dim--risk .dim__glyph,
-.dim--risk .dim__status {
-  color: var(--risk);
-}
-
-.dim--acceptable .dim__glyph,
-.dim--acceptable .dim__status {
-  color: var(--ok);
-}
-
-.dim--unmeasured .dim__glyph,
-.dim--unmeasured .dim__status {
-  color: var(--unmeasured);
-}
-
-.dim__metrics {
-  /* Pushed to the bottom so the figures line up across cards of unequal prose. */
-  margin: auto 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  border-top: 1px solid var(--rule);
-  padding-top: 0.9rem;
-}
-
-.dim__metric {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  color: var(--muted);
-}
-
-.dim__metric b {
-  font-weight: 500;
-  color: var(--paper);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── the bill: an itemised ledger ────────────────────────────────────────── */
-.ledger {
-  margin: 0;
-  border-top: 1px solid var(--rule-bright);
-}
-
-.ledger__row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.6rem 1.5rem;
-  align-items: baseline;
-  padding-block: 0.85rem;
-  border-bottom: 1px solid var(--rule);
-}
-
-.ledger__label {
-  font-size: var(--step-0);
-}
-
-.ledger__detail {
-  grid-column: 1 / -1;
-  margin: 0.3rem 0 0;
-  color: var(--faint);
-  font-size: var(--step--1);
-  font-family: var(--font-mono), ui-monospace, monospace;
-  line-height: 1.6;
-  max-width: 78ch;
-}
-
-.ledger__amount {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  font-size: var(--step-1);
-  color: var(--paper);
-}
-
-.ledger__row--total {
+.table tbody tr:last-child td {
   border-bottom: none;
-  border-top: 1px solid var(--rule-bright);
-  padding-top: 1.1rem;
-  margin-top: 0.4rem;
 }
 
-.ledger__row--total .ledger__label {
+.table__detail {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-tertiary);
+  font-size: 12px;
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--muted);
+  line-height: 1.6;
 }
 
-.ledger__row--total .ledger__amount {
-  font-size: var(--step-2);
-  color: var(--ok);
+.table__amount {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.ledger__share {
-  margin: 1.1rem 0 0;
-  color: var(--muted);
-  font-size: var(--step--1);
+.table__total td {
+  border-top: 1px solid var(--border-strong);
+  border-bottom: none;
+  font-weight: 500;
 }
 
-/* ── remediations ────────────────────────────────────────────────────────── */
-.fixes {
-  display: grid;
-  gap: 1px;
-  background: var(--rule);
-  border: 1px solid var(--rule);
+.table__total .table__amount {
+  font-size: 16px;
 }
 
-.fix {
-  background: var(--ink-2);
-  padding: 1.5rem 1.4rem;
+/* ── fixes ───────────────────────────────────────────────────────────────── */
+.fix + .fix {
+  border-top: 1px solid var(--border);
 }
 
-.fix__top {
+.fix__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem 1rem;
 }
 
 .fix__title {
   margin: 0;
-  font-size: var(--step-1);
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
-.fix__tag {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--faint);
-  border: 1px solid var(--rule-bright);
-  padding: 0.2rem 0.55rem;
-  border-radius: 2px;
-}
-
-.fix__tag--patch {
-  color: var(--ok);
-  border-color: color-mix(in oklab, var(--ok) 45%, transparent);
-}
-
-.fix__rationale {
-  margin: 0.8rem 0 0;
-  color: var(--muted);
-  max-width: 72ch;
+.fix__why {
+  margin: 0.5rem 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  max-width: 76ch;
 }
 
 .fix__steps {
-  margin: 1.1rem 0 0;
+  margin: 0.875rem 0 0;
   padding-left: 1.1rem;
-  color: var(--paper);
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  font-size: var(--step--1);
+  gap: 0.35rem;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .fix__steps li::marker {
-  color: var(--faint);
+  color: var(--text-tertiary);
 }
 
 .fix__patch {
-  margin: 1.2rem 0 0;
-  padding: 0.9rem 1rem;
-  background: var(--ink);
-  border: 1px solid var(--rule);
-  overflow-x: auto;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  line-height: 1.7;
-}
-
-.fix__patch b {
-  font-weight: 400;
-  color: var(--ok);
-}
-
-.fix__patch i {
-  font-style: normal;
-  color: var(--minus);
-}
-
-.fix__patch span {
-  color: var(--faint);
-}
-
-/* ── how it works ────────────────────────────────────────────────────────── */
-.flow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 1.75rem;
-}
-
-.flow__step {
-  border-top: 1px solid var(--rule-bright);
-  padding-top: 0.9rem;
-}
-
-.flow__label {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--risk);
-  margin: 0 0 0.5rem;
-}
-
-.flow__body {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--step--1);
-  line-height: 1.65;
+  margin-top: 1rem;
 }
 
 /* ── sources ─────────────────────────────────────────────────────────────── */
 .sources {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 0.5rem 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0 1.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.sources__item {
+.sources__row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid var(--rule);
   padding-block: 0.6rem;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: var(--step--1);
-  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .sources__state {
-  color: var(--ok);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
-.sources__state--miss {
-  color: var(--unmeasured);
+/* ── steps ───────────────────────────────────────────────────────────────── */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1.5rem;
+}
+
+.steps__label {
+  margin: 0 0 0.4rem;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.steps__body {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 /* ── footer ──────────────────────────────────────────────────────────────── */
 .foot {
-  border-top: 1px solid var(--rule);
-  padding-block: 2rem 3rem;
-  color: var(--faint);
-  font-size: var(--step--1);
+  border-top: 1px solid var(--border);
+  padding-block: 1.5rem 2.5rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem 1.5rem;
+  gap: 0.5rem 1.5rem;
   justify-content: space-between;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.foot a {
+  color: var(--text-secondary);
+}
+
+/*
+ * Below this the diff line is wider than the block, and `margin-left: auto` measures
+ * the visible width rather than the scrolled one, which lands the badge on top of the
+ * code. It moves under the line instead.
+ */
+@media (max-width: 720px) {
+  /* Column direction, so the badge is below the line by construction rather than by
+     whatever the flex algorithm decides about an element that cannot wrap. */
+  .code__row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    padding-block: 0.3rem;
+  }
+
+  .code__line {
+    width: 100%;
+  }
+
+  .code__cost {
+    margin-left: 2ch;
+  }
 }
 
 @media (max-width: 640px) {
-  .diff__row {
-    grid-template-columns: 1.1em minmax(0, 1fr);
+  .page-head__title {
+    font-size: 24px;
   }
 
-  .diff__price {
-    grid-column: 2;
-    justify-self: start;
+  /* The repository is context, not identity. It yields before anything else. */
+  .crumbs__item--repo,
+  .crumbs__sep--repo {
+    display: none;
+  }
+
+  .code__cost {
+    animation: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diff__price {
+  .code__cost {
     animation: none;
   }
 

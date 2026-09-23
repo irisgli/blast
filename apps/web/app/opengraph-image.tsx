@@ -3,15 +3,12 @@ import { allSurfaceUsage, estimateMonthlyCost, loadFixtureChangeProfile } from "
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt =
-  "A cache directive changing from s-maxage=3600 to s-maxage=300, priced at the monthly cost it adds";
+export const alt = "A cache directive change, priced at the monthly cost it adds";
 
 /**
- * The share card is the hero, at the same weight.
- *
- * A link to this lands in a channel with no surrounding page, so the card has to carry
- * the whole argument: the line, and what the line costs. The figure is computed from
- * the fixtures rather than written in, for the same reason the page's is.
+ * The share card carries the argument on its own, because a link lands somewhere with
+ * no surrounding page. The figure is computed from the fixtures for the same reason the
+ * page's is: two places showing different numbers is worse than one showing none.
  */
 export default async function Image() {
   const change = loadFixtureChangeProfile();
@@ -31,50 +28,53 @@ export default async function Image() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
-          background: "#0b0e14",
-          color: "#e9e7e2",
-          padding: "0 84px",
-          fontFamily: "monospace",
+          justifyContent: "space-between",
+          background: "#000000",
+          color: "#ededed",
+          padding: "72px 80px",
         }}
       >
-        <div style={{ display: "flex", fontSize: 26, color: "#848c9b", marginBottom: 46 }}>
-          {directive?.file ?? "app/products/[slug]/page.tsx"}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 24, color: "#a1a1a1" }}>
+          <svg width="26" height="23" viewBox="0 0 18 16" fill="none">
+            <path d="M9 0L18 16H0L9 0Z" fill="#ededed" />
+          </svg>
+          <span>blast</span>
+          <span style={{ color: "#454545" }}>/</span>
+          <span>Impact</span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 28, color: "#c96f6f", fontSize: 46 }}>
-          <span style={{ color: "#5b6373" }}>−</span>
-          <span>&quot;Cache-Control&quot;: &quot;{directive?.from ?? "s-maxage=3600"}&quot;</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", fontSize: 22, color: "#7d7d7d" }}>
+            {directive?.file ?? "app/products/[slug]/page.tsx"}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 40 }}>
+            <span style={{ color: "#ff6369" }}>−</span>
+            <span style={{ color: "#a1a1a1" }}>
+              &quot;Cache-Control&quot;: &quot;{directive?.from ?? "s-maxage=3600"}&quot;
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 40 }}>
+            <span style={{ color: "#62c073" }}>+</span>
+            <span>&quot;Cache-Control&quot;: &quot;{directive?.to ?? "s-maxage=300"}&quot;</span>
+            <span
+              style={{
+                display: "flex",
+                marginLeft: 12,
+                padding: "8px 18px",
+                borderRadius: 999,
+                border: "1px solid #4a3410",
+                background: "#251e11",
+                color: "#f1a10d",
+                fontSize: 28,
+              }}
+            >
+              +${(driver?.usd ?? 298.66).toFixed(2)}/mo
+            </span>
+          </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 28,
-            color: "#7fa687",
-            fontSize: 46,
-            marginTop: 20,
-          }}
-        >
-          <span style={{ color: "#5b6373" }}>+</span>
-          <span>&quot;Cache-Control&quot;: &quot;{directive?.to ?? "s-maxage=300"}&quot;</span>
-          <span style={{ color: "#e8a33d", fontSize: 40, marginLeft: 16 }}>
-            +${(driver?.usd ?? 298.66).toFixed(2)}/mo
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            marginTop: 62,
-            paddingTop: 34,
-            borderTop: "1px solid #1e2532",
-            fontSize: 30,
-            color: "#9aa1ae",
-          }}
-        >
-          blast — what a pull request costs, and whether you&apos;ll know if it worked
+        <div style={{ display: "flex", fontSize: 26, color: "#a1a1a1" }}>
+          What a pull request costs, and whether you&apos;ll know if it worked.
         </div>
       </div>
     ),

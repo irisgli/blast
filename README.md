@@ -38,9 +38,11 @@ pnpm install
 pnpm --filter @blast/web dev
 ```
 
-The surface on `localhost:3100` renders a brief for the sample pull request. It needs
-no credentials: the verdict, the bill, and the remediations are deterministic code over
-the fixtures, computed when the page loads.
+The surface on `localhost:3100` renders a brief for the sample pull request, in
+[Geist](https://vercel.com/geist/introduction) and built the way the product would ship:
+a tab on a deployment, not a landing page. It needs no credentials — the verdict, the
+bill, and the fixes are deterministic code over the fixtures, computed when the page
+loads.
 
 For the agent itself:
 
