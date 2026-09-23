@@ -1,7 +1,6 @@
-import { assess } from "@blast/core";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { buildBrief, collectEvidence, renderBrief } from "@blast/brief";
+import { produceBrief } from "@blast/brief";
 import { changeProfileSchema } from "../lib/schemas.js";
 
 /**
@@ -23,34 +22,47 @@ export default defineTool({
       .describe(
         "Two or three sentences naming the largest risk and why it matters here, or stating plainly that there is none. Written for someone deciding whether to merge.",
       ),
+    /**
+     * Keyed by dimension, because the brief is. An earlier version took `conversion`
+     * here and the brief read `measurability`, so every watch list the model wrote was
+     * accepted, validated, and dropped — the one shape of bug a schema is supposed to
+     * prevent, arriving because the schema and its consumer disagreed on a name.
+     */
     watchAfterShip: z
       .object({
         performance: z.array(z.string()).default([]),
         cost: z.array(z.string()).default([]),
-        conversion: z.array(z.string()).default([]),
+        measurability: z.array(z.string()).default([]),
       })
-      .describe("Specific metrics to watch once live. Required for any dimension that is not clean."),
+      .describe(
+        "Specific metrics to watch once live, keyed by dimension. Required for any dimension that is not clean.",
+      ),
   }),
   label: {
     start: ({ profile }) => `Render brief for ${profile.ref.id}`,
   },
   async execute({ profile, headline, watchAfterShip }) {
-    const evidence = await collectEvidence(profile);
-    const assessment = assess({ findings: evidence.findings, context: evidence.context });
+    const produced = await produceBrief({ profile, headline, watchAfterShip });
+    if (!produced.ok) {
+      return {
+        ok: false as const,
+        reason: produced.reason,
+        detail: produced.detail,
+      };
+    }
 
-    const brief = buildBrief({
-      profile,
-      assessment,
-      findings: evidence.findings,
-      watchAfterShip,
-      headline,
-      sources: evidence.sources,
-    });
-
+    const { brief, markdown } = produced.value;
     return {
+      ok: true as const,
       verdict: brief.verdict,
       confidence: brief.confidence,
-      markdown: renderBrief(brief),
+      digest: brief.digest,
+      budgets: {
+        origin: brief.policy.origin,
+        path: brief.policy.path,
+        overrides: brief.policy.overrides,
+      },
+      markdown,
       brief,
     };
   },

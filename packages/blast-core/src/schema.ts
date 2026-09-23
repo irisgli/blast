@@ -8,10 +8,17 @@
  * than no brief at all.
  */
 
+import type { ChangeRef } from "./change-profile.js";
+import type { Policy } from "./policy.js";
+
 /** The three questions a brief answers. */
 export type Dimension = "performance" | "cost" | "measurability";
 
-export const DIMENSIONS = ["performance", "cost", "measurability"] as const satisfies readonly Dimension[];
+export const DIMENSIONS = [
+  "performance",
+  "cost",
+  "measurability",
+] as const satisfies readonly Dimension[];
 
 /**
  * How a number was arrived at.
@@ -60,67 +67,6 @@ export const METRIC = {
 } as const;
 
 export type MetricId = (typeof METRIC)[keyof typeof METRIC];
-
-export interface ChangeRef {
-  kind: "pr" | "branch";
-  id: string;
-  base: string;
-  head: string;
-}
-
-/** A route or page the change touches. Adapters key their data on `id`. */
-export interface Surface {
-  id: string;
-  label: string;
-}
-
-export interface Dependency {
-  name: string;
-  version: string;
-  /** Minified client bytes the dependency adds, or null when no build manifest exists. */
-  bytes: number | null;
-}
-
-export interface Endpoint {
-  path: string;
-  method: string;
-  runtime: "edge" | "node";
-}
-
-export interface QueryShape {
-  table: string;
-  kind: "read" | "write";
-  /** Expected executions per request of the surface that issues it. */
-  perRequest: number;
-  indexed: boolean;
-}
-
-export interface CacheChange {
-  surface: string;
-  from: string;
-  to: string;
-  /** The file the directive lives in, when the diff identified one. */
-  file: string | null;
-}
-
-/**
- * What the change is, in the terms the subagents reason about. Produced by
- * `read_change` and the only thing a subagent sees besides the intent line.
- */
-export interface ChangeProfile {
-  ref: ChangeRef;
-  /** One line of user-facing intent. Diffs describe what moved, not what it is for. */
-  intent: string;
-  surfaces: Surface[];
-  /** Total client JS delta in bytes, or null when no build manifest is available. */
-  clientBytesDelta: number | null;
-  dependenciesAdded: Dependency[];
-  endpointsAdded: Endpoint[];
-  queriesAdded: QueryShape[];
-  cacheDirectivesChanged: CacheChange[];
-  filesChanged: number;
-  linesChanged: { added: number; removed: number };
-}
 
 export interface Measure {
   value: number;
@@ -179,6 +125,10 @@ export interface SourceStatus {
   state: SourceState;
   freshness: string | null;
   detail: string | null;
+  /** True when backed by checked-in fixtures rather than a live system. */
+  fixture: boolean;
+  /** Wall time the source took to answer, in ms. Null when it was never called. */
+  durationMs: number | null;
 }
 
 export interface ImpactBrief {
@@ -193,4 +143,12 @@ export interface ImpactBrief {
   assumptions: string[];
   /** Every source consulted, including the ones that had nothing. */
   sources: SourceStatus[];
+  /** The budgets this verdict was measured against, and where they came from. */
+  policy: Policy;
+  /**
+   * A stable fingerprint of the inputs and the verdict. Two briefs with the same digest
+   * are the same brief: it is how the determinism this tool claims is checked rather
+   * than asserted, and it is what a reader quotes when a verdict is disputed.
+   */
+  digest: string;
 }

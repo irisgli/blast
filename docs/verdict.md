@@ -1,9 +1,10 @@
 # Verdict model
 
-Every threshold in `blast` is a pure function over findings, in
-[`packages/blast-core/src/verdict.ts`](../packages/blast-core/src/verdict.ts). The model
-gathers evidence and writes the narrative; it does not weigh dimensions or pick a
-verdict.
+Every rule in `blast` is a pure function over findings, in
+[`packages/blast-core/src/verdict.ts`](../packages/blast-core/src/verdict.ts), and every
+budget those rules compare against is data, in
+[`policy.ts`](../packages/blast-core/src/policy.ts). The model gathers evidence and writes
+the narrative; it does not weigh dimensions or pick a verdict.
 
 This is not a style preference. A verdict re-derived by a model each run can change
 while its inputs stay still, and a recommendation that moves without its evidence
@@ -69,8 +70,61 @@ acceptable. A `risk` dimension takes its confidence from the single finding that
 breached, not the floor across the dimension: a measured regression reported alongside
 an unrelated assumed number is still a measured regression.
 
+## Budgets
+
+The rules are fixed. The numbers they compare against are a decision, and a repository
+makes its own in `blast.json` at its root:
+
+```json
+{
+  "budgets": {
+    "monthlyCostDeltaUsd": 150,
+    "lcpDeltaMs": 100,
+    "clientJsDeltaBytes": 10240
+  }
+}
+```
+
+Every key is optional and every one is bounded. What is absent keeps its default, so the
+file says only what the team decided. Unknown keys are rejected rather than ignored: a
+team that wrote `monthlyCostUsd`, got the $500 default, and cleared a change they meant
+to catch has been failed by the tool in the least visible way available.
+
+The defaults are documented in the table above and are a starting point, not a
+recommendation. A marketing page and a checkout flow do not deserve the same allowance,
+and a tool that cannot be told the difference gets argued with once and then ignored.
+
+Every brief states the budgets it applied and where they came from. A threshold a reader
+cannot see is indistinguishable from one the model invented.
+
+**A policy file that cannot be read fails the run.** Not valid JSON, an unknown key, a
+ceiling of zero: each stops the brief. Falling back to the defaults would apply budgets
+nobody chose to a change somebody is about to merge, and the brief would look exactly
+like a working one. `BLAST_POLICY` names a path explicitly, and a path named explicitly
+and missing is broken configuration rather than an absent policy.
+
+The search walks up from the working directory, because the agent may be invoked inside a
+package while the policy belongs to the repository.
+
+## The digest
+
+Every brief ends with a 16-character fingerprint over the change, the evidence, the
+budgets, and the verdict:
+
+```text
+`5f3c1a9e7d20b481` · same digest, same assessment.
+```
+
+What is deliberately outside it: the timestamp, how long each source took, and the
+model's narrative. All three are allowed to vary between runs of an unchanged change, and
+a digest that moved with the prose could not distinguish a re-run from a real difference —
+the only thing it is for. A basis promoted from `modeled` to `measured` moves it, which is
+the edit it most exists to catch.
+
+It is a fingerprint, not a signature. It detects drift; it does not prove authorship.
+
 ## Changing a threshold
 
-A one-line change here reclassifies briefs across the board. Changes to `verdict.ts`
-require a unit test on both sides of the moved boundary and a note in the pull request
-describing which briefs change classification.
+A one-line change here reclassifies briefs across the board. Changes to `verdict.ts` or
+to the defaults in `policy.ts` require a unit test on both sides of the moved boundary and
+a note in the pull request describing which briefs change classification.

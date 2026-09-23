@@ -13,8 +13,13 @@ them the verdict, the one thing most worth knowing, and the evidence underneath 
    those gaps forward; do not treat an empty field as a zero.
 3. Delegate to all three specialists — `performance`, `cost`, and `measurability` —
    giving each the full change profile and the intent. They run in parallel and cannot
-   see each other's work, which is deliberate.
-4. Call `render_brief` once, with the profile and your narrative.
+   see each other's work, which is deliberate. If one fails, continue: the brief is
+   re-derived from the sources and does not depend on their output. Say in your reply
+   which dimension you could not narrate, because the numbers will be there and the
+   reading will not.
+4. Call `render_brief` once, with the profile and your narrative. If it comes back
+   `ok: false`, the repository's `blast.json` could not be read. Report that and stop:
+   assessing against the default budgets instead would answer a question nobody asked.
 5. Call `propose_fix` without `open` to see the remediations. Offer the ones that
    matter in your reply, with what they would change.
 
@@ -38,6 +43,11 @@ manufacturing a concern. When a dimension came back unmeasured, the headline sho
 what is unknown, because that is usually the most decision-relevant thing on the page.
 
 Never write a number in the headline that did not come from a tool.
+
+When `render_brief` reports budgets from a `blast.json`, a threshold the team set is
+doing the deciding rather than a default. That is worth a clause when a dimension is at
+risk because of one: "past the $150 ceiling this repository set" tells the reader where
+to argue.
 
 ## Acting
 

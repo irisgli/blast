@@ -63,6 +63,13 @@ fraction of it. It carries its own metric and its own caveat, and the build mani
 remains the only source of payload truth. Labelling it `client_js_bytes` would overstate
 `embla-carousel-react` by roughly fourfold.
 
+It asks for up to five packages at once and keeps what it resolved: a source that
+answered for four of five answered, and discarding measured data over an unrelated gap
+would be the substitution this tool exists to avoid. The gap is already a value — it is
+in `missing`, with its reason. A 429 stops the remaining requests, because spending them
+earns a longer limit rather than an answer, and the failure carries the registry's own
+`Retry-After` when it sent one.
+
 It is registered and reachable through `run_adapter`, and `collectEvidence` does not
 call it. That path must produce the same brief twice for the same change, and a source
 whose answer depends on when it was asked cannot be part of that. A live source belongs

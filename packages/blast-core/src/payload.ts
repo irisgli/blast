@@ -1,4 +1,4 @@
-import type { Dependency } from "./schema.js";
+import type { Dependency } from "./change-profile.js";
 
 /**
  * Attributes a measured client payload delta to the dependencies a change added.

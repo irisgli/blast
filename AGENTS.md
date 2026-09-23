@@ -29,10 +29,17 @@ Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headi
 These are the rules that make the output trustworthy. Breaking one is never a
 refactor; it changes what the tool means.
 
-**The model never decides the verdict.** Thresholds live in
-`packages/blast-core/src/verdict.ts` as pure functions over `Finding[]`. If you find
-yourself asking the model to weigh dimensions or pick a verdict, the logic belongs in
-that file instead. A verdict re-derived per run drifts on identical input.
+**The model never decides the verdict.** The rules live in
+`packages/blast-core/src/verdict.ts` as pure functions over `Finding[]`, and the budgets
+they compare against live in `packages/blast-core/src/policy.ts`. If you find yourself
+asking the model to weigh dimensions or pick a verdict, the logic belongs in those files
+instead. A verdict re-derived per run drifts on identical input.
+
+**Budgets are data, and a brief names the ones it applied.** A repository sets its own in
+`blast.json`, validated by `policyFileSchema`. A policy file that cannot be read fails
+the run; it never falls back to the defaults, because budgets nobody chose produce
+verdicts nobody chose and the run would look ordinary. Every brief carries a digest over
+its inputs and its verdict, so two briefs can be compared without re-running either.
 
 **Every number carries a basis.** `measured`, `modeled`, or `assumed`. Never promote a
 basis to make a brief read better. A modeled number presented as measured is the single
@@ -52,9 +59,16 @@ what a change will do to a funnel.
 the web surface both call. A page that reimplemented any of it would drift from what a
 brief in a pull request says, which is the one thing that has to stay true.
 
-**Remediations are derived, not composed.** `agent/lib/remediation.ts` builds them from
-the same evidence that produced the findings. A model-authored fix can drift from what
-the brief said; a derived one cannot.
+**Remediations are derived, not composed.**
+`packages/blast-brief/src/remediation.ts` builds them from the same evidence that
+produced the findings. A model-authored fix can drift from what the brief said; a derived
+one cannot.
+
+**Every caller drives the engine through `produceBrief`.** Collect, assess, build,
+render, derive the fixes, in that order, in `packages/blast-brief/src/produce.ts`. The
+agent's tools, the web surface, and the HTTP API all call it. Three copies of that
+sequence would let a page assess a change against different budgets than a comment on the
+same pull request, and both would look right.
 
 **Every outward side effect requires approval on every call.** `post_comment` and
 `propose_fix` use `always()` from `eve/tools/approval`. Do not add a write path that

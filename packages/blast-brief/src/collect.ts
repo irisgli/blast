@@ -28,7 +28,14 @@ import type {
   FunnelResult,
   PowerFinding,
 } from "@blast/adapters";
-import type { AnyAdapter, ChangeProfile, Finding, Result, SourceStatus, VerdictContext } from "@blast/core";
+import type {
+  AnyAdapter,
+  ChangeProfile,
+  Finding,
+  Result,
+  SourceStatus,
+  VerdictContext,
+} from "@blast/core";
 
 /**
  * Gathers every piece of evidence for a change, in code.
@@ -60,7 +67,7 @@ export interface Evidence {
   power: PowerFinding[];
 }
 
-function statusOf(adapter: AnyAdapter, result: Result<unknown>): SourceStatus {
+function statusOf(adapter: AnyAdapter, result: Result<unknown>, durationMs: number): SourceStatus {
   const info = adapter.describe();
   return {
     id: info.id,
@@ -69,7 +76,28 @@ function statusOf(adapter: AnyAdapter, result: Result<unknown>): SourceStatus {
     state: result.ok ? "ok" : result.reason,
     freshness: result.ok ? result.freshness : null,
     detail: result.ok ? null : result.detail,
+    fixture: info.fixture,
+    durationMs,
   };
+}
+
+/**
+ * Times a source and returns its result beside the status the brief reports.
+ *
+ * Fixtures answer in under a millisecond, so on this path the number is nearly noise.
+ * It exists for the path this is built to reach: once a dimension moves to live
+ * telemetry, the first question about a slow or empty brief is which source was slow or
+ * empty, and that answer has to come from the brief rather than from a log nobody
+ * kept.
+ */
+async function timed<T>(
+  adapter: AnyAdapter,
+  fetch: () => Promise<Result<T>>,
+): Promise<{ result: Result<T>; status: SourceStatus }> {
+  const started = performance.now();
+  const result = await fetch();
+  const durationMs = performance.now() - started;
+  return { result, status: statusOf(adapter, result, durationMs) };
 }
 
 export async function collectEvidence(profile: ChangeProfile): Promise<Evidence> {
@@ -84,25 +112,55 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
   const estimate =
     allUsage === null ? null : estimateMonthlyCost({ profile, usage: allUsage.surfaces });
 
-  const speed = await speedInsightsAdapter.fetch({ surfaces });
-  sources.push(statusOf(speedInsightsAdapter, speed));
-  if (speed.ok) findings.push(...speedInsightsFindings(speed.value));
+  /**
+   * Every source is started before any is awaited.
+   *
+   * None of them needs another's answer — the two derivations that combine sources,
+   * power and coverage, run over results rather than during the fetches. Awaiting them
+   * one at a time cost the sum of their latencies for no ordering benefit, which is
+   * invisible against checked-in fixtures and is the whole latency budget once a
+   * dimension moves to live telemetry.
+   *
+   * The results are then consumed in a fixed order, so findings and sources land in the
+   * same positions on every run whatever order the network answered in. A brief whose
+   * table rows shuffled between runs would read as a changed brief.
+   */
+  const speedCall = timed(speedInsightsAdapter, () => speedInsightsAdapter.fetch({ surfaces }));
+  const buildCall = timed(buildManifestAdapter, () => buildManifestAdapter.fetch({ surfaces }));
+  const serverCall =
+    endpoints.length === 0
+      ? null
+      : timed(serverTimingAdapter, () => serverTimingAdapter.fetch({ endpoints }));
+  const billingCall =
+    estimate === null || estimate.touchedServices.length === 0
+      ? null
+      : timed(billingAdapter, () => billingAdapter.fetch({ services: estimate.touchedServices }));
+  const accuracyCall = timed(estimateHistoryAdapter, () => estimateHistoryAdapter.fetch({}));
+  const funnelCall = timed(funnelAdapter, () => funnelAdapter.fetch({ surfaces }));
+  const historyCall = timed(featureHistoryAdapter, () => featureHistoryAdapter.fetch({ surfaces }));
+  const instrumentationCall = timed(instrumentationAdapter, () =>
+    instrumentationAdapter.fetch({ surfaces }),
+  );
 
-  const build = await buildManifestAdapter.fetch({ surfaces });
-  sources.push(statusOf(buildManifestAdapter, build));
-  if (build.ok) findings.push(...buildManifestFindings(build.value));
+  const speed = await speedCall;
+  sources.push(speed.status);
+  if (speed.result.ok) findings.push(...speedInsightsFindings(speed.result.value));
 
-  if (endpoints.length > 0) {
-    const server = await serverTimingAdapter.fetch({ endpoints });
-    sources.push(statusOf(serverTimingAdapter, server));
-    if (server.ok) findings.push(...serverTimingFindings(server.value));
+  const build = await buildCall;
+  sources.push(build.status);
+  if (build.result.ok) findings.push(...buildManifestFindings(build.result.value));
+
+  if (serverCall !== null) {
+    const server = await serverCall;
+    sources.push(server.status);
+    if (server.result.ok) findings.push(...serverTimingFindings(server.result.value));
   }
 
   let billing: BillingResult | null = null;
-  if (estimate !== null && estimate.touchedServices.length > 0) {
-    const result = await billingAdapter.fetch({ services: estimate.touchedServices });
-    sources.push(statusOf(billingAdapter, result));
-    if (result.ok) billing = result.value;
+  if (billingCall !== null) {
+    const result = await billingCall;
+    sources.push(result.status);
+    if (result.result.ok) billing = result.result.value;
   }
 
   // A zero-dollar estimate is still an answer; only an unreadable usage feed is not.
@@ -110,32 +168,36 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
 
   // How far past estimates missed. It says nothing about this change and everything
   // about how much weight the figure above deserves.
-  const accuracy = await estimateHistoryAdapter.fetch({});
-  sources.push(statusOf(estimateHistoryAdapter, accuracy));
-  if (accuracy.ok) findings.push(...estimateAccuracyFindings(accuracy.value));
+  const accuracy = await accuracyCall;
+  sources.push(accuracy.status);
+  if (accuracy.result.ok) findings.push(...estimateAccuracyFindings(accuracy.result.value));
   const estimateAccuracy =
-    accuracy.ok && accuracy.value.medianErrorPct !== null
-      ? { medianPct: accuracy.value.medianErrorPct, records: accuracy.value.records.length }
+    accuracy.result.ok && accuracy.result.value.medianErrorPct !== null
+      ? {
+          medianPct: accuracy.result.value.medianErrorPct,
+          records: accuracy.result.value.records.length,
+        }
       : null;
 
-  const funnelResult = await funnelAdapter.fetch({ surfaces });
-  sources.push(statusOf(funnelAdapter, funnelResult));
-  const funnel: FunnelResult | null = funnelResult.ok ? funnelResult.value : null;
+  const funnelCalled = await funnelCall;
+  sources.push(funnelCalled.status);
+  const funnel: FunnelResult | null = funnelCalled.result.ok ? funnelCalled.result.value : null;
   if (funnel !== null) findings.push(...funnelFindings(funnel));
 
-  const historyResult = await featureHistoryAdapter.fetch({ surfaces });
-  sources.push(statusOf(featureHistoryAdapter, historyResult));
-  const history: FeatureHistoryResult | null = historyResult.ok ? historyResult.value : null;
+  const historyCalled = await historyCall;
+  sources.push(historyCalled.status);
+  const history: FeatureHistoryResult | null = historyCalled.result.ok
+    ? historyCalled.result.value
+    : null;
 
-  const power =
-    funnel === null ? { findings: [], bySurface: [] } : powerFindings(funnel, history);
+  const power = funnel === null ? { findings: [], bySurface: [] } : powerFindings(funnel, history);
   findings.push(...power.findings);
 
   const measurableSurfaces = funnel?.matched.map((step) => step.surface) ?? [];
-  const instrumentation = await instrumentationAdapter.fetch({ surfaces });
-  sources.push(statusOf(instrumentationAdapter, instrumentation));
-  const coverage = instrumentation.ok
-    ? coverageFindings(instrumentation.value, featureKey, measurableSurfaces)
+  const instrumentation = await instrumentationCall;
+  sources.push(instrumentation.status);
+  const coverage = instrumentation.result.ok
+    ? coverageFindings(instrumentation.result.value, featureKey, measurableSurfaces)
     : { findings: [], bySurface: [] };
   findings.push(...coverage.findings);
 

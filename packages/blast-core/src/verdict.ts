@@ -1,10 +1,6 @@
-import type {
-  Confidence,
-  Dimension,
-  DimensionStatus,
-  Finding,
-  Verdict,
-} from "./schema.js";
+import type { VerdictThresholds } from "./policy.js";
+import { DEFAULT_THRESHOLDS } from "./policy.js";
+import type { Confidence, Dimension, DimensionStatus, Finding, Verdict } from "./schema.js";
 import { DIMENSIONS, METRIC } from "./schema.js";
 
 /**
@@ -17,32 +13,13 @@ import { DIMENSIONS, METRIC } from "./schema.js";
  * which is where a threshold is worth arguing about.
  */
 
-export interface VerdictThresholds {
-  /** Largest p75 LCP regression, in ms, that is not a risk on its own. */
-  lcpDeltaMs: number;
-  /** Absolute p75 LCP ceiling, in ms. Crossing it is a risk regardless of delta. */
-  lcpBudgetMs: number;
-  inpDeltaMs: number;
-  serverP95DeltaMs: number;
-  /** Client JS growth, in bytes, that is a risk on a high-traffic surface. */
-  clientJsDeltaBytes: number;
-  /** Traffic percentile at or above which the client JS rule applies. */
-  topTrafficPercentile: number;
-  monthlyCostDeltaUsd: number;
-  /** Share of current spend on touched services that a delta may not exceed. */
-  monthlyCostDeltaRatio: number;
-}
-
-export const DEFAULT_THRESHOLDS: VerdictThresholds = {
-  lcpDeltaMs: 200,
-  lcpBudgetMs: 2500,
-  inpDeltaMs: 50,
-  serverP95DeltaMs: 100,
-  clientJsDeltaBytes: 25 * 1024,
-  topTrafficPercentile: 0.9,
-  monthlyCostDeltaUsd: 500,
-  monthlyCostDeltaRatio: 0.1,
-};
+/**
+ * Thresholds and their defaults live in `policy.ts`, because a budget is a decision a
+ * team makes and a rule is not. Re-exported here so a reader following a threshold from
+ * a rule finds it without a second import.
+ */
+export type { VerdictThresholds } from "./policy.js";
+export { DEFAULT_THRESHOLDS } from "./policy.js";
 
 /**
  * Facts about the change that the findings themselves do not carry. Assembled by the
@@ -157,7 +134,8 @@ function performanceBreach(
       return null;
     }
     case METRIC.clientJsBytes: {
-      if (finding.delta === null || finding.delta.value <= thresholds.clientJsDeltaBytes) return null;
+      if (finding.delta === null || finding.delta.value <= thresholds.clientJsDeltaBytes)
+        return null;
       if (finding.surface === null) return null;
       const percentile = context.surfaceTrafficPercentile[finding.surface];
       if (percentile === undefined || percentile < thresholds.topTrafficPercentile) return null;
@@ -248,8 +226,7 @@ export function assessCost(
    */
   const straddles = range !== null && range.low <= ceiling && range.high > ceiling;
   const confidence: Confidence = straddles ? "low" : monthly.confidence;
-  const band =
-    range === null ? "" : ` Range $${money(range.low)} to $${money(range.high)}.`;
+  const band = range === null ? "" : ` Range $${money(range.low)} to $${money(range.high)}.`;
   const caveat = straddles
     ? " The range spans the ceiling, so the assumptions decide this rather than the estimate."
     : "";
@@ -299,7 +276,8 @@ export function assessMeasurability(
     return {
       status: "acceptable",
       confidence: "high",
-      rationale: "The change touches no surface carrying a funnel step, so there is nothing to measure.",
+      rationale:
+        "The change touches no surface carrying a funnel step, so there is nothing to measure.",
       triggeredBy: [],
     };
   }
@@ -350,7 +328,9 @@ export function overallVerdict(dimensions: Record<Dimension, DimensionAssessment
  * clean verdict still reports how well grounded it is.
  */
 export function overallConfidence(dimensions: Record<Dimension, DimensionAssessment>): Confidence {
-  const contributing = DIMENSIONS.filter((dimension) => dimensions[dimension].status !== "acceptable");
+  const contributing = DIMENSIONS.filter(
+    (dimension) => dimensions[dimension].status !== "acceptable",
+  );
   const considered = contributing.length > 0 ? contributing : DIMENSIONS;
   return floorConfidence(considered.map((dimension) => dimensions[dimension].confidence));
 }

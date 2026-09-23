@@ -6,10 +6,11 @@ import type {
   Finding,
   ImpactBrief,
   Measure,
+  Policy,
   SourceStatus,
   Verdict,
 } from "@blast/core";
-import { DIMENSIONS, METRIC } from "@blast/core";
+import { briefDigest, DEFAULT_POLICY, describePolicy, DIMENSIONS, METRIC } from "@blast/core";
 
 /**
  * Assembles and renders the brief.
@@ -95,6 +96,8 @@ export interface BriefInput {
   /** Two or three sentences naming the top risk, or its absence. Written by the agent. */
   headline: string;
   sources: readonly SourceStatus[];
+  /** The budgets the assessment applied. Defaults when the repository set none. */
+  policy?: Policy;
   generatedAt?: string;
 }
 
@@ -115,6 +118,8 @@ export function buildBrief(input: BriefInput): ImpactBrief {
     }),
   ) as ImpactBrief["dimensions"];
 
+  const policy = input.policy ?? DEFAULT_POLICY;
+
   return {
     ref: input.profile.ref,
     intent: input.profile.intent,
@@ -125,6 +130,13 @@ export function buildBrief(input: BriefInput): ImpactBrief {
     dimensions,
     assumptions: unique(input.findings.flatMap((finding) => finding.assumptions)),
     sources: [...input.sources],
+    policy,
+    digest: briefDigest({
+      profile: input.profile,
+      findings: input.findings,
+      assessment: input.assessment,
+      policy,
+    }),
   };
 }
 
@@ -142,7 +154,9 @@ function renderFindingsTable(findings: readonly Finding[]): string[] {
         formatMeasure(finding.delta, { signed: true }),
         finding.basis,
         "",
-      ].join(" | ").trim(),
+      ]
+        .join(" | ")
+        .trim(),
     ),
   ];
 }
@@ -178,11 +192,52 @@ export function renderBrief(brief: ImpactBrief): string {
     lines.push("");
   }
 
+  lines.push(...renderBudgets(brief));
+
+  /**
+   * How long a source took is deliberately absent here, though the brief carries it.
+   * This markdown is posted to a pull request, and it has to be byte-identical across
+   * runs of an unchanged change — a comment that edits itself on every re-run is noise,
+   * and a wall-clock reading would guarantee one. Latency belongs where it is acted on:
+   * the API response and the page.
+   */
   lines.push("## Sources", "", "| source | freshness | status |", "| --- | --- | --- |");
   for (const source of brief.sources) {
     lines.push(`| ${source.displayName} | ${source.freshness ?? "—"} | ${source.state} |`);
   }
   lines.push("");
 
+  /**
+   * The digest is the last line because it is the one a reader quotes rather than
+   * reads. Two briefs carrying it can be compared without re-running anything, which is
+   * what makes the determinism above a claim someone can check.
+   */
+  lines.push(`\`${brief.digest}\` · same digest, same assessment.`, "");
+
   return lines.join("\n");
+}
+
+/**
+ * The budgets the verdict was measured against.
+ *
+ * A threshold a reader cannot see is indistinguishable from one the model invented, and
+ * this tool's whole claim is that the numbers are not the model's. Only overridden
+ * budgets are listed when a repository set any: the defaults are documented, and
+ * reprinting all eight on every brief buries the two that were changed.
+ */
+function renderBudgets(brief: ImpactBrief): string[] {
+  const { policy } = brief;
+  if (policy.origin === "defaults") {
+    return ["## Budgets", "", "Default budgets. No `blast.json` set any.", ""];
+  }
+
+  const overridden = describePolicy(policy).filter((budget) => budget.overridden);
+  return [
+    "## Budgets",
+    "",
+    `From \`${policy.path ?? "blast.json"}\`, overriding ${overridden.length} default${overridden.length === 1 ? "" : "s"}:`,
+    "",
+    ...overridden.map((budget) => `- ${budget.label}: ${budget.value}`),
+    "",
+  ];
 }

@@ -1,11 +1,16 @@
-import type { Adapter, AnyAdapter, Dimension, Finding, Result, SourceInfo } from "@blast/core";
+import type { Adapter, Dimension, Finding, Result, SourceInfo } from "@blast/core";
 import {
   featureHistoryAdapter,
   funnelAdapter,
   funnelFindings,
   instrumentationAdapter,
 } from "./measurability.js";
-import { billingAdapter, estimateAccuracyFindings, estimateHistoryAdapter, usageAdapter } from "./cost.js";
+import {
+  billingAdapter,
+  estimateAccuracyFindings,
+  estimateHistoryAdapter,
+  usageAdapter,
+} from "./cost.js";
 import { createNpmRegistryAdapter, packageSizeFindings } from "./live/npm-registry.js";
 import {
   buildManifestAdapter,
@@ -94,18 +99,6 @@ export function createSources(options: RegistryOptions = {}): readonly Source[] 
 }
 
 export const SOURCES: readonly Source[] = createSources();
-
-export const ADAPTERS: readonly AnyAdapter[] = [
-  speedInsightsAdapter,
-  buildManifestAdapter,
-  serverTimingAdapter,
-  billingAdapter,
-  usageAdapter,
-  estimateHistoryAdapter,
-  funnelAdapter,
-  featureHistoryAdapter,
-  instrumentationAdapter,
-] as AnyAdapter[];
 
 export function sourcesFor(dimension: Dimension): readonly Source[] {
   return SOURCES.filter((entry) => entry.dimension === dimension);

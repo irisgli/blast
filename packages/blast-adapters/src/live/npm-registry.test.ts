@@ -121,6 +121,60 @@ describe("the npm registry source", () => {
     expect(seen).toContain("/%40scope/pkg/1.0.0");
   });
 
+  it("keeps the packages it resolved when another request fails outright", async () => {
+    // A source that answered for one of two answered. Discarding measured data over an
+    // unrelated gap would be the substitution this whole tool exists to avoid — and the
+    // gap is already a value, carried in `missing` with its reason.
+    let call = 0;
+    const flaky: typeof globalThis.fetch = async () => {
+      call += 1;
+      if (call === 1) throw new Error("ECONNRESET");
+      return new Response(JSON.stringify({ dist: { unpackedSize: 2048 } }), { status: 200 });
+    };
+
+    const result = await createNpmRegistryAdapter({ fetch: flaky, timeoutMs: 50 }).fetch({
+      dependencies: [{ name: "flaky", version: "1.0.0" }, EMBLA],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.packages).toHaveLength(1);
+    expect(result.value.missing[0]?.reason).toContain("ECONNRESET");
+  });
+
+  it("carries the registry's own retry window when it rate limits", async () => {
+    const limited: typeof globalThis.fetch = async () =>
+      new Response("", { status: 429, headers: { "retry-after": "30" } });
+
+    const result = await createNpmRegistryAdapter({ fetch: limited, timeoutMs: 50 }).fetch({
+      dependencies: [EMBLA],
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    // "Try later" without saying how much later has not said anything.
+    expect(result.detail).toContain("Retry after 30s");
+  });
+
+  it("stops asking once the registry has rate limited it", async () => {
+    // Spending the remaining requests would earn a longer limit, not an answer.
+    let calls = 0;
+    const limited: typeof globalThis.fetch = async () => {
+      calls += 1;
+      return new Response("", { status: 429 });
+    };
+
+    await createNpmRegistryAdapter({ fetch: limited, timeoutMs: 50 }).fetch({
+      dependencies: Array.from({ length: 12 }, (_entry, index) => ({
+        name: `pkg-${index}`,
+        version: "1.0.0",
+      })),
+    });
+
+    // One batch, not twelve requests.
+    expect(calls).toBeLessThanOrEqual(5);
+  });
+
   it("asks for nothing when given nothing", async () => {
     const result = await adapter(respond({})).fetch({ dependencies: [] });
     expect(result.ok).toBe(false);

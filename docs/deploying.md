@@ -57,6 +57,19 @@ authenticator added to that walk. Add one rather than widening these: a session 
 spends model credits, and `none()` on this route means anyone who finds the URL spends
 them.
 
+## The brief endpoint is open
+
+`/api/brief` is not behind that walk. It is a Next.js route handler rather than an agent
+route, and what it does is arithmetic: no model call, no credentials, no secrets. A
+pipeline gating a merge on the verdict needs to reach it without holding a token, which
+is the point — see [HTTP API](./api.md).
+
+Two things to weigh before a deployment that matters. It is still compute, and nothing
+rate limits it; Vercel's firewall is the place to put a limit rather than the handler.
+And the moment a dimension is pointed at live telemetry, this endpoint starts serving
+that telemetry to anyone who finds it. Fixture data makes it safe today; the adapter that
+replaces a fixture is the change that stops it being.
+
 ## The GitHub App
 
 [`agent/channels/github.ts`](../agent/channels/github.ts) reads credentials from the
