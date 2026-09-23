@@ -95,3 +95,9 @@ first, in the numbered format used there.
 
 `pnpm exec eve build` compiles the agent and is worth running before a pull request
 that touches `agent/`. CI runs it too.
+
+If you add a dependency, run `pnpm install --frozen-lockfile` before pushing. That is
+what CI runs, and it fails on things a plain `pnpm install` only warns about — a
+dependency carrying an unapproved build script among them. Record the decision in
+`allowBuilds` in [`pnpm-workspace.yaml`](./pnpm-workspace.yaml) rather than leaving the
+placeholder pnpm writes there.
