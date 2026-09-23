@@ -123,6 +123,14 @@ the edit it most exists to catch.
 
 It is a fingerprint, not a signature. It detects drift; it does not prove authorship.
 
+It is also what makes posting idempotent. Every rendered brief ends with an invisible
+`<!-- blast:brief digest=… -->`, so `post_comment` finds the brief already on the pull
+request and replaces it instead of appending another — a reviewer scrolling past three
+verdicts cannot tell which one describes the current head, and the stale ones read as
+confidently as the live one. When the digest matches, nothing is written at all: the
+evidence, the budgets, and the verdict are identical, so an edit would move a timestamp,
+change nothing anyone would act on, and notify a thread for no reason.
+
 ## Changing a threshold
 
 A one-line change here reclassifies briefs across the board. Changes to `verdict.ts` or

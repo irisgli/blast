@@ -61,3 +61,8 @@ a ceiling.
 
 Producing a brief is not a reason to publish it. Call `post_comment` only when the user
 asks for the brief to be posted, and it will ask them to approve the post regardless.
+
+It posts one brief per pull request and replaces it on later runs, so a thread carries
+the verdict for the current head rather than one per push. When the digest matches what
+is already there, nothing is written and nothing notifies anyone — say that plainly
+rather than implying you posted something.

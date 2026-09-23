@@ -52,6 +52,18 @@ const METRIC_LABEL: Record<string, string> = {
   [METRIC.featureEventCoverage]: "attributable events",
 };
 
+/**
+ * The opening of the HTML comment every rendered brief ends with. Matching on this
+ * prefix is how `post_comment` finds the brief it posted last time.
+ */
+export const BRIEF_MARKER = "<!-- blast:brief";
+
+/** The digest carried by a rendered brief, or null when the text is not one. */
+export function digestOf(markdown: string): string | null {
+  const match = new RegExp(`${BRIEF_MARKER} digest=([0-9a-f]{16}) -->`).exec(markdown);
+  return match?.[1] ?? null;
+}
+
 export function formatMeasure(measure: Measure | null, options: { signed?: boolean } = {}): string {
   if (measure === null) return "—";
   const { value, unit } = measure;
@@ -213,6 +225,15 @@ export function renderBrief(brief: ImpactBrief): string {
    * what makes the determinism above a claim someone can check.
    */
   lines.push(`\`${brief.digest}\` · same digest, same assessment.`, "");
+
+  /**
+   * An invisible marker, so a brief already on a pull request can be found and updated
+   * rather than posted beneath itself. A reviewer scrolling a thread should see one
+   * brief for the current head, not one per push with no way to tell which verdict is
+   * live. The digest rides along so the poster can tell a re-run from a real change
+   * without re-deriving anything.
+   */
+  lines.push(`${BRIEF_MARKER} digest=${brief.digest} -->`, "");
 
   return lines.join("\n");
 }
