@@ -1,4 +1,6 @@
 import type { AnyAdapter, Dimension, SourceInfo } from "@blast/core";
+import { funnelAdapter, featureHistoryAdapter } from "./conversion.js";
+import { billingAdapter, usageAdapter } from "./cost.js";
 import { buildManifestAdapter, serverTimingAdapter, speedInsightsAdapter } from "./performance.js";
 
 /**
@@ -12,6 +14,10 @@ export const ADAPTERS: readonly AnyAdapter[] = [
   speedInsightsAdapter,
   buildManifestAdapter,
   serverTimingAdapter,
+  billingAdapter,
+  usageAdapter,
+  funnelAdapter,
+  featureHistoryAdapter,
 ];
 
 export function adaptersFor(dimension: Dimension): readonly AnyAdapter[] {

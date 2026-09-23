@@ -270,7 +270,7 @@ describe("the documented example", () => {
 
     const result = assess({
       findings,
-      context: context({ touchesFunnel: true, touchedServiceMonthlySpendUsd: 8300 }),
+      context: context({ touchesFunnel: true, touchedServiceMonthlySpendUsd: 9500 }),
     });
 
     expect(result.dimensions.performance.status).toBe("acceptable");

@@ -65,7 +65,7 @@ the only reason this is not a clean ship.
 Budget p75 LCP ≤ 2.5s — within budget, headroom reduced to 260ms.
 
 ## Infrastructure cost  ○
-+$340/mo modeled, 4.1% of current spend on touched services
++$340.40/mo modeled, 3.6% of current spend on touched services
 
 ## User conversion  ◌
 Directional only. Touches PDP→cart, baseline 8.2% conversion.
