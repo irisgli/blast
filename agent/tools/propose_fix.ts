@@ -62,36 +62,74 @@ export default defineTool({
       };
     }
 
-    const branch = `blast/${chosen.id}-${profile.ref.id}`;
+    // The id reaches here as model input and ends up in a git ref.
+    const safeRef = profile.ref.id.replace(/[^A-Za-z0-9._-]/g, "-");
+    const branch = `blast/${chosen.id}-${safeRef}`;
+
+    // Paths the patch touches, so the commit carries those and nothing else.
+    const paths = [...chosen.patch.matchAll(/^\+\+\+ b\/(.+)$/gm)].flatMap((match) =>
+      match[1] === undefined ? [] : [match[1]],
+    );
+    if (paths.length === 0) {
+      return {
+        ok: false as const,
+        detail: `${chosen.id} produced a patch naming no files, so there is nothing to commit.`,
+        remediation: chosen,
+      };
+    }
+
     const scratch = await mkdtemp(join(tmpdir(), "blast-"));
+    const tree = join(scratch, "worktree");
     const patchFile = join(scratch, `${chosen.id}.patch`);
 
+    /**
+     * The work happens in a throwaway worktree, never in the caller's checkout.
+     *
+     * Checking out a branch in place would move whoever invoked this off their own,
+     * and a failure part way through would leave them there with a dirty tree. The
+     * commit names its paths for the same reason: `-a` would sweep up every modified
+     * file the caller happened to have open.
+     */
     try {
       await writeFile(patchFile, chosen.patch, "utf8");
-      await run("git", ["checkout", "-b", branch, profile.ref.head]);
-      await run("git", ["apply", patchFile]);
-      await run("git", ["commit", "-asm", `fix: ${chosen.title}\n\n${chosen.rationale}`]);
-      await run("git", ["push", "-u", "origin", branch]);
-      const { stdout } = await run("gh", [
-        "pr",
-        "create",
-        "--base",
-        profile.ref.head,
-        "--head",
-        branch,
-        "--title",
-        chosen.title,
-        "--body",
-        `${chosen.rationale}\n\n${chosen.steps.map((step) => `- ${step}`).join("\n")}`,
+      await run("git", ["worktree", "add", "-b", branch, tree, profile.ref.head]);
+      await run("git", ["-C", tree, "apply", patchFile]);
+      await run("git", ["-C", tree, "add", "--", ...paths]);
+      await run("git", [
+        "-C",
+        tree,
+        "commit",
+        "-m",
+        `fix: ${chosen.title}`,
+        "-m",
+        chosen.rationale,
       ]);
+      await run("git", ["-C", tree, "push", "-u", "origin", branch]);
+      const { stdout } = await run(
+        "gh",
+        [
+          "pr",
+          "create",
+          "--base",
+          profile.ref.head,
+          "--head",
+          branch,
+          "--title",
+          chosen.title,
+          "--body",
+          `${chosen.rationale}\n\n${chosen.steps.map((step) => `- ${step}`).join("\n")}`,
+        ],
+        { cwd: tree },
+      );
       return { ok: true as const, url: stdout.trim(), remediation: chosen };
     } catch (error) {
       return {
         ok: false as const,
-        detail: `Could not open the pull request: ${error instanceof Error ? error.message : String(error)}. Nothing was merged; report the steps instead.`,
+        detail: `Could not open the pull request: ${error instanceof Error ? error.message : String(error)}. Nothing was committed to your checkout, which was never touched.`,
         remediation: chosen,
       };
     } finally {
+      await run("git", ["worktree", "remove", "--force", tree]).catch(() => undefined);
       await rm(scratch, { recursive: true, force: true });
     }
   },
