@@ -18,6 +18,7 @@ function context(overrides: Partial<VerdictContext> = {}): VerdictContext {
   return {
     surfaceTrafficPercentile: { [PDP]: 0.97 },
     touchedServiceMonthlySpendUsd: null,
+    costRangeUsd: null,
     measurableSurfaces: [],
     surfacesMissingFeatureEvents: [],
     underpoweredSurfaces: [],
@@ -132,6 +133,29 @@ describe("cost thresholds", () => {
     const ctx = context({ touchedServiceMonthlySpendUsd: 3000 });
     expect(assessCost([finding(METRIC.monthlyCostUsd, 300)], ctx).status).toBe("acceptable");
     expect(assessCost([finding(METRIC.monthlyCostUsd, 301)], ctx).status).toBe("risk");
+  });
+
+  it("drops confidence when the range spans the ceiling", () => {
+    const ctx = context({
+      touchedServiceMonthlySpendUsd: 3000,
+      costRangeUsd: { low: 240, high: 360 },
+    });
+    // Ceiling is 300. The point estimate clears it; the range does not settle it.
+    const straddled = assessCost([finding(METRIC.monthlyCostUsd, 280)], ctx);
+    expect(straddled.status).toBe("acceptable");
+    expect(straddled.confidence).toBe("low");
+    expect(straddled.rationale).toContain("assumptions decide this");
+  });
+
+  it("keeps confidence when the whole range sits on one side", () => {
+    const ctx = context({
+      touchedServiceMonthlySpendUsd: 3000,
+      costRangeUsd: { low: 240, high: 290 },
+    });
+    const settled = assessCost([finding(METRIC.monthlyCostUsd, 280)], ctx);
+    expect(settled.status).toBe("acceptable");
+    expect(settled.confidence).toBe("high");
+    expect(settled.rationale).not.toContain("assumptions decide this");
   });
 
   it("reports unmeasured when no source produced a monthly delta", () => {

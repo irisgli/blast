@@ -1,5 +1,6 @@
 import type { ChangeProfile, VerdictContext } from "@blast/core";
 import type { BillingResult, SurfaceUsage } from "./cost.js";
+import type { CostEstimate } from "./cost-model.js";
 import type { CoverageFinding, FunnelResult, PowerFinding } from "./measurability.js";
 
 /**
@@ -33,6 +34,7 @@ export interface VerdictContextInput {
   allUsage: readonly SurfaceUsage[];
   funnel: FunnelResult | null;
   billing: BillingResult | null;
+  estimate: CostEstimate | null;
   coverage: readonly CoverageFinding[];
   power: readonly PowerFinding[];
 }
@@ -43,6 +45,8 @@ export function buildVerdictContext(input: VerdictContextInput): VerdictContext 
   return {
     surfaceTrafficPercentile: surfaceTrafficPercentiles(input.allUsage),
     touchedServiceMonthlySpendUsd: input.billing === null ? null : input.billing.totalUsd,
+    costRangeUsd:
+      input.estimate === null ? null : { low: input.estimate.lowUsd, high: input.estimate.highUsd },
     measurableSurfaces,
     surfacesMissingFeatureEvents: input.coverage
       .filter((entry) => entry.attributable.length === 0)
