@@ -1,5 +1,10 @@
 import type { Adapter, AnyAdapter, Dimension, Finding, Result, SourceInfo } from "@blast/core";
-import { featureHistoryAdapter, featureHistoryFindings, funnelAdapter, funnelFindings } from "./conversion.js";
+import {
+  featureHistoryAdapter,
+  funnelAdapter,
+  funnelFindings,
+  instrumentationAdapter,
+} from "./measurability.js";
 import { billingAdapter, usageAdapter } from "./cost.js";
 import {
   buildManifestAdapter,
@@ -62,7 +67,11 @@ export const SOURCES: readonly Source[] = [
   source(billingAdapter, () => []),
   source(usageAdapter, () => []),
   source(funnelAdapter, funnelFindings),
-  source(featureHistoryAdapter, featureHistoryFindings),
+  // Feature history and instrumentation produce findings only in combination with the
+  // funnel and the change's feature key, so they carry none on their own. Queried
+  // directly they return their data and no findings, which is the honest answer.
+  source(featureHistoryAdapter, () => []),
+  source(instrumentationAdapter, () => []),
 ];
 
 export const ADAPTERS: readonly AnyAdapter[] = [
@@ -73,6 +82,7 @@ export const ADAPTERS: readonly AnyAdapter[] = [
   usageAdapter,
   funnelAdapter,
   featureHistoryAdapter,
+  instrumentationAdapter,
 ] as AnyAdapter[];
 
 export function sourcesFor(dimension: Dimension): readonly Source[] {

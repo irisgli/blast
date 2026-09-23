@@ -5,17 +5,27 @@ import {
   buildManifestFindings,
   buildVerdictContext,
   costFindings,
+  coverageFindings,
   estimateMonthlyCost,
   featureHistoryAdapter,
-  featureHistoryFindings,
+  featureKeyFromBranch,
   funnelAdapter,
   funnelFindings,
+  instrumentationAdapter,
+  powerFindings,
   serverTimingAdapter,
   serverTimingFindings,
   speedInsightsAdapter,
   speedInsightsFindings,
 } from "@blast/adapters";
-import type { BillingResult, CostEstimate, FunnelResult } from "@blast/adapters";
+import type {
+  BillingResult,
+  CostEstimate,
+  CoverageFinding,
+  FeatureHistoryResult,
+  FunnelResult,
+  PowerFinding,
+} from "@blast/adapters";
 import type { AnyAdapter, ChangeProfile, Finding, Result, SourceStatus, VerdictContext } from "@blast/core";
 
 /**
@@ -25,8 +35,8 @@ import type { AnyAdapter, ChangeProfile, Finding, Result, SourceStatus, VerdictC
  * model carried findings between tools it could edit them on the way through, and the
  * field it would be most tempted to adjust is the one the whole brief rests on. Passing
  * only the change profile and re-deriving the numbers makes that impossible rather than
- * discouraged. It also survives a durable replay in a fresh process, which a
- * ledger held in memory would not.
+ * discouraged. It also survives a durable replay in a fresh process, which a ledger
+ * held in memory would not.
  */
 
 export interface Evidence {
@@ -34,6 +44,10 @@ export interface Evidence {
   context: VerdictContext;
   sources: SourceStatus[];
   estimate: CostEstimate | null;
+  /** The identifier this change's events would carry, derived from its branch. */
+  featureKey: string;
+  coverage: CoverageFinding[];
+  power: PowerFinding[];
 }
 
 function statusOf(adapter: AnyAdapter, result: Result<unknown>): SourceStatus {
@@ -51,6 +65,7 @@ function statusOf(adapter: AnyAdapter, result: Result<unknown>): SourceStatus {
 export async function collectEvidence(profile: ChangeProfile): Promise<Evidence> {
   const surfaces = profile.surfaces.map((surface) => surface.id);
   const endpoints = profile.endpointsAdded.map((endpoint) => endpoint.path);
+  const featureKey = featureKeyFromBranch(profile.ref.head);
   const findings: Finding[] = [];
   const sources: SourceStatus[] = [];
 
@@ -88,16 +103,38 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
   const funnel: FunnelResult | null = funnelResult.ok ? funnelResult.value : null;
   if (funnel !== null) findings.push(...funnelFindings(funnel));
 
-  const history = await featureHistoryAdapter.fetch({ surfaces });
-  sources.push(statusOf(featureHistoryAdapter, history));
-  if (history.ok) findings.push(...featureHistoryFindings(history.value));
+  const historyResult = await featureHistoryAdapter.fetch({ surfaces });
+  sources.push(statusOf(featureHistoryAdapter, historyResult));
+  const history: FeatureHistoryResult | null = historyResult.ok ? historyResult.value : null;
+
+  const power =
+    funnel === null ? { findings: [], bySurface: [] } : powerFindings(funnel, history);
+  findings.push(...power.findings);
+
+  const measurableSurfaces = funnel?.matched.map((step) => step.surface) ?? [];
+  const instrumentation = await instrumentationAdapter.fetch({ surfaces });
+  sources.push(statusOf(instrumentationAdapter, instrumentation));
+  const coverage = instrumentation.ok
+    ? coverageFindings(instrumentation.value, featureKey, measurableSurfaces)
+    : { findings: [], bySurface: [] };
+  findings.push(...coverage.findings);
 
   const context = buildVerdictContext({
     profile,
     allUsage: allUsage?.surfaces ?? [],
     funnel,
     billing,
+    coverage: coverage.bySurface,
+    power: power.bySurface,
   });
 
-  return { findings, context, sources, estimate };
+  return {
+    findings,
+    context,
+    sources,
+    estimate,
+    featureKey,
+    coverage: coverage.bySurface,
+    power: power.bySurface,
+  };
 }

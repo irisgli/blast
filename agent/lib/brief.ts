@@ -28,7 +28,7 @@ const GLYPH: Record<DimensionStatus, string> = {
 const HEADING: Record<Dimension, string> = {
   performance: "Performance",
   cost: "Infrastructure cost",
-  conversion: "User conversion",
+  measurability: "Measurability",
 };
 
 const VERDICT_LABEL: Record<Verdict, string> = {
@@ -46,7 +46,9 @@ const METRIC_LABEL: Record<string, string> = {
   [METRIC.clientJsBytes]: "client JS",
   [METRIC.monthlyCostUsd]: "monthly spend",
   [METRIC.funnelStepConversion]: "funnel baseline",
-  [METRIC.comparableFeatureOutcome]: "comparable feature",
+  [METRIC.minimumDetectableEffect]: "detectable effect",
+  [METRIC.historicalEffect]: "effects seen here",
+  [METRIC.featureEventCoverage]: "attributable events",
 };
 
 export function formatMeasure(measure: Measure | null, options: { signed?: boolean } = {}): string {

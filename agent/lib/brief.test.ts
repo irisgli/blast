@@ -1,5 +1,5 @@
 import { loadFixtureChangeProfile } from "@blast/adapters";
-import { assess, METRIC } from "@blast/core";
+import { assess } from "@blast/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { clearFixtureCache } from "@blast/adapters";
 import { buildBrief, formatMeasure, renderBrief } from "./brief.js";
@@ -28,7 +28,7 @@ describe("the full pipeline over the sample pull request", () => {
     clearFixtureCache();
   });
 
-  it("produces the brief the readme documents", async () => {
+  it("holds a change that cannot be evaluated after it ships", async () => {
     const change = await loadFixtureChangeProfile();
     expect(change.ok).toBe(true);
     if (!change.ok) return;
@@ -38,51 +38,56 @@ describe("the full pipeline over the sample pull request", () => {
 
     expect(assessment.dimensions.performance.status).toBe("acceptable");
     expect(assessment.dimensions.cost.status).toBe("acceptable");
-    expect(assessment.dimensions.conversion.status).toBe("unmeasured");
-    expect(assessment.verdict).toBe("ship-with-caveats");
-    expect(assessment.confidence).toBe("medium");
+    expect(assessment.dimensions.measurability.status).toBe("risk");
+    expect(assessment.verdict).toBe("hold");
     expect(evidence.estimate?.totalUsd).toBe(340.4);
 
     const brief = buildBrief({
       profile: change.value,
       assessment,
       findings: evidence.findings,
-      headline: "No measured regression. Conversion impact on PDP to cart is unmeasured.",
-      watchAfterShip: { conversion: ["PDP to cart rate", "carousel CTR"] },
+      headline: "Nothing regresses. Nothing here will tell you whether the carousel worked.",
+      watchAfterShip: { measurability: ["PDP to cart rate once events land"] },
       sources: evidence.sources,
       generatedAt: "2026-09-22T00:00:00Z",
     });
     const markdown = renderBrief(brief);
 
-    expect(markdown).toContain("**Verdict: ship with caveats** · confidence: medium");
+    expect(markdown).toContain("**Verdict: hold** · confidence: high");
     expect(markdown).toContain("## Performance  ○");
     expect(markdown).toContain("## Infrastructure cost  ○");
-    expect(markdown).toContain("## User conversion  ◌");
+    expect(markdown).toContain("## Measurability  ⚠");
     expect(markdown).toContain("+$340.40/mo");
     expect(markdown).toContain("+18 KB");
-    expect(markdown).toContain("Watch after ship: PDP to cart rate, carousel CTR.");
   });
 
-  it("labels every conversion number as something other than measured evidence about this change", async () => {
+  it("finds the change ships no events attributable to it", async () => {
     const change = await loadFixtureChangeProfile();
     if (!change.ok) return;
     const evidence = await collectEvidence(change.value);
 
-    const comparables = evidence.findings.filter(
-      (finding) => finding.metric === METRIC.comparableFeatureOutcome,
-    );
-    expect(comparables.length).toBeGreaterThan(0);
-    for (const finding of comparables) {
-      expect(finding.basis).toBe("modeled");
-    }
+    expect(evidence.featureKey).toBe("pdp-recommendations-carousel");
+    const pdp = evidence.coverage.find((entry) => entry.surface === "/products/[slug]");
+    expect(pdp?.attributable).toEqual([]);
+    // The surface's own convention supplies the remediation, so the fix is a list of
+    // event names rather than a suggestion to "add analytics".
+    expect(pdp?.expected).toEqual([
+      "pdp_recommendations_carousel_impression",
+      "pdp_recommendations_carousel_click",
+    ]);
+  });
 
-    // The funnel baseline is measured, but it describes where the change lands rather
-    // than what it will do, so it carries no delta.
-    for (const finding of evidence.findings.filter(
-      (candidate) => candidate.metric === METRIC.funnelStepConversion,
-    )) {
-      expect(finding.delta).toBeNull();
-    }
+  it("can resolve a far smaller effect than the surface has ever produced", async () => {
+    const change = await loadFixtureChangeProfile();
+    if (!change.ok) return;
+    const evidence = await collectEvidence(change.value);
+
+    const pdp = evidence.power.find((entry) => entry.surface === "/products/[slug]");
+    expect(pdp?.power.absolutePp).toBeLessThan(0.1);
+    expect(pdp?.historicalEffectPp).toBeCloseTo(0.75, 2);
+    // Power is not the problem on this surface. Attribution is, and the brief should
+    // say which of the two is blocking rather than reporting "unmeasurable".
+    expect(pdp?.underpowered).toBe(false);
   });
 
   it("reports every source it consulted, including any that had nothing", async () => {
@@ -90,7 +95,7 @@ describe("the full pipeline over the sample pull request", () => {
     if (!change.ok) return;
     const evidence = await collectEvidence(change.value);
 
-    expect(evidence.sources.length).toBeGreaterThanOrEqual(6);
+    expect(evidence.sources.length).toBeGreaterThanOrEqual(7);
     for (const source of evidence.sources) {
       expect(source.displayName.length).toBeGreaterThan(0);
       if (source.state === "ok") expect(source.freshness).not.toBeNull();
