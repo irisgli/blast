@@ -1,0 +1,34 @@
+/** Fixture payload for `billing.json`, shaped as the live source would return it. */
+export default {
+  "currency": "USD",
+  "generatedAt": "2026-09-01T00:00:00Z",
+  "months": [
+    {
+      "month": "2026-06",
+      "services": {
+        "compute": 4610,
+        "bandwidth": 1880,
+        "database": 1290,
+        "edge-requests": 1140
+      }
+    },
+    {
+      "month": "2026-07",
+      "services": {
+        "compute": 4780,
+        "bandwidth": 1970,
+        "database": 1320,
+        "edge-requests": 1170
+      }
+    },
+    {
+      "month": "2026-08",
+      "services": {
+        "compute": 4900,
+        "bandwidth": 2050,
+        "database": 1350,
+        "edge-requests": 1200
+      }
+    }
+  ]
+} as const;

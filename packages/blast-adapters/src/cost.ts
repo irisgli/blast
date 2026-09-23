@@ -65,7 +65,7 @@ export const billingAdapter: Adapter<ServiceQuery, BillingResult> = {
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.billing, billingSchema);
+    const loaded = loadFixture(FIXTURE_FILES.billing, billingSchema);
     if (!loaded.ok) return loaded;
 
     const latest = loaded.value.months.at(-1);
@@ -109,7 +109,7 @@ export const usageAdapter: Adapter<SurfaceQuery, UsageResult> = {
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.usage, usageSchema);
+    const loaded = loadFixture(FIXTURE_FILES.usage, usageSchema);
     if (!loaded.ok) return loaded;
 
     const surfaces = loaded.value.surfaces.filter((surface) => query.surfaces.includes(surface.id));
@@ -121,8 +121,8 @@ export const usageAdapter: Adapter<SurfaceQuery, UsageResult> = {
 };
 
 /** Every surface on record, for traffic ranking rather than for a single query. */
-export async function allSurfaceUsage(): Promise<UsageResult | null> {
-  const loaded = await loadFixture(FIXTURE_FILES.usage, usageSchema);
+export function allSurfaceUsage(): UsageResult | null {
+  const loaded = loadFixture(FIXTURE_FILES.usage, usageSchema);
   return loaded.ok ? { surfaces: loaded.value.surfaces } : null;
 }
 

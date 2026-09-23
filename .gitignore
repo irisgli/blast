@@ -2,8 +2,11 @@ node_modules
 .turbo
 .eve
 .output
+.next
 dist
 .env
 .env.local
+.vercel
 .DS_Store
 *.tsbuildinfo
+next-env.d.ts

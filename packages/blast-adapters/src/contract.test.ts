@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Result } from "@blast/core";
 import { DIMENSIONS, METRIC } from "@blast/core";
 import { z } from "zod";
-import { clearFixtureCache, loadFixture } from "./fixture-store.js";
+import { loadFixture } from "./fixture-store.js";
 import type { Source } from "./registry.js";
 import { SOURCES, sourceById, sourcesFor } from "./registry.js";
 
@@ -44,9 +44,6 @@ function expectWellFormed(result: Result<unknown>): void {
 }
 
 describe("the adapter registry", () => {
-  beforeEach(() => {
-    clearFixtureCache();
-  });
 
   it("registers at least one source per dimension", () => {
     for (const dimension of DIMENSIONS) {
@@ -104,31 +101,38 @@ describe("the adapter registry", () => {
 });
 
 describe("fixture loading", () => {
-  beforeEach(() => {
-    clearFixtureCache();
-  });
-
-  it("reports a missing file as unavailable", async () => {
-    const result = await loadFixture("not-a-file.json", z.object({}));
+  it("reports an unregistered source as unavailable", () => {
+    const result = loadFixture("not-a-source.json", z.object({}));
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("unavailable");
   });
 
-  it("reports a schema mismatch as unavailable, naming the field", async () => {
-    const result = await loadFixture("billing.json", z.object({ currency: z.number() }));
+  it("reports a schema mismatch as unavailable, naming the field", () => {
+    const result = loadFixture("billing.json", z.object({ currency: z.number() }));
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("unavailable");
     expect(result.detail).toContain("currency");
   });
 
-  it("validates on every read rather than trusting a cached shape", async () => {
-    const good = await loadFixture("billing.json", z.object({ currency: z.string() }));
+  it("validates on every read rather than trusting a shape it saw before", () => {
+    const good = loadFixture("billing.json", z.object({ currency: z.string() }));
     expect(good.ok).toBe(true);
-    // Same file, now read through a schema it does not satisfy. A cache keyed on the
-    // file alone would hand back the previous result and call it valid.
-    const bad = await loadFixture("billing.json", z.object({ currency: z.number() }));
+    // Same payload, read through a schema it does not satisfy. Anything that cached a
+    // validated value by name would hand back the first result and call it valid.
+    const bad = loadFixture("billing.json", z.object({ currency: z.number() }));
     expect(bad.ok).toBe(false);
+  });
+
+  it("degrades to unavailable when a source has nothing behind it", () => {
+    // Injecting an empty document set is how an unreachable live source behaves. Every
+    // adapter must survive it, because a brief that cannot reach a source still has to
+    // say so rather than fail.
+    const result = loadFixture("billing.json", z.object({ currency: z.string() }), {});
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("unavailable");
+    expect(result.detail).toContain("billing.json");
   });
 });

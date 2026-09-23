@@ -1,7 +1,6 @@
 import { loadFixtureChangeProfile } from "@blast/adapters";
 import { assess } from "@blast/core";
-import { beforeEach, describe, expect, it } from "vitest";
-import { clearFixtureCache } from "@blast/adapters";
+import { describe, expect, it } from "vitest";
 import { buildBrief, formatMeasure, renderBrief } from "./brief.js";
 import { collectEvidence } from "./collect.js";
 
@@ -31,12 +30,9 @@ describe("measure formatting", () => {
 });
 
 describe("the full pipeline over the sample pull request", () => {
-  beforeEach(() => {
-    clearFixtureCache();
-  });
 
   it("holds a change that cannot be evaluated after it ships", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     expect(change.ok).toBe(true);
     if (!change.ok) return;
 
@@ -72,7 +68,7 @@ describe("the full pipeline over the sample pull request", () => {
   });
 
   it("finds the change ships no events attributable to it", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     if (!change.ok) return;
     const evidence = await collectEvidence(change.value);
 
@@ -88,7 +84,7 @@ describe("the full pipeline over the sample pull request", () => {
   });
 
   it("can resolve a far smaller effect than the surface has ever produced", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     if (!change.ok) return;
     const evidence = await collectEvidence(change.value);
 
@@ -101,7 +97,7 @@ describe("the full pipeline over the sample pull request", () => {
   });
 
   it("reports every source it consulted, including any that had nothing", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     if (!change.ok) return;
     const evidence = await collectEvidence(change.value);
 
