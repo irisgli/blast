@@ -6,3 +6,4 @@ export * from "./cost-model.js";
 export * from "./fixture-store.js";
 export * from "./performance.js";
 export * from "./registry.js";
+export * from "./live/npm-registry.js";

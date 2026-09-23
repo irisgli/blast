@@ -42,6 +42,11 @@ export const METRIC = {
   p75Inp: "p75_inp_ms",
   p95Server: "p95_server_ms",
   clientJsBytes: "client_js_bytes",
+  /**
+   * Unpacked size of a published package. Not client payload: a tarball carries source
+   * maps, several module formats, types, and a readme, none of which reach a browser.
+   */
+  dependencyUnpackedBytes: "dependency_unpacked_bytes",
   monthlyCostUsd: "monthly_cost_usd",
   /** Median absolute error of this model's past estimates against what was billed. */
   estimateAccuracy: "estimate_accuracy_pct",

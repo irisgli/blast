@@ -33,6 +33,12 @@ import type { AnyAdapter, ChangeProfile, Finding, Result, SourceStatus, VerdictC
 /**
  * Gathers every piece of evidence for a change, in code.
  *
+ * The live npm source is registered and reachable through `run_adapter`, and is
+ * deliberately not called here. This path has to produce the same brief twice for the
+ * same change, and a source whose answer depends on when it was asked cannot be part
+ * of that. A live source belongs in a brief once its answer is snapshotted with the
+ * change rather than fetched while rendering it.
+ *
  * `render_brief` calls this rather than accepting findings back from the model. If the
  * model carried findings between tools it could edit them on the way through, and the
  * field it would be most tempted to adjust is the one the whole brief rests on. Passing

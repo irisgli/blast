@@ -6,6 +6,7 @@ import {
   instrumentationAdapter,
 } from "./measurability.js";
 import { billingAdapter, estimateAccuracyFindings, estimateHistoryAdapter, usageAdapter } from "./cost.js";
+import { createNpmRegistryAdapter, packageSizeFindings } from "./live/npm-registry.js";
 import {
   buildManifestAdapter,
   buildManifestFindings,
@@ -58,22 +59,41 @@ function source<Q, R>(adapter: Adapter<Q, R>, toFindings: (value: R) => Finding[
  * Contract conformance runs over this list, so adding a live source subjects it to the
  * same checks the fixtures pass, and the subagents never learn which kind they got.
  */
-export const SOURCES: readonly Source[] = [
-  source(speedInsightsAdapter, speedInsightsFindings),
-  source(buildManifestAdapter, buildManifestFindings),
-  source(serverTimingAdapter, serverTimingFindings),
-  // Billing and usage answer the cost model's inputs rather than a metric of their own.
-  // The monthly delta becomes a finding once estimateMonthlyCost has run over both.
-  source(billingAdapter, () => []),
-  source(usageAdapter, () => []),
-  source(estimateHistoryAdapter, estimateAccuracyFindings),
-  source(funnelAdapter, funnelFindings),
-  // Feature history and instrumentation produce findings only in combination with the
-  // funnel and the change's feature key, so they carry none on their own. Queried
-  // directly they return their data and no findings, which is the honest answer.
-  source(featureHistoryAdapter, () => []),
-  source(instrumentationAdapter, () => []),
-];
+export interface RegistryOptions {
+  /** Transport for live sources. Tests pass a stub so the suite never leaves the box. */
+  fetch?: typeof globalThis.fetch;
+}
+
+/**
+ * Built rather than declared, so conformance can sweep every source — including the
+ * live one — without reaching the network. A rate limit in CI would otherwise read as
+ * a broken contract.
+ */
+export function createSources(options: RegistryOptions = {}): readonly Source[] {
+  return [
+    source(speedInsightsAdapter, speedInsightsFindings),
+    source(buildManifestAdapter, buildManifestFindings),
+    source(serverTimingAdapter, serverTimingFindings),
+    // Billing and usage answer the cost model's inputs rather than a metric of their
+    // own. The monthly delta becomes a finding once estimateMonthlyCost runs over both.
+    source(billingAdapter, () => []),
+    source(usageAdapter, () => []),
+    source(estimateHistoryAdapter, estimateAccuracyFindings),
+    source(funnelAdapter, funnelFindings),
+    // Feature history and instrumentation produce findings only in combination with
+    // the funnel and the change's feature key, so they carry none on their own. Queried
+    // directly they return their data and no findings, which is the honest answer.
+    source(featureHistoryAdapter, () => []),
+    source(instrumentationAdapter, () => []),
+    // The one source that talks to something that can refuse.
+    source(
+      createNpmRegistryAdapter(options.fetch === undefined ? {} : { fetch: options.fetch }),
+      packageSizeFindings,
+    ),
+  ];
+}
+
+export const SOURCES: readonly Source[] = createSources();
 
 export const ADAPTERS: readonly AnyAdapter[] = [
   speedInsightsAdapter,
