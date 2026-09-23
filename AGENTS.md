@@ -15,9 +15,11 @@ Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headi
 
 ## Repository layout
 
-- `agent/` — the agent itself: instructions, tools, skills, subagents
+- `agent/` — the agent itself: instructions, tools, skills, subagents, channels
 - `packages/blast-core` — the impact schema, the adapter contract, the verdict rules
-- `packages/blast-adapters` — fixture-backed adapters and the source registry
+- `packages/blast-adapters` — fixture-backed sources and the registry
+- `packages/blast-brief` — evidence collection, brief rendering, remediations
+- `apps/web` — the Next.js surface, which mounts the agent at `/eve/v1/*`
 - `apps/fixtures` — the sample pull request and telemetry the repo runs on
 - `docs/` — published documentation
 - `research/` — design plans for proposed changes, written before implementation
@@ -45,6 +47,10 @@ produce a `ship`.
 events attributable to it and whether its surface can resolve the effects it has
 produced before. Both are true before the change ships. Do not add a rule that predicts
 what a change will do to a funnel.
+
+**The engine is shared, not duplicated.** `@blast/brief` is what the agent's tools and
+the web surface both call. A page that reimplemented any of it would drift from what a
+brief in a pull request says, which is the one thing that has to stay true.
 
 **Remediations are derived, not composed.** `agent/lib/remediation.ts` builds them from
 the same evidence that produced the findings. A model-authored fix can drift from what
@@ -88,6 +94,7 @@ lists or commit logs. Report only checks actually run.
 pnpm install          # install workspace dependencies
 pnpm build            # build all packages
 pnpm dev              # run the agent's terminal UI
+pnpm --filter @blast/web dev   # run the web surface on :3100
 
 pnpm typecheck        # TypeScript across the workspace
 pnpm lint             # oxlint (auto-fixes)

@@ -111,3 +111,6 @@ jobs:
 
       - name: Compile the agent
         run: pnpm exec eve build
+
+      - name: Build the web surface
+        run: pnpm --filter @blast/web build
