@@ -286,6 +286,27 @@ body {
   font-size: 13px;
 }
 
+.card__foot-line {
+  margin: 0;
+}
+
+.card__foot-line + .card__foot-line {
+  margin-top: 0.4rem;
+}
+
+/* The tool's own record. It says nothing about this change, and it is the reason to
+   believe the figure above, so it is set apart rather than folded into the rationale. */
+.card__foot-line--record {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.card__foot-line--record b {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 500;
+}
+
 /* ── verdict note ────────────────────────────────────────────────────────── */
 .note {
   display: flex;

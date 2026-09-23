@@ -39,8 +39,12 @@ function rowsFor(dimension: Dimension, findings: readonly Finding[]) {
     ];
   }
   if (dimension === "cost") {
+    const accuracy = pick(findings, METRIC.estimateAccuracy)?.head;
     return [
       { label: "Monthly spend", value: formatMeasure(pick(findings, METRIC.monthlyCostUsd)?.delta ?? null, { signed: true }) },
+      ...(accuracy === null || accuracy === undefined
+        ? []
+        : [{ label: "Past estimate error", value: `±${accuracy.value.toFixed(1)}%` }]),
     ];
   }
   return [
@@ -66,6 +70,7 @@ export default async function Page() {
   const change = profile.cacheDirectivesChanged[0];
   const estimate = evidence.estimate;
   const driver = estimate?.items[0];
+  const accuracy = evidence.estimateAccuracy;
   const repo = "irisgli/blast";
 
   const diff: CodeLine[] =
@@ -202,12 +207,26 @@ export default async function Page() {
                     </tr>
                   ))}
                   <tr className="table__total">
-                    <td>Total</td>
+                    <td>
+                      Total
+                      <span className="table__detail">
+                        Credibly ${estimate.lowUsd.toFixed(2)} to ${estimate.highUsd.toFixed(2)}, at
+                        list prices over a 30-day month
+                      </span>
+                    </td>
                     <td className="table__amount">${estimate.totalUsd.toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
-              <p className="card__foot">{brief.dimensions.cost.rationale}</p>
+              <div className="card__foot">
+                <p className="card__foot-line">{brief.dimensions.cost.rationale}</p>
+                {accuracy !== null && (
+                  <p className="card__foot-line card__foot-line--record">
+                    This model&apos;s last {accuracy.records} estimates were a median{" "}
+                    <b>{accuracy.medianPct.toFixed(1)}%</b> off what the services went on to bill.
+                  </p>
+                )}
+              </div>
             </section>
           )}
 
