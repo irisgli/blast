@@ -178,6 +178,7 @@ the subagents, and the brief do not change.
 ## Documentation
 
 - [Architecture](./docs/architecture.md) — routing, context isolation, data flow
+- [HTTP API](./docs/api.md) — gating a merge on the verdict without an agent turn
 - [Deploying](./docs/deploying.md) — Vercel, credentials, the GitHub App
 - [Adapters](./docs/adapters.md) — the contract, and adding a live source
 - [Verdict model](./docs/verdict.md) — every threshold, and why it is code

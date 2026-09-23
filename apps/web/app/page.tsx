@@ -1,69 +1,28 @@
-import { METRIC } from "@blast/core";
-import type { Dimension, Finding } from "@blast/core";
-import { formatMeasure } from "@blast/brief";
-import { buildDemoBrief } from "./brief";
-import { CodeBlock } from "./components/code-block";
-import type { CodeLine } from "./components/code-block";
+import { Suspense } from "react";
 import { ExternalIcon, TriangleMark } from "./components/icons";
-import { StatusBadge, StatusIcon } from "./components/status";
+import { ChangeCard, CostCard, LiveBrief, SourceList } from "./components/panels";
+import {
+  ChangeCardSkeleton,
+  CostCardSkeleton,
+  LiveBriefSkeleton,
+  SourceListSkeleton,
+} from "./components/skeleton";
 
+/**
+ * The page is a shell around four boundaries.
+ *
+ * Nothing here awaits the engine. The headline, the argument, and the navigation are
+ * static and paint on the first flush; the four parts that need a cost model, a funnel,
+ * and a power calculation stream in behind their own fallbacks. Before this, one `await`
+ * at the top of the component held the entire document — including the sentence explaining
+ * what the product does — behind the slowest source in the pipeline.
+ *
+ * The boundaries are per-panel rather than one around everything, so a slow source delays
+ * only the panel that needs it.
+ */
 export const dynamic = "force-dynamic";
 
-const DIMENSION_LABEL: Record<Dimension, string> = {
-  performance: "Performance",
-  cost: "Infrastructure cost",
-  measurability: "Measurability",
-};
-
-const VERDICT_LABEL = {
-  ship: "Ready to merge",
-  "ship-with-caveats": "Merge with caveats",
-  hold: "Hold",
-} as const;
-
-const NOTE_VARIANT = {
-  ship: "note note--ok",
-  "ship-with-caveats": "note note--neutral",
-  hold: "note",
-} as const;
-
 const REPO = "https://github.com/irisgli/blast";
-
-function pick(findings: readonly Finding[], metric: string): Finding | undefined {
-  return findings.find((finding) => finding.metric === metric);
-}
-
-function rowsFor(dimension: Dimension, findings: readonly Finding[]) {
-  if (dimension === "performance") {
-    return [
-      { label: "p75 LCP", value: formatMeasure(pick(findings, METRIC.p75Lcp)?.delta ?? null, { signed: true }) },
-      { label: "Client JS", value: formatMeasure(pick(findings, METRIC.clientJsBytes)?.delta ?? null, { signed: true }) },
-    ];
-  }
-  if (dimension === "cost") {
-    const accuracy = pick(findings, METRIC.estimateAccuracy)?.head;
-    return [
-      { label: "Monthly spend", value: formatMeasure(pick(findings, METRIC.monthlyCostUsd)?.delta ?? null, { signed: true }) },
-      ...(accuracy == null ? [] : [{ label: "Past estimate error", value: `±${accuracy.value.toFixed(1)}%` }]),
-    ];
-  }
-  return [
-    { label: "Detectable effect", value: formatMeasure(pick(findings, METRIC.minimumDetectableEffect)?.head ?? null) },
-    { label: "Seen on this surface", value: formatMeasure(pick(findings, METRIC.historicalEffect)?.head ?? null) },
-    { label: "Attributable events", value: formatMeasure(pick(findings, METRIC.featureEventCoverage)?.head ?? null) },
-  ];
-}
-
-function patchLines(patch: string): CodeLine[] {
-  return patch
-    .trimEnd()
-    .split("\n")
-    .filter((line) => !line.startsWith("---") && !line.startsWith("+++") && line !== "@@")
-    .map((line) => ({
-      kind: line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : "context",
-      text: line.replace(/^[+-]/, "").trim(),
-    }));
-}
 
 const STEPS = [
   {
@@ -79,7 +38,7 @@ const STEPS = [
   {
     code: "verdict.ts",
     name: "Decide in code",
-    body: "Evidence is re-collected and thresholds applied in pure functions. The model writes the narrative and cannot move a number or a verdict on its way to the page.",
+    body: "Evidence is re-collected and your budgets applied in pure functions. The model writes the narrative and cannot move a number or a verdict on its way to the page.",
   },
   {
     code: "propose_fix",
@@ -91,7 +50,11 @@ const STEPS = [
 const FEATURES = [
   {
     name: "The same answer twice",
-    body: "Thresholds are pure functions over findings. An unchanged pull request cannot produce a different verdict, and a test asserts it.",
+    body: "Thresholds are pure functions over findings, and every brief ends with a digest over its inputs and its verdict. Two briefs can be compared without re-running either.",
+  },
+  {
+    name: "Your budgets, not ours",
+    body: "A repository sets its ceilings in blast.json, reviewed with the code they govern. Every brief names the budgets it applied, and an unreadable one fails the run rather than falling back to defaults.",
   },
   {
     name: "Stated uncertainty",
@@ -109,31 +72,9 @@ const FEATURES = [
     name: "Missing data is never safe",
     body: "A source that cannot answer makes its dimension unmeasured and caps the verdict. Absence never reads as an all-clear.",
   },
-  {
-    name: "One way out",
-    body: "Posting a comment and opening a pull request are the only outward effects, and both ask for approval every time.",
-  },
 ] as const;
 
-export default async function Page() {
-  const { profile, brief, evidence, remediations } = await buildDemoBrief();
-  const change = profile.cacheDirectivesChanged[0];
-  const estimate = evidence.estimate;
-  const driver = estimate?.items[0];
-  const accuracy = evidence.estimateAccuracy;
-
-  const diff: CodeLine[] =
-    change === undefined
-      ? []
-      : [
-          { kind: "del", text: `"Cache-Control": "${change.from}"` },
-          {
-            kind: "add",
-            text: `"Cache-Control": "${change.to}"`,
-            ...(driver === undefined ? {} : { cost: `+$${driver.usd.toFixed(2)}/mo` }),
-          },
-        ];
-
+export default function Page() {
   return (
     <>
       <header className="nav">
@@ -161,14 +102,14 @@ export default async function Page() {
             <div>
               <h1 className="display">Know what a pull request costs before you merge it</h1>
               <p className="hero__sub">
-                blast prices a change against measured traffic, checks it against performance
-                budgets, and tells you whether you will be able to evaluate it after it ships.
-                Then it opens the fix.
+                blast prices a change against measured traffic, checks it against the budgets your
+                repository set, and tells you whether you will be able to evaluate it after it
+                ships. Then it opens the fix.
               </p>
               <div className="hero__actions">
                 <span className="chip">
                   <span className="chip__prompt">$</span>
-                  blast {brief.ref.id} --intent &quot;…&quot;
+                  blast 1234 --intent &quot;…&quot;
                 </span>
                 <a className="btn btn--primary" href="#brief">
                   See a real brief
@@ -176,15 +117,9 @@ export default async function Page() {
               </div>
             </div>
 
-            {diff.length > 0 && change !== undefined && (
-              <div>
-                <CodeBlock lines={diff} caption={change.file ?? change.surface} label="The change" />
-                <p className="lede" style={{ marginTop: "1.25rem" }}>
-                  One line, in a pull request about a recommendations carousel. It passed review,
-                  because a cache header does not look like a spending decision.
-                </p>
-              </div>
-            )}
+            <Suspense fallback={<ChangeCardSkeleton />}>
+              <ChangeCard />
+            </Suspense>
           </div>
         </section>
 
@@ -193,9 +128,9 @@ export default async function Page() {
           <div className="split">
             <h2 className="title">An answer, not a dashboard</h2>
             <p className="lede">
-              Three questions decided before merge, by an <a href="https://github.com/vercel/eve">eve</a>{" "}
-              agent that routes them to specialists and then gets out of the way of the
-              arithmetic.
+              Three questions decided before merge, by an{" "}
+              <a href="https://github.com/vercel/eve">eve</a> agent that routes them to specialists
+              and then gets out of the way of the arithmetic.
             </p>
           </div>
 
@@ -214,56 +149,9 @@ export default async function Page() {
             </ol>
 
             <div className="sticky-panel">
-              <div className="card">
-                <div className="card__head card__head--divided">
-                  <h3 className="card__title">Estimated monthly cost</h3>
-                  {accuracy !== null && (
-                    <span className="badge">
-                      <span className="badge__dot" aria-hidden="true" />
-                      ±{accuracy.medianPct.toFixed(1)}% historical error
-                    </span>
-                  )}
-                </div>
-                {estimate !== null && estimate !== undefined && (
-                  <>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th scope="col">Driver</th>
-                          <th scope="col">Per month</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {estimate.items.map((item) => (
-                          <tr key={item.label}>
-                            <td>
-                              {item.label}
-                              <span className="table__detail">{item.detail}</span>
-                            </td>
-                            <td className="table__amount">${item.usd.toFixed(2)}</td>
-                          </tr>
-                        ))}
-                        <tr className="table__total">
-                          <td>
-                            Total
-                            <span className="table__detail">
-                              Credibly ${estimate.lowUsd.toFixed(2)} to ${estimate.highUsd.toFixed(2)},
-                              at list prices over a 30-day month
-                            </span>
-                          </td>
-                          <td className="table__amount">${estimate.totalUsd.toFixed(2)}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    {accuracy !== null && (
-                      <p className="card__foot">
-                        This model&apos;s last {accuracy.records} estimates were a median{" "}
-                        {accuracy.medianPct.toFixed(1)}% off what the services went on to bill.
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
+              <Suspense fallback={<CostCardSkeleton />}>
+                <CostCard />
+              </Suspense>
             </div>
           </div>
         </section>
@@ -273,83 +161,44 @@ export default async function Page() {
           <div className="split">
             <h2 className="title">This brief was computed when you loaded the page</h2>
             <p className="lede">
-              Pull request <b>#{brief.ref.id}</b> against the storefront fixtures. Every figure
-              below comes from the same call the agent&apos;s own tools make, so a page and a
-              comment on a pull request cannot drift apart.
+              Pull request <b>#1234</b> against the storefront fixtures. Every figure below comes
+              from the same call the agent&apos;s own tools make, so a page and a comment on a pull
+              request cannot drift apart. The same call answers{" "}
+              <a href="/api/brief?format=markdown">
+                <code>GET /api/brief</code>
+              </a>
+              .
             </p>
           </div>
 
-          <div className="stack" style={{ marginTop: "3rem" }}>
-            <div className={NOTE_VARIANT[brief.verdict]}>
-              <span className="note__icon">
-                <StatusIcon status={brief.verdict === "hold" ? "risk" : "acceptable"} />
-              </span>
-              <div className="note__body">
-                <div className="note__top">
-                  <span className="note__verdict">{VERDICT_LABEL[brief.verdict]}</span>
-                  <span className="note__meta">Confidence {brief.confidence}</span>
-                </div>
-                <p className="note__text">{brief.headline}</p>
-              </div>
-            </div>
+          <Suspense fallback={<LiveBriefSkeleton />}>
+            <LiveBrief />
+          </Suspense>
+        </section>
 
-            <div className="metrics">
-              {(Object.keys(DIMENSION_LABEL) as Dimension[]).map((dimension) => {
-                const report = brief.dimensions[dimension];
-                return (
-                  <article className="metric" key={dimension}>
-                    <div className="metric__top">
-                      <span className="metric__label">{DIMENSION_LABEL[dimension]}</span>
-                      <StatusBadge status={report.status} />
-                    </div>
-                    <p className="metric__note">{report.rationale}</p>
-                    <ul className="metric__rows">
-                      {rowsFor(dimension, report.findings).map((row) => (
-                        <li className="metric__row" key={row.label}>
-                          <span>{row.label}</span>
-                          <span className="metric__value">{row.value}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </article>
-                );
-              })}
-            </div>
+        {/* ── the engine as an endpoint ────────────────────────────────── */}
+        <section className="shell section">
+          <div className="split">
+            <h2 className="title">Gate a merge on it, without an agent turn</h2>
+            <p className="lede">
+              The part of this that decides is deterministic code, so it does not need a model to
+              run. Post a change profile and your budgets; read the verdict off the response line.
+              Findings are priced against the checked-in fixtures, which the payload states rather
+              than implies.
+            </p>
+          </div>
+          <div className="api-sample">
+            <pre>
+              <code>{`curl -sS https://blast.example/api/brief \\
+  -H 'content-type: application/json' \\
+  -d '{"profile": …, "budgets": {"monthlyCostDeltaUsd": 150}}' \\
+  -D - -o /dev/null
 
-            <div className="card">
-              <div className="card__head card__head--divided">
-                <div>
-                  <h3 className="card__title">Suggested fixes</h3>
-                  <p className="card__hint">
-                    Derived from the same evidence as the findings, so what the agent offers
-                    cannot drift from what it reported. It opens a pull request only where the fix
-                    is mechanical, and asks first.
-                  </p>
-                </div>
-              </div>
-              {remediations.map((remediation) => (
-                <div className="card__body fix" key={remediation.id}>
-                  <div className="fix__head">
-                    <h4 className="fix__title">{remediation.title}</h4>
-                    <span className={`badge${remediation.patch === null ? "" : " badge--ok"}`}>
-                      <span className="badge__dot" aria-hidden="true" />
-                      {remediation.patch === null ? "Manual" : "Opens a pull request"}
-                    </span>
-                  </div>
-                  <p className="fix__why">{remediation.rationale}</p>
-                  <ol className="fix__steps">
-                    {remediation.steps.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ol>
-                  {remediation.patch !== null && (
-                    <div className="fix__patch">
-                      <CodeBlock lines={patchLines(remediation.patch)} label={remediation.title} />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+x-blast-verdict: hold
+x-blast-confidence: high
+x-blast-digest: 5f3c1a9e7d20b481
+server-timing: fixture-funnel;desc="ok";dur=0.4, fixture-billing;desc="ok";dur=0.2`}</code>
+            </pre>
           </div>
         </section>
 
@@ -378,27 +227,17 @@ export default async function Page() {
           <div className="split">
             <h2 className="title">Nine sources, one contract</h2>
             <p className="lede">
-              Eight read checked-in fixtures and answered for this brief. The ninth talks to the
-              npm registry, and exists so the contract has been held to something that rate
-              limits, times out, and returns documents missing the field being asked for. It is
+              Eight read checked-in fixtures and answered for this brief, each timed. The ninth
+              talks to the npm registry, and exists so the contract has been held to something that
+              rate limits, times out, and returns documents missing the field being asked for. It is
               not consulted here, which is why it is absent below: the same change has to produce
-              the same answer twice, and a source whose answer depends on when it was asked
-              cannot be part of that.
+              the same answer twice, and a source whose answer depends on when it was asked cannot
+              be part of that.
             </p>
           </div>
-          <p className="step__index" style={{ marginTop: "2.5rem" }}>
-            Consulted for pull request #{brief.ref.id}
-          </p>
-          <ul className="sources">
-            {evidence.sources.map((source) => (
-              <li className="sources__row" key={source.id}>
-                <span>{source.displayName}</span>
-                <span className="sources__state mono">
-                  {source.freshness?.slice(0, 10) ?? source.state}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <Suspense fallback={<SourceListSkeleton />}>
+            <SourceList />
+          </Suspense>
         </section>
 
         {/* ── closing ──────────────────────────────────────────────────── */}
@@ -422,6 +261,9 @@ export default async function Page() {
                 <a href="#brief">A real brief</a>
               </li>
               <li>
+                <a href="/api/brief?format=markdown">The API</a>
+              </li>
+              <li>
                 <a href={`${REPO}/blob/main/docs/verdict.md`}>Verdict model</a>
               </li>
               <li>
@@ -434,6 +276,9 @@ export default async function Page() {
             <ul className="site-foot__list">
               <li>
                 <a href={`${REPO}/blob/main/docs/architecture.md`}>Architecture</a>
+              </li>
+              <li>
+                <a href={`${REPO}/blob/main/docs/api.md`}>HTTP API</a>
               </li>
               <li>
                 <a href={`${REPO}/blob/main/docs/deploying.md`}>Deploying</a>
