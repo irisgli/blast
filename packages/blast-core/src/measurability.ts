@@ -89,3 +89,27 @@ export function medianAbsoluteEffectPp(effectsPct: readonly number[]): number | 
   const upper = sorted[middle];
   return lower === undefined || upper === undefined ? null : (lower + upper) / 2;
 }
+
+/**
+ * Median absolute percentage error of a set of predictions against what was observed.
+ *
+ * Median rather than mean, because one badly mispriced change should not be able to
+ * describe the model as worse than it usually is, and the same one should not be
+ * hidden by averaging either. Error is taken against the observed figure, which is the
+ * quantity that was actually true.
+ */
+export function medianAbsolutePercentageError(
+  pairs: readonly { estimated: number; observed: number }[],
+): number | null {
+  const errors = pairs
+    .filter((pair) => pair.observed !== 0)
+    .map((pair) => Math.abs((pair.estimated - pair.observed) / pair.observed) * 100)
+    .sort((left, right) => left - right);
+
+  if (errors.length === 0) return null;
+  const middle = Math.floor(errors.length / 2);
+  if (errors.length % 2 === 1) return errors[middle] ?? null;
+  const lower = errors[middle - 1];
+  const upper = errors[middle];
+  return lower === undefined || upper === undefined ? null : (lower + upper) / 2;
+}

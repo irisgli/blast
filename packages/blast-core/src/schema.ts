@@ -43,6 +43,8 @@ export const METRIC = {
   p95Server: "p95_server_ms",
   clientJsBytes: "client_js_bytes",
   monthlyCostUsd: "monthly_cost_usd",
+  /** Median absolute error of this model's past estimates against what was billed. */
+  estimateAccuracy: "estimate_accuracy_pct",
   funnelStepConversion: "funnel_step_conversion_rate",
   /** Smallest effect the surface's traffic can resolve, in percentage points. */
   minimumDetectableEffect: "mde_absolute_pp",

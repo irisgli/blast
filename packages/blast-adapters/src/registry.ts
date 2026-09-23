@@ -5,7 +5,7 @@ import {
   funnelFindings,
   instrumentationAdapter,
 } from "./measurability.js";
-import { billingAdapter, usageAdapter } from "./cost.js";
+import { billingAdapter, estimateAccuracyFindings, estimateHistoryAdapter, usageAdapter } from "./cost.js";
 import {
   buildManifestAdapter,
   buildManifestFindings,
@@ -66,6 +66,7 @@ export const SOURCES: readonly Source[] = [
   // The monthly delta becomes a finding once estimateMonthlyCost has run over both.
   source(billingAdapter, () => []),
   source(usageAdapter, () => []),
+  source(estimateHistoryAdapter, estimateAccuracyFindings),
   source(funnelAdapter, funnelFindings),
   // Feature history and instrumentation produce findings only in combination with the
   // funnel and the change's feature key, so they carry none on their own. Queried
@@ -80,6 +81,7 @@ export const ADAPTERS: readonly AnyAdapter[] = [
   serverTimingAdapter,
   billingAdapter,
   usageAdapter,
+  estimateHistoryAdapter,
   funnelAdapter,
   featureHistoryAdapter,
   instrumentationAdapter,

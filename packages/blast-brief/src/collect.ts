@@ -5,6 +5,8 @@ import {
   buildManifestFindings,
   buildVerdictContext,
   costFindings,
+  estimateAccuracyFindings,
+  estimateHistoryAdapter,
   coverageFindings,
   estimateMonthlyCost,
   featureHistoryAdapter,
@@ -46,6 +48,8 @@ export interface Evidence {
   estimate: CostEstimate | null;
   /** The identifier this change's events would carry, derived from its branch. */
   featureKey: string;
+  /** How far this model's past estimates missed, when there is a record to say. */
+  estimateAccuracy: { medianPct: number; records: number } | null;
   coverage: CoverageFinding[];
   power: PowerFinding[];
 }
@@ -98,6 +102,16 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
   // A zero-dollar estimate is still an answer; only an unreadable usage feed is not.
   if (estimate !== null) findings.push(...costFindings(estimate));
 
+  // How far past estimates missed. It says nothing about this change and everything
+  // about how much weight the figure above deserves.
+  const accuracy = await estimateHistoryAdapter.fetch({});
+  sources.push(statusOf(estimateHistoryAdapter, accuracy));
+  if (accuracy.ok) findings.push(...estimateAccuracyFindings(accuracy.value));
+  const estimateAccuracy =
+    accuracy.ok && accuracy.value.medianErrorPct !== null
+      ? { medianPct: accuracy.value.medianErrorPct, records: accuracy.value.records.length }
+      : null;
+
   const funnelResult = await funnelAdapter.fetch({ surfaces });
   sources.push(statusOf(funnelAdapter, funnelResult));
   const funnel: FunnelResult | null = funnelResult.ok ? funnelResult.value : null;
@@ -124,6 +138,7 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
     allUsage: allUsage?.surfaces ?? [],
     funnel,
     billing,
+    estimate,
     coverage: coverage.bySurface,
     power: power.bySurface,
   });
@@ -134,6 +149,7 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
     sources,
     estimate,
     featureKey,
+    estimateAccuracy,
     coverage: coverage.bySurface,
     power: power.bySurface,
   };
