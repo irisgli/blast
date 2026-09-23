@@ -33,14 +33,18 @@ reason this tool exists.
 | `funnel.json` | Step conversion, volume, and revenue contribution |
 | `feature-history.json` | Features previously shipped to these surfaces, and what happened |
 
-## A note on base and head
+## A note on measurement method
 
-Base values are field data from production. Head values for anything that requires
-running the code — web vitals, server timing — come from a preview deployment, which is
-the only pre-ship measurement available. That is a real methodological limit, not a
-shortcut taken by the fixtures: synthetic runs on preview hardware do not reproduce
-field conditions. The performance adapter carries the caveat through to the brief rather
-than letting a preview number read as a field number.
+Anything that requires running the code cannot be measured in the field before it
+ships, so web vitals and server timing carry three values rather than two: a field p75
+from production, and a synthetic base and head from runs against the preview deployment
+on an identical hardware profile.
 
-Client JS bytes are exempt. Both refs are built and compared directly, so that number
-means the same thing before and after shipping.
+The delta comes from the two synthetic runs, which compare like with like. The absolute
+head figure that the LCP budget is checked against is the field p75 plus that delta — a
+projection, and labeled as one. Subtracting a synthetic number from a field number would
+produce a delta that mostly measures the difference between preview hardware and real
+phones.
+
+Client JS bytes need none of this. Both refs are built and compared directly, so that
+number means the same thing before and after shipping.
