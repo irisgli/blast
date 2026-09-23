@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-09-15T00:00:00Z",
+  "note": "Features previously shipped to these surfaces, with the conversion movement observed in the stated window. Each was measured against a holdout.",
+  "features": [
+    {
+      "id": "pdp-size-guide",
+      "surface": "/products/[slug]",
+      "description": "Interactive size guide modal",
+      "shippedAt": "2026-03-04",
+      "clientBytesDelta": 22016,
+      "conversionDeltaPct": 1.1,
+      "measurementWindowDays": 28,
+      "holdout": true
+    },
+    {
+      "id": "pdp-review-photos",
+      "surface": "/products/[slug]",
+      "description": "Customer photo gallery in reviews",
+      "shippedAt": "2026-05-19",
+      "clientBytesDelta": 41984,
+      "conversionDeltaPct": -0.4,
+      "measurementWindowDays": 28,
+      "holdout": true
+    },
+    {
+      "id": "cart-upsell-rail",
+      "surface": "/cart",
+      "description": "Recommended add-ons above the cart summary",
+      "shippedAt": "2026-07-22",
+      "clientBytesDelta": 14336,
+      "conversionDeltaPct": 0.6,
+      "measurementWindowDays": 28,
+      "holdout": true
+    }
+  ]
+}

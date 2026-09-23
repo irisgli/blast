@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-09-15T00:00:00Z",
+  "window": "trailing-30-days",
+  "steps": [
+    {
+      "id": "pdp-to-cart",
+      "surface": "/products/[slug]",
+      "label": "PDP → cart",
+      "conversionRatePct": 8.2,
+      "volumePerMonth": 9800000,
+      "revenueContributionPct": 41.0
+    },
+    {
+      "id": "search-to-pdp",
+      "surface": "/search",
+      "label": "Search → PDP",
+      "conversionRatePct": 31.5,
+      "volumePerMonth": 3100000,
+      "revenueContributionPct": 18.4
+    },
+    {
+      "id": "cart-to-checkout",
+      "surface": "/cart",
+      "label": "Cart → checkout",
+      "conversionRatePct": 62.4,
+      "volumePerMonth": 1450000,
+      "revenueContributionPct": 24.1
+    },
+    {
+      "id": "checkout-to-purchase",
+      "surface": "/checkout",
+      "label": "Checkout → purchase",
+      "conversionRatePct": 74.1,
+      "volumePerMonth": 610000,
+      "revenueContributionPct": 16.5
+    }
+  ]
+}

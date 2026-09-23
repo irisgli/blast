@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-09-20T00:00:00Z",
+  "window": "trailing-7-days",
+  "baseMethod": "field-rum",
+  "headMethod": "preview-synthetic",
+  "headCaveat": "Head values come from a 5-run median on the preview deployment. Field values on real devices and networks will differ.",
+  "surfaces": {
+    "/products/[slug]": {
+      "p75LcpMs": { "base": 2100, "head": 2240 },
+      "p75InpMs": { "base": 148, "head": 166 },
+      "p75TtfbMs": { "base": 210, "head": 218 }
+    },
+    "/": {
+      "p75LcpMs": { "base": 1740, "head": 1740 },
+      "p75InpMs": { "base": 112, "head": 112 },
+      "p75TtfbMs": { "base": 164, "head": 164 }
+    },
+    "/cart": {
+      "p75LcpMs": { "base": 1520, "head": 1520 },
+      "p75InpMs": { "base": 96, "head": 96 },
+      "p75TtfbMs": { "base": 188, "head": 188 }
+    }
+  }
+}

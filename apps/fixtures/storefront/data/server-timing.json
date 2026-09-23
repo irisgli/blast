@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-09-20T00:00:00Z",
+  "window": "trailing-7-days",
+  "baseMethod": "field-rum",
+  "headMethod": "preview-synthetic",
+  "endpoints": {
+    "/api/product": { "p95Ms": { "base": 120, "head": 128 } },
+    "/api/cart": { "p95Ms": { "base": 94, "head": 94 } },
+    "/api/recommendations": { "p95Ms": { "base": null, "head": 84 } }
+  }
+}
