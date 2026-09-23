@@ -7,8 +7,7 @@ import { assess } from "@blast/core";
 import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
-import { collectEvidence } from "../lib/collect.js";
-import { remediationsFor } from "../lib/remediation.js";
+import { collectEvidence, remediationsFor } from "@blast/brief";
 import { changeProfileSchema } from "../lib/schemas.js";
 
 const run = promisify(execFile);

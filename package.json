@@ -11,11 +11,10 @@
     "dev": "eve dev",
     "fmt": "oxfmt",
     "lint": "oxlint --fix",
-    "test": "pnpm test:unit && pnpm test:contract && pnpm test:agent",
+    "test": "pnpm test:unit && pnpm test:contract",
     "test:contract": "turbo run test:contract",
     "test:unit": "turbo run test:unit",
-    "typecheck": "turbo run typecheck && tsc -p tsconfig.agent.json --noEmit",
-    "test:agent": "vitest run --config vitest.config.ts"
+    "typecheck": "turbo run typecheck && tsc -p tsconfig.agent.json --noEmit"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
@@ -33,6 +32,7 @@
   "packageManager": "pnpm@12.5.1",
   "dependencies": {
     "@blast/adapters": "workspace:*",
+    "@blast/brief": "workspace:*",
     "@blast/core": "workspace:*",
     "eve": "0.64.1",
     "zod": "catalog:"

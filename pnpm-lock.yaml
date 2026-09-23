@@ -184,6 +184,9 @@ importers:
       '@blast/adapters':
         specifier: workspace:*
         version: link:packages/blast-adapters
+      '@blast/brief':
+        specifier: workspace:*
+        version: link:packages/blast-brief
       '@blast/core':
         specifier: workspace:*
         version: link:packages/blast-core
@@ -232,6 +235,19 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.5.4
+    devDependencies:
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@24.13.3)(vite@8.3.0(@types/node@24.13.3)(yaml@2.9.1))
+
+  packages/blast-brief:
+    dependencies:
+      '@blast/adapters':
+        specifier: workspace:*
+        version: link:../blast-adapters
+      '@blast/core':
+        specifier: workspace:*
+        version: link:../blast-core
     devDependencies:
       vitest:
         specifier: 'catalog:'
