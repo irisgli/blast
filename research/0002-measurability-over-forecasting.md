@@ -93,8 +93,8 @@ MDE       = 2.8016 × sqrt(2 × p(1 − p) ÷ n)
 ```
 
 2.8016 is z(0.975) + z(0.80). The result is in absolute percentage points, and is also
-reported relative to the baseline, because a 0.16pp move on an 8.2% baseline reads
-differently as 2% relative.
+reported relative to the baseline, because a 0.05pp move on an 8.2% baseline reads
+differently as 0.6% relative.
 
 The default window is 28 days and default exposure is the full surface. Both are
 inputs, so a team running at 10% exposure sees the MDE that applies to them.

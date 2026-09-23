@@ -9,9 +9,9 @@
  */
 
 /** The three questions a brief answers. */
-export type Dimension = "performance" | "cost" | "conversion";
+export type Dimension = "performance" | "cost" | "measurability";
 
-export const DIMENSIONS = ["performance", "cost", "conversion"] as const satisfies readonly Dimension[];
+export const DIMENSIONS = ["performance", "cost", "measurability"] as const satisfies readonly Dimension[];
 
 /**
  * How a number was arrived at.
@@ -25,7 +25,7 @@ export type Basis = "measured" | "modeled" | "assumed";
 export type Confidence = "high" | "medium" | "low";
 
 /**
- * - `risk` — a threshold was crossed.
+ * - `risk` — a threshold was crossed, or an answer the team will need does not exist.
  * - `acceptable` — evidence exists and stays inside every threshold.
  * - `unmeasured` — not enough evidence to say, which is never treated as safe.
  */
@@ -44,7 +44,12 @@ export const METRIC = {
   clientJsBytes: "client_js_bytes",
   monthlyCostUsd: "monthly_cost_usd",
   funnelStepConversion: "funnel_step_conversion_rate",
-  comparableFeatureOutcome: "comparable_feature_outcome_pct",
+  /** Smallest effect the surface's traffic can resolve, in percentage points. */
+  minimumDetectableEffect: "mde_absolute_pp",
+  /** Median absolute effect past features produced here, in percentage points. */
+  historicalEffect: "historical_effect_pp",
+  /** Whether the change ships events that attribute a movement to it. */
+  featureEventCoverage: "feature_event_coverage",
 } as const;
 
 export type MetricId = (typeof METRIC)[keyof typeof METRIC];

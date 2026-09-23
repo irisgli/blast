@@ -4,8 +4,8 @@ import { confidenceForBasis, METRIC } from "./schema.js";
 import type { DimensionAssessment, VerdictContext } from "./verdict.js";
 import {
   assess,
-  assessConversion,
   assessCost,
+  assessMeasurability,
   assessPerformance,
   costCeilingUsd,
   overallConfidence,
@@ -17,17 +17,24 @@ const PDP = "/products/[slug]";
 function context(overrides: Partial<VerdictContext> = {}): VerdictContext {
   return {
     surfaceTrafficPercentile: { [PDP]: 0.97 },
-    touchedTopRevenueFunnelSurfaces: [],
     touchedServiceMonthlySpendUsd: null,
-    touchesFunnel: false,
+    measurableSurfaces: [],
+    surfacesMissingFeatureEvents: [],
+    underpoweredSurfaces: [],
+    measurabilityDataAvailable: true,
     ...overrides,
   };
 }
 
 function dimensionOf(metric: MetricId): Finding["dimension"] {
   if (metric === METRIC.monthlyCostUsd) return "cost";
-  if (metric === METRIC.funnelStepConversion || metric === METRIC.comparableFeatureOutcome) {
-    return "conversion";
+  if (
+    metric === METRIC.funnelStepConversion ||
+    metric === METRIC.minimumDetectableEffect ||
+    metric === METRIC.historicalEffect ||
+    metric === METRIC.featureEventCoverage
+  ) {
+    return "measurability";
   }
   return "performance";
 }
@@ -133,38 +140,58 @@ describe("cost thresholds", () => {
   });
 });
 
-describe("conversion rules", () => {
-  it("clears only when no funnel surface is touched", () => {
-    const clear = assessConversion([], context(), assessment("acceptable", "high"));
+describe("measurability rules", () => {
+  it("clears when the change touches no funnel surface", () => {
+    const clear = assessMeasurability([], context());
     expect(clear.status).toBe("acceptable");
     expect(clear.confidence).toBe("high");
   });
 
-  it("never clears on its own evidence, however strong", () => {
-    const strong = finding(METRIC.funnelStepConversion, 2.4, { basis: "measured" });
-    const result = assessConversion(
-      [strong],
-      context({ touchesFunnel: true }),
-      assessment("acceptable", "high"),
-    );
-    expect(result.status).toBe("unmeasured");
-  });
-
-  it("escalates when a performance risk lands on a top-revenue step", () => {
-    const result = assessConversion(
+  it("flags a change that ships no events attributable to it", () => {
+    const result = assessMeasurability(
       [],
-      context({ touchesFunnel: true, touchedTopRevenueFunnelSurfaces: [PDP] }),
-      assessment("risk", "high"),
+      context({ measurableSurfaces: [PDP], surfacesMissingFeatureEvents: [PDP] }),
     );
     expect(result.status).toBe("risk");
     expect(result.confidence).toBe("high");
+    expect(result.triggeredBy).toEqual([METRIC.featureEventCoverage]);
   });
 
-  it("does not escalate a performance risk away from a top-revenue step", () => {
-    const result = assessConversion(
+  it("flags a surface that cannot resolve the effects it has produced before", () => {
+    const result = assessMeasurability(
       [],
-      context({ touchesFunnel: true }),
-      assessment("risk", "high"),
+      context({ measurableSurfaces: [PDP], underpoweredSurfaces: [PDP] }),
+    );
+    expect(result.status).toBe("risk");
+    expect(result.triggeredBy).toEqual([METRIC.minimumDetectableEffect]);
+  });
+
+  it("reports missing instrumentation ahead of insufficient power", () => {
+    // Adding the events is the cheaper fix and a precondition for the other, so it is
+    // the remediation worth surfacing first.
+    const result = assessMeasurability(
+      [],
+      context({
+        measurableSurfaces: [PDP],
+        surfacesMissingFeatureEvents: [PDP],
+        underpoweredSurfaces: [PDP],
+      }),
+    );
+    expect(result.triggeredBy).toEqual([METRIC.featureEventCoverage]);
+  });
+
+  it("clears an attributable, adequately powered change", () => {
+    const result = assessMeasurability(
+      [finding(METRIC.minimumDetectableEffect, 0.051)],
+      context({ measurableSurfaces: [PDP] }),
+    );
+    expect(result.status).toBe("acceptable");
+  });
+
+  it("reports unmeasured when the data could not be read", () => {
+    const result = assessMeasurability(
+      [],
+      context({ measurableSurfaces: [PDP], measurabilityDataAvailable: false }),
     );
     expect(result.status).toBe("unmeasured");
   });
@@ -176,7 +203,7 @@ describe("overall verdict", () => {
       overallVerdict({
         performance: assessment("risk", "high"),
         cost: assessment("acceptable", "high"),
-        conversion: assessment("acceptable", "high"),
+        measurability: assessment("acceptable", "high"),
       }),
     ).toBe("hold");
   });
@@ -186,7 +213,7 @@ describe("overall verdict", () => {
       overallVerdict({
         performance: assessment("risk", "medium"),
         cost: assessment("risk", "medium"),
-        conversion: assessment("acceptable", "high"),
+        measurability: assessment("acceptable", "high"),
       }),
     ).toBe("hold");
   });
@@ -196,7 +223,7 @@ describe("overall verdict", () => {
       overallVerdict({
         performance: assessment("acceptable", "high"),
         cost: assessment("risk", "medium"),
-        conversion: assessment("acceptable", "high"),
+        measurability: assessment("acceptable", "high"),
       }),
     ).toBe("ship-with-caveats");
   });
@@ -206,7 +233,7 @@ describe("overall verdict", () => {
       overallVerdict({
         performance: assessment("acceptable", "high"),
         cost: assessment("acceptable", "high"),
-        conversion: assessment("unmeasured", "medium"),
+        measurability: assessment("unmeasured", "medium"),
       }),
     ).toBe("ship-with-caveats");
   });
@@ -216,7 +243,7 @@ describe("overall verdict", () => {
       overallVerdict({
         performance: assessment("acceptable", "high"),
         cost: assessment("acceptable", "high"),
-        conversion: assessment("acceptable", "high"),
+        measurability: assessment("acceptable", "high"),
       }),
     ).toBe("ship");
   });
@@ -226,23 +253,22 @@ describe("overall verdict", () => {
       overallConfidence({
         performance: assessment("acceptable", "low"),
         cost: assessment("acceptable", "high"),
-        conversion: assessment("unmeasured", "medium"),
+        measurability: assessment("unmeasured", "medium"),
       }),
     ).toBe("medium");
     expect(
       overallConfidence({
         performance: assessment("acceptable", "low"),
         cost: assessment("acceptable", "high"),
-        conversion: assessment("acceptable", "high"),
+        measurability: assessment("acceptable", "high"),
       }),
     ).toBe("low");
   });
 });
 
 describe("the documented example", () => {
-  // Locks the brief printed in the README and the research plan to the rules, so the
-  // two cannot drift apart unnoticed.
-  it("produces ship-with-caveats at medium confidence", () => {
+  // Locks the brief printed in the README to the rules, so the two cannot drift apart.
+  it("holds a change nobody will be able to evaluate", () => {
     const findings: Finding[] = [
       finding(METRIC.p75Lcp, 140, {
         surface: PDP,
@@ -253,30 +279,39 @@ describe("the documented example", () => {
         surface: PDP,
         delta: { value: 18 * 1024, unit: "bytes" },
       }),
-      finding(METRIC.monthlyCostUsd, 340, {
+      finding(METRIC.monthlyCostUsd, 340.4, {
         basis: "modeled",
-        delta: { value: 340, unit: "usd" },
+        delta: { value: 340.4, unit: "usd/month" },
       }),
       finding(METRIC.funnelStepConversion, null, {
         surface: PDP,
         base: { value: 8.2, unit: "%" },
-        head: { value: 8.2, unit: "%" },
       }),
-      finding(METRIC.comparableFeatureOutcome, 1.1, {
-        basis: "modeled",
-        delta: { value: 1.1, unit: "%" },
+      finding(METRIC.minimumDetectableEffect, null, {
+        surface: PDP,
+        head: { value: 0.051, unit: "pp" },
+      }),
+      finding(METRIC.featureEventCoverage, null, {
+        surface: PDP,
+        head: { value: 0, unit: "events" },
       }),
     ];
 
     const result = assess({
       findings,
-      context: context({ touchesFunnel: true, touchedServiceMonthlySpendUsd: 9500 }),
+      context: context({
+        touchedServiceMonthlySpendUsd: 9500,
+        measurableSurfaces: [PDP],
+        surfacesMissingFeatureEvents: [PDP],
+      }),
     });
 
     expect(result.dimensions.performance.status).toBe("acceptable");
     expect(result.dimensions.cost.status).toBe("acceptable");
-    expect(result.dimensions.conversion.status).toBe("unmeasured");
-    expect(result.verdict).toBe("ship-with-caveats");
-    expect(result.confidence).toBe("medium");
+    expect(result.dimensions.measurability.status).toBe("risk");
+    // The change is fine to run and impossible to judge. Spending $340 a month
+    // indefinitely on something nobody can evaluate is the thing worth stopping for.
+    expect(result.verdict).toBe("hold");
+    expect(result.confidence).toBe("high");
   });
 });
