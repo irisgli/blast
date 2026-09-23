@@ -3,7 +3,8 @@ import type { Result } from "@blast/core";
 import { DIMENSIONS, METRIC } from "@blast/core";
 import { z } from "zod";
 import { clearFixtureCache, loadFixture } from "./fixture-store.js";
-import { ADAPTERS, adaptersFor, adapterById } from "./registry.js";
+import type { Source } from "./registry.js";
+import { SOURCES, sourceById, sourcesFor } from "./registry.js";
 
 /**
  * Conformance runs over the registry, not over a hand-written list, so a live adapter
@@ -27,8 +28,8 @@ const ABSENT = {
   services: ["does-not-exist"],
 };
 
-function invoke(adapter: (typeof ADAPTERS)[number], query: unknown): Promise<Result<unknown>> {
-  return (adapter.fetch as (input: unknown) => Promise<Result<unknown>>)(query);
+async function invoke(entry: Source, query: unknown): Promise<Result<unknown>> {
+  return (await entry.collect(query)).result;
 }
 
 function expectWellFormed(result: Result<unknown>): void {
@@ -49,28 +50,28 @@ describe("the adapter registry", () => {
 
   it("registers at least one source per dimension", () => {
     for (const dimension of DIMENSIONS) {
-      expect(adaptersFor(dimension).length).toBeGreaterThan(0);
+      expect(sourcesFor(dimension).length).toBeGreaterThan(0);
     }
   });
 
   it("gives every adapter a unique id", () => {
-    const ids = ADAPTERS.map((adapter) => adapter.id);
+    const ids = SOURCES.map((entry) => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("resolves every registered adapter by id", () => {
-    for (const adapter of ADAPTERS) {
-      expect(adapterById(adapter.id)).toBe(adapter);
+    for (const entry of SOURCES) {
+      expect(sourceById(entry.id)).toBe(entry);
     }
-    expect(adapterById("not-a-real-adapter")).toBeUndefined();
+    expect(sourceById("not-a-real-adapter")).toBeUndefined();
   });
 
-  it.each(ADAPTERS.map((adapter) => [adapter.id, adapter] as const))(
+  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
     "%s describes itself consistently",
-    (_id, adapter) => {
-      const info = adapter.describe();
-      expect(info.id).toBe(adapter.id);
-      expect(info.dimension).toBe(adapter.dimension);
+    (_id, entry) => {
+      const info = entry.describe();
+      expect(info.id).toBe(entry.id);
+      expect(info.dimension).toBe(entry.dimension);
       expect(info.displayName.length).toBeGreaterThan(0);
       expect(info.cadence.length).toBeGreaterThan(0);
       expect(info.metrics.length).toBeGreaterThan(0);
@@ -80,24 +81,24 @@ describe("the adapter registry", () => {
     },
   );
 
-  it.each(ADAPTERS.map((adapter) => [adapter.id, adapter] as const))(
+  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
     "%s returns a well-formed result for data it has",
-    async (_id, adapter) => {
-      expectWellFormed(await invoke(adapter, PRESENT));
+    async (_id, entry) => {
+      expectWellFormed(await invoke(entry, PRESENT));
     },
   );
 
-  it.each(ADAPTERS.map((adapter) => [adapter.id, adapter] as const))(
+  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
     "%s reports absence as a value rather than throwing",
-    async (_id, adapter) => {
-      expectWellFormed(await invoke(adapter, ABSENT));
+    async (_id, entry) => {
+      expectWellFormed(await invoke(entry, ABSENT));
     },
   );
 
-  it.each(ADAPTERS.map((adapter) => [adapter.id, adapter] as const))(
+  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
     "%s survives a malformed query without throwing",
-    async (_id, adapter) => {
-      expectWellFormed(await invoke(adapter, { surfaces: [], endpoints: [], services: [] }));
+    async (_id, entry) => {
+      expectWellFormed(await invoke(entry, { surfaces: [], endpoints: [], services: [] }));
     },
   );
 });
