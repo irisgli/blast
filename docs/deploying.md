@@ -39,6 +39,24 @@ project's OIDC — no provider key to hold. For a direct provider, set `ANTHROPI
 in the project environment and change `agent/agent.ts` to use `anthropic()` from
 `eve/models/anthropic`.
 
+## The agent's HTTP surface is closed
+
+`eve start` answers `/eve/v1/health` and returns `401` for everything else, including
+`/eve/v1/info`. That is the policy in
+[`agent/channels/eve.ts`](../agent/channels/eve.ts) working: `localDev()` does not apply
+to a production server, and `vercelOidc()` has nothing to verify outside Vercel. It is
+worth knowing before it looks like a broken deployment.
+
+Nothing in the demo depends on that surface. The page renders the engine directly rather
+than calling the agent, and the GitHub channel verifies its own webhooks on a separate
+path. On Vercel, `vercelOidc()` admits Vercel-to-Vercel callers, so a same-origin client
+in the same deployment works.
+
+A client that is none of those — a CI job, a browser, another service — needs an
+authenticator added to that walk. Add one rather than widening these: a session request
+spends model credits, and `none()` on this route means anyone who finds the URL spends
+them.
+
 ## The GitHub App
 
 [`agent/channels/github.ts`](../agent/channels/github.ts) reads credentials from the
