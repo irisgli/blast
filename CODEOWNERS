@@ -1,0 +1,5 @@
+# Verdict thresholds and the adapter contract are the two surfaces where a quiet
+# change alters every brief the tool produces. Both require review.
+/packages/blast-core/src/verdict.ts @irisgli
+/packages/blast-core/src/adapter.ts @irisgli
+/agent/skills/infra-cost-model/references/pricing.md @irisgli
