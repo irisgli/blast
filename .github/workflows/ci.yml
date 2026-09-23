@@ -85,6 +85,9 @@ jobs:
       - name: Run adapter contract conformance
         run: pnpm test:contract
 
+      - name: Run the pipeline end to end
+        run: pnpm test:agent
+
   build-agent:
     runs-on: ubuntu-latest
 
