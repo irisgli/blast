@@ -33,19 +33,26 @@ The repository is a pnpm workspace orchestrated with
 - [`agent`](./agent) — the agent: instructions, tools, skills, subagents
 - [`packages/blast-core`](./packages/blast-core) — impact schema, adapter contract,
   verdict rules
-- [`packages/blast-adapters`](./packages/blast-adapters) — fixture-backed adapters and
+- [`packages/blast-adapters`](./packages/blast-adapters) — fixture-backed sources and
   the registry
+- [`packages/blast-brief`](./packages/blast-brief) — evidence collection, brief
+  rendering, remediations
+- [`apps/web`](./apps/web) — the Next.js surface, which mounts the agent
 - [`apps/fixtures`](./apps/fixtures) — the sample pull request and telemetry
 - [`docs`](./docs) — published documentation
 
 ## Development
 
 ```bash
-pnpm dev
+pnpm dev                        # the agent's terminal UI
+pnpm --filter @blast/web dev    # the web surface on http://localhost:3100
 ```
 
-This runs the agent's terminal UI against the checked-in fixtures, so no credentials
-are required.
+Both run against the checked-in fixtures. The web surface needs no credentials at all —
+it renders the engine's output, and the engine is deterministic code. The agent needs a
+model to write the narrative around it.
+
+See [docs/deploying.md](./docs/deploying.md) for Vercel and the GitHub App.
 
 ## Testing
 

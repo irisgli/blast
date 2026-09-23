@@ -1,8 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { loadFixtureChangeProfile } from "./change.js";
 import { allSurfaceUsage } from "./cost.js";
 import { estimateMonthlyCost, originRequestsPerMonth } from "./cost-model.js";
-import { clearFixtureCache } from "./fixture-store.js";
 import type { SurfaceUsage } from "./cost.js";
 
 function usage(overrides: Partial<SurfaceUsage> = {}): SurfaceUsage {
@@ -37,16 +36,13 @@ describe("origin request modeling", () => {
 });
 
 describe("the storefront estimate", () => {
-  beforeEach(() => {
-    clearFixtureCache();
-  });
 
   it("costs the sample pull request line by line", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     expect(change.ok).toBe(true);
     if (!change.ok) return;
 
-    const surfaces = await allSurfaceUsage();
+    const surfaces = allSurfaceUsage();
     expect(surfaces).not.toBeNull();
     if (surfaces === null) return;
 
@@ -62,7 +58,7 @@ describe("the storefront estimate", () => {
   });
 
   it("charges nothing for a cache change that loosens the TTL", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     if (!change.ok) return;
 
     const estimate = estimateMonthlyCost({

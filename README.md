@@ -18,30 +18,44 @@ agent/
 ├── agent.ts              # model and runtime config
 ├── instructions.md       # the always-on system prompt
 ├── sandbox.ts            # a pure-JavaScript shell, no container
-├── tools/                # read_change, run_adapter, estimate_cost,
-│   │                     # attribute_payload, render_brief, propose_fix, post_comment
-├── lib/                  # evidence collection, brief rendering, remediations
+├── channels/github.ts    # @blast on a pull request starts a turn
+├── tools/                # read_change, run_adapter, estimate_cost, attribute_payload,
+│                         # render_brief, propose_fix, post_comment
 └── subagents/            # one specialist per dimension, isolated context
     ├── performance/
     ├── cost/
     └── measurability/
 ```
 
+The engine lives beside it in [`packages/blast-brief`](./packages/blast-brief), and
+[`apps/web`](./apps/web) renders its output. The page and a brief posted to a pull
+request are the same call, so they cannot drift apart.
+
 ## Quick start
 
 ```bash
 pnpm install
-pnpm dev
+pnpm --filter @blast/web dev
 ```
 
-Then ask for a brief:
+The surface on `localhost:3100` renders a brief for the sample pull request, in
+[Geist](https://vercel.com/geist/introduction) and built the way the product would ship:
+a tab on a deployment, not a landing page. It needs no credentials — the verdict, the
+bill, and the fixes are deterministic code over the fixtures, computed when the page
+loads.
+
+For the agent itself:
+
+```bash
+pnpm dev
+```
 
 ```text
 blast fixture --intent "personalized recommendations carousel on the product page"
 ```
 
-The repository ships with telemetry fixtures, so this runs end to end with no
-credentials.
+Deployed, `@blast` on a pull request answers in the thread with the diff in context.
+See [Deploying](./docs/deploying.md).
 
 ## What comes back
 
@@ -149,6 +163,7 @@ pass.
 ## Documentation
 
 - [Architecture](./docs/architecture.md) — routing, context isolation, data flow
+- [Deploying](./docs/deploying.md) — Vercel, credentials, the GitHub App
 - [Adapters](./docs/adapters.md) — the contract, and adding a live source
 - [Verdict model](./docs/verdict.md) — every threshold, and why it is code
 - [Research](./research) — the design plans this was built from

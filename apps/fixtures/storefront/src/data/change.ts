@@ -1,0 +1,57 @@
+/** Fixture payload for `change.json`, shaped as the live source would return it. */
+export default {
+  "ref": {
+    "kind": "pr",
+    "id": "1234",
+    "base": "main",
+    "head": "feat/pdp-recommendations-carousel"
+  },
+  "intent": "personalized recommendations carousel on the product page",
+  "surfaces": [
+    {
+      "id": "/products/[slug]",
+      "label": "Product detail"
+    }
+  ],
+  "clientBytesDelta": 18432,
+  "dependenciesAdded": [
+    {
+      "name": "embla-carousel-react",
+      "version": "8.6.0",
+      "bytes": 12288
+    },
+    {
+      "name": "@storefront/affinity-client",
+      "version": "2.1.0",
+      "bytes": 6144
+    }
+  ],
+  "endpointsAdded": [
+    {
+      "path": "/api/recommendations",
+      "method": "GET",
+      "runtime": "edge"
+    }
+  ],
+  "queriesAdded": [
+    {
+      "table": "product_affinity",
+      "kind": "read",
+      "perRequest": 2,
+      "indexed": true
+    }
+  ],
+  "cacheDirectivesChanged": [
+    {
+      "surface": "/products/[slug]",
+      "from": "s-maxage=3600",
+      "to": "s-maxage=300",
+      "file": "app/products/[slug]/page.tsx"
+    }
+  ],
+  "filesChanged": 14,
+  "linesChanged": {
+    "added": 512,
+    "removed": 47
+  }
+} as const;

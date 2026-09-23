@@ -95,7 +95,7 @@ export const funnelAdapter: Adapter<SurfaceQuery, FunnelResult> = {
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.funnel, funnelSchema);
+    const loaded = loadFixture(FIXTURE_FILES.funnel, funnelSchema);
     if (!loaded.ok) return loaded;
     if (loaded.value.steps.length === 0) return fail("no-data", "The funnel has no steps defined.");
 
@@ -121,7 +121,7 @@ export const featureHistoryAdapter: Adapter<SurfaceQuery, FeatureHistoryResult> 
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.featureHistory, featureHistorySchema);
+    const loaded = loadFixture(FIXTURE_FILES.featureHistory, featureHistorySchema);
     if (!loaded.ok) return loaded;
 
     const features = loaded.value.features.filter((feature) =>
@@ -148,7 +148,7 @@ export const instrumentationAdapter: Adapter<SurfaceQuery, InstrumentationResult
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.instrumentation, instrumentationSchema);
+    const loaded = loadFixture(FIXTURE_FILES.instrumentation, instrumentationSchema);
     if (!loaded.ok) return loaded;
 
     const surfaces = query.surfaces.flatMap((surface) => {

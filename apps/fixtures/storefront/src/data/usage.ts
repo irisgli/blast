@@ -1,4 +1,5 @@
-{
+/** Fixture payload for `usage.json`, shaped as the live source would return it. */
+export default {
   "generatedAt": "2026-09-15T00:00:00Z",
   "window": "trailing-30-days",
   "surfaces": [
@@ -53,4 +54,4 @@
       "egressBytesPerRequest": 178000
     }
   ]
-}
+} as const;

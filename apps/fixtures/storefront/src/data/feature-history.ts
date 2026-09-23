@@ -1,4 +1,5 @@
-{
+/** Fixture payload for `feature-history.json`, shaped as the live source would return it. */
+export default {
   "generatedAt": "2026-09-15T00:00:00Z",
   "note": "Features previously shipped to these surfaces, with the conversion movement observed in the stated window. Each was measured against a holdout.",
   "features": [
@@ -33,4 +34,4 @@
       "holdout": true
     }
   ]
-}
+} as const;

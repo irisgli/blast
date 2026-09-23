@@ -46,6 +46,6 @@ const changeSchema = z.object({
   linesChanged: z.object({ added: z.number(), removed: z.number() }),
 });
 
-export async function loadFixtureChangeProfile(): Promise<Result<ChangeProfile>> {
+export function loadFixtureChangeProfile(): Result<ChangeProfile> {
   return loadFixture(FIXTURE_FILES.change, changeSchema);
 }

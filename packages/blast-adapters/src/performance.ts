@@ -88,7 +88,7 @@ export const speedInsightsAdapter: Adapter<SurfaceQuery, SpeedInsightsResult> = 
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.speedInsights, speedInsightsSchema);
+    const loaded = loadFixture(FIXTURE_FILES.speedInsights, speedInsightsSchema);
     if (!loaded.ok) return loaded;
 
     const surfaces = query.surfaces.flatMap((surface) => {
@@ -117,7 +117,7 @@ export const buildManifestAdapter: Adapter<SurfaceQuery, BuildManifestResult> = 
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.buildManifest, buildManifestSchema);
+    const loaded = loadFixture(FIXTURE_FILES.buildManifest, buildManifestSchema);
     if (!loaded.ok) return loaded;
 
     const surfaces = query.surfaces.flatMap((surface) => {
@@ -148,7 +148,7 @@ export const serverTimingAdapter: Adapter<EndpointQuery, ServerTimingResult> = {
     };
   },
   async fetch(query) {
-    const loaded = await loadFixture(FIXTURE_FILES.serverTiming, serverTimingSchema);
+    const loaded = loadFixture(FIXTURE_FILES.serverTiming, serverTimingSchema);
     if (!loaded.ok) return loaded;
 
     const endpoints = query.endpoints.flatMap((endpoint) => {

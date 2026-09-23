@@ -154,7 +154,7 @@ export default defineTool({
   },
   async execute({ ref, intent }) {
     if (ref === "fixture") {
-      const fixture = await loadFixtureChangeProfile();
+      const fixture = loadFixtureChangeProfile();
       if (!fixture.ok) return { ok: false as const, reason: fixture.reason, detail: fixture.detail };
       return {
         ok: true as const,

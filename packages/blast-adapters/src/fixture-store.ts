@@ -1,33 +1,21 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { FIXTURE_DATA_ROOT } from "@blast-fixtures/storefront";
+import { FIXTURE_DOCUMENTS } from "@blast-fixtures/storefront";
 import type { Result } from "@blast/core";
 import { fail, ok } from "@blast/core";
 import type { ZodType, output } from "zod";
 
 /**
- * Reads and validates a fixture file.
+ * Reads and validates a fixture payload.
  *
- * Fixtures are validated on the way in rather than trusted. A malformed fixture that
- * parses as JSON but is missing a field would otherwise surface as `undefined` deep
- * inside a finding, and a brief built on it would read as authoritative while being
- * wrong. A file that does not match its schema is reported as an unavailable source,
- * which is the same path a live API outage takes.
- */
-
-/**
- * Caches the parsed JSON document, not the validated result.
+ * Validation runs on every read rather than being cached with the result. Caching a
+ * validated value keyed on its name hands back data checked against a different schema
+ * the next time someone reads the same source through a different one — a failure that
+ * surfaces as a plausible wrong number rather than an error.
  *
- * Validation is cheap and the file read is not, but caching post-validation would key
- * on the file alone and hand back data that was checked against a different schema.
- * Today each file has one reader, so that is latent rather than live — and it is the
- * kind of latent that surfaces as a plausible wrong number rather than an error.
+ * `documents` is injectable so a caller can simulate a source that is not there. That
+ * path has to work: a live adapter is unreachable often enough that a brief has to be
+ * able to say so.
  */
-const documents = new Map<string, unknown>();
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+export type FixtureDocuments = Readonly<Record<string, unknown>>;
 
 function freshnessOf(value: unknown): string {
   if (typeof value === "object" && value !== null && "generatedAt" in value) {
@@ -37,36 +25,17 @@ function freshnessOf(value: unknown): string {
   return "unknown";
 }
 
-async function readDocument(file: string): Promise<Result<unknown>> {
-  const cached = documents.get(file);
-  if (cached !== undefined) return ok(cached, freshnessOf(cached));
-
-  let raw: string;
-  try {
-    raw = await readFile(join(FIXTURE_DATA_ROOT, file), "utf8");
-  } catch (error) {
-    return fail("unavailable", `Could not read fixture ${file}: ${messageOf(error)}`);
-  }
-
-  let document: unknown;
-  try {
-    document = JSON.parse(raw);
-  } catch (error) {
-    return fail("unavailable", `Fixture ${file} is not valid JSON: ${messageOf(error)}`);
-  }
-
-  documents.set(file, document);
-  return ok(document, freshnessOf(document));
-}
-
-export async function loadFixture<S extends ZodType>(
+export function loadFixture<S extends ZodType>(
   file: string,
   schema: S,
-): Promise<Result<output<S>>> {
-  const document = await readDocument(file);
-  if (!document.ok) return document;
+  documents: FixtureDocuments = FIXTURE_DOCUMENTS,
+): Result<output<S>> {
+  const document = documents[file];
+  if (document === undefined) {
+    return fail("unavailable", `No fixture payload registered as ${file}.`);
+  }
 
-  const parsed = schema.safeParse(document.value);
+  const parsed = schema.safeParse(document);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const where = issue === undefined ? "unknown location" : issue.path.join(".");
@@ -74,10 +43,5 @@ export async function loadFixture<S extends ZodType>(
     return fail("unavailable", `Fixture ${file} does not match its schema: ${what} at ${where}.`);
   }
 
-  return ok(parsed.data, document.freshness);
-}
-
-/** Clears the fixture cache. Tests use this; nothing on the request path should. */
-export function clearFixtureCache(): void {
-  documents.clear();
+  return ok(parsed.data, freshnessOf(document));
 }

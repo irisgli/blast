@@ -70,7 +70,7 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
   const sources: SourceStatus[] = [];
 
   // Traffic ranking needs every surface on record, not only the touched ones.
-  const allUsage = await allSurfaceUsage();
+  const allUsage = allSurfaceUsage();
   const estimate =
     allUsage === null ? null : estimateMonthlyCost({ profile, usage: allUsage.surfaces });
 

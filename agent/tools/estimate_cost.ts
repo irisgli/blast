@@ -14,7 +14,7 @@ export default defineTool({
     start: () => "Estimate monthly cost",
   },
   async execute({ profile }) {
-    const usage = await allSurfaceUsage();
+    const usage = allSurfaceUsage();
     if (usage === null) {
       return {
         ok: false as const,

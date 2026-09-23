@@ -1,5 +1,9 @@
-# Verdict thresholds and the adapter contract are the two surfaces where a quiet
-# change alters every brief the tool produces. Both require review.
+# Three files decide what every brief says, and a one-line change to any of them is
+# invisible in review unless someone is looking. They require it.
 /packages/blast-core/src/verdict.ts @irisgli
 /packages/blast-core/src/adapter.ts @irisgli
-/agent/skills/infra-cost-model/references/pricing.md @irisgli
+/packages/blast-core/src/pricing.ts @irisgli
+/agent/subagents/cost/skills/infra-cost-model/references/pricing.md @irisgli
+
+# The only routes that decide who may spend model credits.
+/agent/channels/ @irisgli

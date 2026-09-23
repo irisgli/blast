@@ -1,16 +1,13 @@
-import { clearFixtureCache, loadFixtureChangeProfile } from "@blast/adapters";
+import { loadFixtureChangeProfile } from "@blast/adapters";
 import { assess } from "@blast/core";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { collectEvidence } from "./collect.js";
 import { remediationsFor } from "./remediation.js";
 
 describe("remediations for the sample pull request", () => {
-  beforeEach(() => {
-    clearFixtureCache();
-  });
 
   it("names the exact events the change is missing", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     expect(change.ok).toBe(true);
     if (!change.ok) return;
 
@@ -28,7 +25,7 @@ describe("remediations for the sample pull request", () => {
   });
 
   it("offers a real patch for the cache directive, with the cost that motivated it", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     if (!change.ok) return;
 
     const evidence = await collectEvidence(change.value);
@@ -44,7 +41,7 @@ describe("remediations for the sample pull request", () => {
   });
 
   it("offers the cost fix even though cost stayed inside its ceiling", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     if (!change.ok) return;
 
     const evidence = await collectEvidence(change.value);
@@ -61,7 +58,7 @@ describe("remediations for the sample pull request", () => {
   });
 
   it("does not offer a power fix for a surface that is adequately powered", async () => {
-    const change = await loadFixtureChangeProfile();
+    const change = loadFixtureChangeProfile();
     if (!change.ok) return;
 
     const evidence = await collectEvidence(change.value);

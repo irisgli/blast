@@ -1,8 +1,7 @@
 import { assess } from "@blast/core";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { buildBrief, renderBrief } from "../lib/brief.js";
-import { collectEvidence } from "../lib/collect.js";
+import { buildBrief, collectEvidence, renderBrief } from "@blast/brief";
 import { changeProfileSchema } from "../lib/schemas.js";
 
 /**
