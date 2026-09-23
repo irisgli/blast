@@ -62,9 +62,9 @@ describe("performance thresholds", () => {
     expect(assessPerformance([finding(METRIC.p75Lcp, 201)], context()).status).toBe("risk");
   });
 
-  it("rejects an LCP that lands over budget even without a regression", () => {
-    const atBudget = finding(METRIC.p75Lcp, 0, { head: { value: 2500, unit: "ms" } });
-    const overBudget = finding(METRIC.p75Lcp, 0, { head: { value: 2501, unit: "ms" } });
+  it("rejects a projected LCP over budget even without a regression", () => {
+    const atBudget = finding(METRIC.p75LcpProjected, null, { head: { value: 2500, unit: "ms" } });
+    const overBudget = finding(METRIC.p75LcpProjected, null, { head: { value: 2501, unit: "ms" } });
     expect(assessPerformance([atBudget], context()).status).toBe("acceptable");
     expect(assessPerformance([overBudget], context()).status).toBe("risk");
   });
@@ -74,6 +74,11 @@ describe("performance thresholds", () => {
     expect(assessPerformance([finding(METRIC.p75Inp, 51)], context()).status).toBe("risk");
     expect(assessPerformance([finding(METRIC.p95Server, 100)], context()).status).toBe("acceptable");
     expect(assessPerformance([finding(METRIC.p95Server, 101)], context()).status).toBe("risk");
+  });
+
+  it("never applies the budget rule to a synthetic absolute", () => {
+    const slowRunner = finding(METRIC.p75Lcp, 10, { head: { value: 3200, unit: "ms" } });
+    expect(assessPerformance([slowRunner], context()).status).toBe("acceptable");
   });
 
   it("applies the client JS rule only on top-decile traffic surfaces", () => {

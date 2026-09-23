@@ -123,8 +123,13 @@ function performanceBreach(
       if (finding.delta !== null && finding.delta.value > thresholds.lcpDeltaMs) {
         return `p75 LCP regresses by ${round(finding.delta.value)}ms, past the ${thresholds.lcpDeltaMs}ms threshold.`;
       }
+      return null;
+    }
+    case METRIC.p75LcpProjected: {
+      // Only the projection is comparable to a field budget. A synthetic absolute
+      // measures preview hardware, and would fire this rule on every slow runner.
       if (finding.head !== null && finding.head.value > thresholds.lcpBudgetMs) {
-        return `p75 LCP lands at ${round(finding.head.value)}ms, over the ${thresholds.lcpBudgetMs}ms budget.`;
+        return `Projected p75 LCP lands at ${round(finding.head.value)}ms, over the ${thresholds.lcpBudgetMs}ms budget.`;
       }
       return null;
     }

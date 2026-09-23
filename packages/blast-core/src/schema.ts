@@ -36,6 +36,9 @@ export type Verdict = "ship" | "ship-with-caveats" | "hold";
 /** Canonical metric identifiers. Findings and verdict rules agree on these strings. */
 export const METRIC = {
   p75Lcp: "p75_lcp_ms",
+  /** Field p75 LCP projected forward by the measured synthetic delta. */
+  p75LcpProjected: "p75_lcp_projected_ms",
+  p75Ttfb: "p75_ttfb_ms",
   p75Inp: "p75_inp_ms",
   p95Server: "p95_server_ms",
   clientJsBytes: "client_js_bytes",
