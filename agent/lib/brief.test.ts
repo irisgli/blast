@@ -21,6 +21,13 @@ describe("measure formatting", () => {
   it("shows an absent measure as a dash rather than a zero", () => {
     expect(formatMeasure(null)).toBe("—");
   });
+
+  it("rounds every unit it prints, including ones it does not know", () => {
+    expect(formatMeasure({ value: 0.05083123245977908, unit: "pp" })).toBe("0.05pp");
+    expect(formatMeasure({ value: 0, unit: "events" })).toBe("0");
+    // An unrounded float reads as noise rather than precision, whatever the unit.
+    expect(formatMeasure({ value: 1.23456789, unit: "widgets" })).toBe("1.23 widgets");
+  });
 });
 
 describe("the full pipeline over the sample pull request", () => {
@@ -59,6 +66,9 @@ describe("the full pipeline over the sample pull request", () => {
     expect(markdown).toContain("## Measurability  ⚠");
     expect(markdown).toContain("+$340.40/mo");
     expect(markdown).toContain("+18 KB");
+    expect(markdown).toContain("0.05pp");
+    expect(markdown).toContain("inside the $500.00 ceiling");
+    expect(markdown).not.toMatch(/\d\.\d{4,}/);
   });
 
   it("finds the change ships no events attributable to it", async () => {

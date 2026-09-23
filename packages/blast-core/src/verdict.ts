@@ -116,6 +116,11 @@ function round(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+/** Money always carries both decimal places, so a rationale matches the brief's table. */
+function money(value: number): string {
+  return value.toFixed(2);
+}
+
 /** Returns a rationale when the finding breaches a threshold, or null when it does not. */
 function performanceBreach(
   finding: Finding,
@@ -235,7 +240,7 @@ export function assessCost(
     return {
       status: "risk",
       confidence: monthly.confidence,
-      rationale: `Monthly spend grows by $${round(monthly.delta.value)}, past the $${round(ceiling)} ceiling for the touched services.`,
+      rationale: `Monthly spend grows by $${money(monthly.delta.value)}, past the $${money(ceiling)} ceiling for the touched services.`,
       triggeredBy: [monthly.metric],
     };
   }
@@ -243,7 +248,7 @@ export function assessCost(
   return {
     status: "acceptable",
     confidence: monthly.confidence,
-    rationale: `Monthly spend grows by $${round(monthly.delta.value)}, inside the $${round(ceiling)} ceiling.`,
+    rationale: `Monthly spend grows by $${money(monthly.delta.value)}, inside the $${money(ceiling)} ceiling.`,
     triggeredBy: [],
   };
 }

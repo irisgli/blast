@@ -55,28 +55,46 @@ attribute a funnel movement to it, so $340 a month buys something nobody will be
 able to evaluate. Two event names fix it.
 
 ## Performance  ○
-| metric    | base   | head   | delta  | basis    |
-| --------- | ------ | ------ | ------ | -------- |
-| p75 LCP   | 2.04s  | 2.18s  | +140ms | measured |
-| client JS | 412 KB | 430 KB | +18 KB | measured |
+
+| metric                                | base   | head   | delta  | basis    |
+| ------------------------------------- | ------ | ------ | ------ | -------- |
+| p75 LCP · /products/[slug]            | 2.04s  | 2.18s  | +140ms | measured |
+| p75 LCP, projected · /products/[slug] | 2.10s  | 2.24s  | —      | modeled  |
+| client JS · /products/[slug]          | 412 KB | 430 KB | +18 KB | measured |
+
+Every performance metric stays inside its threshold across 6 measurements.
 
 ## Infrastructure cost  ○
-+$340.40/mo, 3.6% of current spend on the services it touches.
-$298.66 of it is the product page cache TTL moving from 3600s to 300s.
+
+| metric        | base | head | delta       | basis   |
+| ------------- | ---- | ---- | ----------- | ------- |
+| monthly spend | —    | —    | +$340.40/mo | modeled |
+
+Monthly spend grows by $340.40, inside the $500.00 ceiling.
 
 ## Measurability  ⚠
-| metric             | head   | basis    |
-| ------------------ | ------ | -------- |
-| detectable effect  | 0.05pp | modeled  |
-| effects seen here  | 0.75pp | measured |
-| attributable events| 0      | measured |
 
-The surface resolves far below what features here have moved. Attribution is
-what is missing: emit `pdp_recommendations_carousel_impression` and
-`pdp_recommendations_carousel_click`.
+| metric                                  | base | head   | delta | basis    |
+| --------------------------------------- | ---- | ------ | ----- | -------- |
+| funnel baseline · /products/[slug]      | 8.2% | —      | —     | measured |
+| detectable effect · /products/[slug]    | —    | 0.05pp | —     | modeled  |
+| effects seen here · /products/[slug]    | —    | 0.75pp | —     | measured |
+| attributable events · /products/[slug]  | —    | 0      | —     | measured |
+
+The change ships no events attributing a funnel movement to it on
+/products/[slug], so its effect cannot be separated from everything else
+released that week.
+
+Watch after ship: PDP to cart rate, carousel CTR.
 ```
 
+Abridged. The brief also lists the remaining metrics, the assumptions behind every
+number, and the freshness of each source it consulted.
+
 One glyph per dimension: `⚠` risk, `○` acceptable, `◌` unmeasured.
+
+The surface resolves an effect fifteen times smaller than what features have moved it
+before, so power is not the problem. Attribution is.
 
 ## How it decides
 
@@ -98,8 +116,15 @@ A `risk` at high confidence holds the change. An `unmeasured` dimension caps it 
 ## It opens the fix
 
 `propose_fix` derives remediations from the evidence that produced the findings, and
-opens one as a pull request when the change is mechanical. Restoring a cache TTL is a
-one-line revert, so it ships a patch. Adding events is not, so it ships the event names.
+opens one as a pull request when the change is mechanical.
+
+For this change it offers two. Restoring the product page cache TTL is a one-line
+revert, so it ships a patch — $298.66 of the $340.40 comes from that directive moving
+from 3600s to 300s, which is worth raising even though cost stayed inside its ceiling.
+Emitting `pdp_recommendations_carousel_impression` and
+`pdp_recommendations_carousel_click` has no call site a text diff can locate, so it
+ships the event names and declines to open an empty pull request.
+
 Both require approval before anything is written.
 
 ## Adapters

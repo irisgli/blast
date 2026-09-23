@@ -67,8 +67,13 @@ export function formatMeasure(measure: Measure | null, options: { signed?: boole
       return `${sign}$${value.toFixed(2)}/mo`;
     case "%":
       return `${sign}${value.toFixed(1)}%`;
+    case "pp":
+      return `${sign}${value.toFixed(2)}pp`;
+    case "events":
+      return `${sign}${Math.round(value)}`;
     default:
-      return `${sign}${value} ${unit}`.trim();
+      // Unrounded floats read as noise, not precision. A new unit belongs above.
+      return `${sign}${Number(value.toFixed(2))} ${unit}`.trim();
   }
 }
 
