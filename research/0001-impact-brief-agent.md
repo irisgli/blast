@@ -204,9 +204,16 @@ or `low` confidence, or any dimension is `unmeasured`. `ship` only when all thre
 `acceptable`.
 
 **Overall confidence** — the floor across contributing dimensions, where a contributing
-dimension is any whose status is `risk` or `unmeasured`, or all three when every
-dimension is `acceptable`. All contributing findings `measured` gives `high`; any
-`modeled` gives `medium`; any `assumed` gives `low`.
+dimension is any whose status is not `acceptable`, or all three when every dimension is
+`acceptable`.
+
+A dimension's own confidence comes from the basis of the findings that determined its
+status, mapped `measured` to `high`, `modeled` to `medium`, `assumed` to `low`. For a
+`risk` dimension that is the basis of the single finding that breached a threshold, not
+the floor over everything in the dimension: a measured regression reported alongside an
+unrelated assumed number is still measured, and reading it as `low` would let a real
+regression avoid a `hold`. For `acceptable` and `unmeasured` it is the floor across the
+dimension's findings, and `low` when there are none.
 
 ## Subagents
 
