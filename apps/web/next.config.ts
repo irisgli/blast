@@ -1,20 +1,5 @@
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
 import type { NextConfig } from "next";
 import { withEve } from "eve/next";
-
-const require = createRequire(import.meta.url);
-
-/**
- * The fixture telemetry is read from disk at request time, the same way a live adapter
- * would read from an API. Next traces imports, not `readFile` paths, so the data
- * directory has to be declared or the deployed function finds an empty filesystem and
- * every source reports itself unavailable.
- */
-const fixtureData = join(
-  dirname(require.resolve("@blast-fixtures/storefront/package.json")),
-  "data",
-);
 
 const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript sources rather than a build step.
@@ -30,9 +15,6 @@ const nextConfig: NextConfig = {
   webpack(config: { resolve: { extensionAlias?: Record<string, string[]> } }) {
     config.resolve.extensionAlias = { ".js": [".ts", ".tsx", ".js"] };
     return config;
-  },
-  outputFileTracingIncludes: {
-    "/": [`${fixtureData}/**`],
   },
   async headers() {
     return [
