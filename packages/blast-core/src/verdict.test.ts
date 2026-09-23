@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Confidence, DimensionStatus, Finding, MetricId } from "./schema.js";
-import { METRIC } from "./schema.js";
+import { confidenceForBasis, METRIC } from "./schema.js";
 import type { DimensionAssessment, VerdictContext } from "./verdict.js";
 import {
   assess,
@@ -33,20 +33,23 @@ function dimensionOf(metric: MetricId): Finding["dimension"] {
 }
 
 function finding(metric: MetricId, delta: number | null, overrides: Partial<Finding> = {}): Finding {
-  return {
+  const basis = overrides.basis ?? "measured";
+  const defaults: Finding = {
     dimension: dimensionOf(metric),
     metric,
     surface: null,
     base: null,
     head: null,
     delta: delta === null ? null : { value: delta, unit: "ms" },
-    basis: "measured",
-    confidence: "high",
+    basis,
+    // Adapters derive confidence from basis and downgrade for caveats; mirror that
+    // default here so a test that sets only a basis behaves like a real finding.
+    confidence: confidenceForBasis(basis),
     sourceId: "fixture-test",
     assumptions: [],
     note: null,
-    ...overrides,
   };
+  return { ...defaults, ...overrides };
 }
 
 function assessment(status: DimensionStatus, confidence: Confidence): DimensionAssessment {

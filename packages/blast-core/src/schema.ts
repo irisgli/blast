@@ -127,6 +127,22 @@ export interface Finding {
   note: string | null;
 }
 
+/**
+ * The confidence a basis earns before anything is known about the source. Adapters
+ * start here and downgrade for known caveats — a stale feed, or a head value measured
+ * on preview hardware rather than in the field.
+ */
+export function confidenceForBasis(basis: Basis): Confidence {
+  switch (basis) {
+    case "measured":
+      return "high";
+    case "modeled":
+      return "medium";
+    case "assumed":
+      return "low";
+  }
+}
+
 export interface DimensionReport {
   status: DimensionStatus;
   confidence: Confidence;

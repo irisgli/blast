@@ -1,5 +1,4 @@
 import type {
-  Basis,
   Confidence,
   Dimension,
   DimensionStatus,
@@ -80,12 +79,6 @@ export interface AssessmentInput {
   thresholds?: VerdictThresholds;
 }
 
-const CONFIDENCE_BY_BASIS: Record<Basis, Confidence> = {
-  measured: "high",
-  modeled: "medium",
-  assumed: "low",
-};
-
 const CONFIDENCE_RANK: Record<Confidence, number> = { high: 2, medium: 1, low: 0 };
 
 function floorConfidence(values: readonly Confidence[]): Confidence {
@@ -98,7 +91,7 @@ function floorConfidence(values: readonly Confidence[]): Confidence {
 
 function confidenceFromFindings(findings: readonly Finding[]): Confidence {
   if (findings.length === 0) return "low";
-  return floorConfidence(findings.map((finding) => CONFIDENCE_BY_BASIS[finding.basis]));
+  return floorConfidence(findings.map((finding) => finding.confidence));
 }
 
 /**
@@ -182,7 +175,7 @@ export function assessPerformance(
     if (breach !== null) {
       return {
         status: "risk",
-        confidence: CONFIDENCE_BY_BASIS[finding.basis],
+        confidence: finding.confidence,
         rationale: breach,
         triggeredBy: [finding.metric],
       };
@@ -232,7 +225,7 @@ export function assessCost(
   if (monthly.delta.value > ceiling) {
     return {
       status: "risk",
-      confidence: CONFIDENCE_BY_BASIS[monthly.basis],
+      confidence: monthly.confidence,
       rationale: `Monthly spend grows by $${round(monthly.delta.value)}, past the $${round(ceiling)} ceiling for the touched services.`,
       triggeredBy: [monthly.metric],
     };
@@ -240,7 +233,7 @@ export function assessCost(
 
   return {
     status: "acceptable",
-    confidence: CONFIDENCE_BY_BASIS[monthly.basis],
+    confidence: monthly.confidence,
     rationale: `Monthly spend grows by $${round(monthly.delta.value)}, inside the $${round(ceiling)} ceiling.`,
     triggeredBy: [],
   };
