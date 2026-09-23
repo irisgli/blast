@@ -16,9 +16,10 @@ later, and quoting it is how you give someone a yardstick.
 **Volume** is what makes a small rate movement matter. A 0.2 point move on 9.8M
 sessions is a different conversation than the same move on 80,000.
 
-**Revenue contribution** is what decides whether this is a high-stakes surface. It is
-the field the threshold rules read: a step in the top quartile is where a measured
-performance regression escalates into a conversion risk.
+**Revenue contribution** is what decides how much the answer matters. A step carrying
+41% of funnel revenue deserves a different level of attention than one carrying 4%, and
+it is the figure that tells a reader whether a measurability gap here is worth holding
+a release for.
 
 ## Writing it
 
@@ -26,7 +27,8 @@ Give the step label, the baseline rate, the monthly volume, and the revenue shar
 facts, one sentence each at most.
 
 An empty match is a real result and should be stated plainly: the change touches no
-funnel surface. That is the only path to a clean conversion verdict, so do not bury it.
+funnel surface. That is the only path to a clean measurability verdict, so do not bury
+it.
 
 Never multiply a baseline by a hypothetical movement to produce a revenue figure. It
 reads as analysis and is arithmetic on a number nobody has.

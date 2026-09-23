@@ -10,7 +10,12 @@
   "endpointsAdded": [{ "path": "/api/recommendations", "method": "GET", "runtime": "edge" }],
   "queriesAdded": [{ "table": "product_affinity", "kind": "read", "perRequest": 2, "indexed": true }],
   "cacheDirectivesChanged": [
-    { "surface": "/products/[slug]", "from": "s-maxage=3600", "to": "s-maxage=300" }
+    {
+      "surface": "/products/[slug]",
+      "from": "s-maxage=3600",
+      "to": "s-maxage=300",
+      "file": "app/products/[slug]/page.tsx"
+    }
   ],
   "filesChanged": 14,
   "linesChanged": { "added": 512, "removed": 47 }

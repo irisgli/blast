@@ -33,7 +33,12 @@ export const changeProfileSchema: z.ZodType<ChangeProfile> = z.object({
     }),
   ),
   cacheDirectivesChanged: z.array(
-    z.object({ surface: z.string(), from: z.string(), to: z.string() }),
+    z.object({
+      surface: z.string(),
+      from: z.string(),
+      to: z.string(),
+      file: z.string().nullable(),
+    }),
   ),
   filesChanged: z.number(),
   linesChanged: z.object({ added: z.number(), removed: z.number() }),

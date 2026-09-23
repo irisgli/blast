@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { loadFixtureChangeProfile } from "@blast/adapters";
-import type { ChangeProfile, Dependency, Endpoint, Surface } from "@blast/core";
+import type { CacheChange, ChangeProfile, Dependency, Endpoint, Surface } from "@blast/core";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
@@ -92,7 +92,7 @@ function dependenciesFromDiff(diff: string): Dependency[] {
   return dependencies;
 }
 
-function cacheChangesFromDiff(diff: string): { surface: string; from: string; to: string }[] {
+function cacheChangesFromDiff(diff: string): CacheChange[] {
   const removed = new Map<string, string>();
   const added = new Map<string, string>();
   let file = "";
@@ -110,12 +110,12 @@ function cacheChangesFromDiff(diff: string): { surface: string; from: string; to
     else if (line.startsWith("+")) added.set(file, value);
   }
 
-  const changes: { surface: string; from: string; to: string }[] = [];
+  const changes: CacheChange[] = [];
   for (const [path, to] of added) {
     const from = removed.get(path);
     if (from === undefined || from === to) continue;
     const surface = surfaceFromPath(path);
-    changes.push({ surface: surface?.id ?? path, from, to });
+    changes.push({ surface: surface?.id ?? path, from, to, file: path });
   }
   return changes;
 }

@@ -92,6 +92,8 @@ export interface CacheChange {
   surface: string;
   from: string;
   to: string;
+  /** The file the directive lives in, when the diff identified one. */
+  file: string | null;
 }
 
 /**
