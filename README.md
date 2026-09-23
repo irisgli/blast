@@ -127,6 +127,18 @@ Each dimension is `risk`, `acceptable`, or `unmeasured`:
 A `risk` at high confidence holds the change. An `unmeasured` dimension caps it at
 `ship with caveats`; missing data never produces a clean ship.
 
+The thresholds are defaults, not opinions to argue with. A repository sets its own in
+`blast.json`, reviewed alongside the code it governs:
+
+```json
+{ "budgets": { "monthlyCostDeltaUsd": 150, "clientJsDeltaBytes": 10240 } }
+```
+
+Every brief names the budgets it applied, and an unreadable policy file fails the run
+rather than quietly falling back to the defaults. Every brief also ends with a digest over
+its inputs and its verdict, so two briefs can be compared without re-running either — the
+same change producing the same answer twice is checkable rather than asserted.
+
 ## It opens the fix
 
 `propose_fix` derives remediations from the evidence that produced the findings, and

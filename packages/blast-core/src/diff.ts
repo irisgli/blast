@@ -1,4 +1,4 @@
-import type { CacheChange, Dependency, Endpoint, Surface } from "./schema.js";
+import type { CacheChange, Dependency, Endpoint, Surface } from "./change-profile.js";
 
 /**
  * Turning git output into the shapes a brief is built from.

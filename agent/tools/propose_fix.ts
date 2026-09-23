@@ -3,11 +3,10 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { assess } from "@blast/core";
 import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
-import { collectEvidence, remediationsFor } from "@blast/brief";
+import { produceBrief } from "@blast/brief";
 import { changeProfileSchema } from "../lib/schemas.js";
 
 const run = promisify(execFile);
@@ -37,9 +36,19 @@ export default defineTool({
     start: ({ open }) => (open === undefined ? "List remediations" : `Open a fix for ${open}`),
   },
   async execute({ profile, open }) {
-    const evidence = await collectEvidence(profile);
-    const assessment = assess({ findings: evidence.findings, context: evidence.context });
-    const remediations = remediationsFor(profile, evidence, assessment);
+    /**
+     * The same pipeline the brief runs, budgets included. Assessing here with different
+     * thresholds than `render_brief` applied would offer a fix for a finding the brief
+     * did not report, or withhold one for a finding it did.
+     */
+    const produced = await produceBrief({
+      profile,
+      headline: "Remediations only; no narrative was requested.",
+    });
+    if (!produced.ok) {
+      return { ok: false as const, detail: produced.detail };
+    }
+    const { remediations } = produced.value;
 
     if (open === undefined) {
       return { ok: true as const, remediations };

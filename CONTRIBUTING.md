@@ -73,6 +73,13 @@ every brief the tool produces. Changes to
 sides of the moved boundary, and a note in the pull request describing which briefs
 change classification as a result.
 
+### What a change to the budgets requires
+
+The defaults in [`policy.ts`](./packages/blast-core/src/policy.ts) are thresholds like any
+other: moving one reclassifies briefs, and the same boundary test and pull request note
+apply. Adding a new budget means adding it to `budgetsSchema` with bounds, to `LABEL` so a
+brief can name it, and to the table in [docs/verdict.md](./docs/verdict.md).
+
 ### Adding an adapter
 
 1. Implement `Adapter` from `@blast/core` in `packages/blast-adapters/src/`.
