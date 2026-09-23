@@ -154,11 +154,14 @@ interface Adapter<Q, R> {
 }
 ```
 
-The seven adapters in [`packages/blast-adapters`](./packages/blast-adapters) read
-checked-in fixtures. A live source is one file implementing the same interface plus a
-registry entry; the agent, the subagents, and the brief do not change. Contract
-conformance runs over the registry, so a live adapter faces the checks the fixtures
-pass.
+Eight of the nine adapters in [`packages/blast-adapters`](./packages/blast-adapters)
+read checked-in fixtures. The ninth talks to the npm registry, and exists so the
+contract has been held to something that rate limits, times out, and returns documents
+missing the field being asked for. Conformance sweeps all nine, with a stubbed transport
+so the suite stays offline; `BLAST_LIVE_TESTS=1` points it at the real thing.
+
+Adding a source is one file implementing the interface plus a registry entry. The agent,
+the subagents, and the brief do not change.
 
 ## Documentation
 

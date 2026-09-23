@@ -36,6 +36,7 @@ caveats`. Missing data never produces a clean ship.
 | `fixture-funnel` | measurability | step conversion, volume, revenue contribution |
 | `fixture-feature-history` | measurability | effect sizes past features produced here |
 | `fixture-instrumentation` | measurability | events each surface emits, and what they attribute to |
+| `npm-registry` | performance | published unpacked size of an added dependency — **live** |
 
 ## Findings are built in code
 
@@ -47,6 +48,31 @@ right.
 `basis` is decided there, not by the model. It is the field a brief is most likely to
 be wrong about in the most damaging direction, and a model asked to label the
 trustworthiness of its own evidence has an incentive to round up.
+
+## The live source
+
+`npm-registry` talks to `registry.npmjs.org`. It is here because every other source
+reads checked-in data, which always answers, on the first try, well formed — and a
+contract only held to cooperative counterparties has not been held to much. This one
+rate limits, times out, 404s a version that was unpublished, and sometimes returns a
+valid document without the field being asked for. Each of those is a case in its tests.
+
+It reports published package size, which is **not** client payload. A tarball carries
+source maps, several module formats, type declarations, and a readme; a bundler ships a
+fraction of it. It carries its own metric and its own caveat, and the build manifest
+remains the only source of payload truth. Labelling it `client_js_bytes` would overstate
+`embla-carousel-react` by roughly fourfold.
+
+It is registered and reachable through `run_adapter`, and `collectEvidence` does not
+call it. That path must produce the same brief twice for the same change, and a source
+whose answer depends on when it was asked cannot be part of that. A live source belongs
+in a brief once its answer is snapshotted with the change rather than fetched while the
+brief renders.
+
+Because conformance sweeps every registered source, the registry is built by
+`createSources({ fetch })` rather than declared as a constant — the suite passes a stub
+so a rate limit in CI reads as a rate limit rather than a broken contract. A test
+against the real registry runs under `BLAST_LIVE_TESTS=1`.
 
 ## Adding a live source
 

@@ -4,7 +4,20 @@ import { DIMENSIONS, METRIC } from "@blast/core";
 import { z } from "zod";
 import { loadFixture } from "./fixture-store.js";
 import type { Source } from "./registry.js";
-import { SOURCES, sourceById, sourcesFor } from "./registry.js";
+import { createSources, SOURCES, sourceById, sourcesFor } from "./registry.js";
+
+/**
+ * A transport that answers like the npm registry without being it. Conformance has to
+ * cover the live source too — it is the one whose contract is least obvious — and a
+ * suite that reaches the network turns a rate limit into a failing build.
+ */
+const stubFetch: typeof globalThis.fetch = async (input) =>
+  new Response(JSON.stringify({ dist: { unpackedSize: 50_629 } }), {
+    status: String(input).includes("does-not-exist") ? 404 : 200,
+    headers: { "content-type": "application/json" },
+  });
+
+const SWEPT = createSources({ fetch: stubFetch });
 
 /**
  * Conformance runs over the registry, not over a hand-written list, so a live adapter
@@ -20,12 +33,14 @@ const PRESENT = {
   surfaces: ["/products/[slug]", "/cart"],
   endpoints: ["/api/product", "/api/recommendations"],
   services: ["compute", "database", "bandwidth", "edge-requests"],
+  dependencies: [{ name: "embla-carousel-react", version: "8.6.0" }],
 };
 
 const ABSENT = {
   surfaces: ["/does-not-exist"],
   endpoints: ["/api/does-not-exist"],
   services: ["does-not-exist"],
+  dependencies: [{ name: "does-not-exist-blast", version: "1.0.0" }],
 };
 
 async function invoke(entry: Source, query: unknown): Promise<Result<unknown>> {
@@ -52,7 +67,7 @@ describe("the adapter registry", () => {
   });
 
   it("gives every adapter a unique id", () => {
-    const ids = SOURCES.map((entry) => entry.id);
+    const ids = SWEPT.map((entry) => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -63,7 +78,7 @@ describe("the adapter registry", () => {
     expect(sourceById("not-a-real-adapter")).toBeUndefined();
   });
 
-  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
+  it.each(SWEPT.map((entry) => [entry.id, entry] as const))(
     "%s describes itself consistently",
     (_id, entry) => {
       const info = entry.describe();
@@ -78,24 +93,24 @@ describe("the adapter registry", () => {
     },
   );
 
-  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
+  it.each(SWEPT.map((entry) => [entry.id, entry] as const))(
     "%s returns a well-formed result for data it has",
     async (_id, entry) => {
       expectWellFormed(await invoke(entry, PRESENT));
     },
   );
 
-  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
+  it.each(SWEPT.map((entry) => [entry.id, entry] as const))(
     "%s reports absence as a value rather than throwing",
     async (_id, entry) => {
       expectWellFormed(await invoke(entry, ABSENT));
     },
   );
 
-  it.each(SOURCES.map((entry) => [entry.id, entry] as const))(
+  it.each(SWEPT.map((entry) => [entry.id, entry] as const))(
     "%s survives a malformed query without throwing",
     async (_id, entry) => {
-      expectWellFormed(await invoke(entry, { surfaces: [], endpoints: [], services: [] }));
+      expectWellFormed(await invoke(entry, { surfaces: [], endpoints: [], services: [], dependencies: [] }));
     },
   );
 });
