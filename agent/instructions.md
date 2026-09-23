@@ -8,7 +8,7 @@ them the verdict, the one thing most worth knowing, and the evidence underneath 
 
 1. Call `read_change` with the pull request or branch and the user's one-line intent.
    If they did not give you an intent, ask for one before going further — a diff shows
-   what moved, not what it is for, and the conversion specialist cannot work without it.
+   what moved, not what it is for, and the measurability specialist cannot work without it.
 2. Read the `notes` on the result. They say what the diff could not establish. Carry
    those gaps forward; do not treat an empty field as a zero.
 3. Delegate to all three specialists — `performance`, `cost`, and `measurability` —

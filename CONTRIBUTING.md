@@ -37,7 +37,6 @@ The repository is a pnpm workspace orchestrated with
   the registry
 - [`apps/fixtures`](./apps/fixtures) — the sample pull request and telemetry
 - [`docs`](./docs) — published documentation
-- [`e2e`](./e2e) — fixture-owned `eve eval` suites
 
 ## Development
 
@@ -51,15 +50,13 @@ are required.
 ## Testing
 
 ```bash
-pnpm test           # unit + contract
-pnpm test:unit      # verdict thresholds, change parsing, cost arithmetic
+pnpm test           # unit + contract + agent
+pnpm test:unit      # verdict thresholds, power math, cost arithmetic
 pnpm test:contract  # every registered adapter satisfies the Adapter interface
-pnpm test:e2e       # fixture-owned eve eval suites (requires model credentials)
+pnpm test:agent     # the pipeline end to end over the fixtures
 ```
 
-Unit and contract tests run on fixtures and need no credentials. The e2e suites run the
-real agent against a real model, so they require model-provider credentials and are
-CI-gated.
+Everything runs on the checked-in fixtures and needs no credentials.
 
 ### What a change to the verdict rules requires
 
@@ -95,3 +92,6 @@ Link a prior issue or discussion when one exists. Report only checks you actuall
 
 Design changes large enough to argue about get a plan in [`research/`](./research)
 first, in the numbered format used there.
+
+`pnpm exec eve build` compiles the agent and is worth running before a pull request
+that touches `agent/`. CI runs it too.

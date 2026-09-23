@@ -13,7 +13,6 @@
     "lint": "oxlint --fix",
     "test": "pnpm test:unit && pnpm test:contract && pnpm test:agent",
     "test:contract": "turbo run test:contract",
-    "test:e2e": "turbo run test:e2e --concurrency=1",
     "test:unit": "turbo run test:unit",
     "typecheck": "turbo run typecheck && tsc -p tsconfig.agent.json --noEmit",
     "test:agent": "vitest run --config vitest.config.ts"

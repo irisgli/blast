@@ -1,16 +1,15 @@
 <div align="center">
   <h1>blast</h1>
-  <p><strong>Know the blast radius before you ship it.</strong></p>
+  <p><strong>Every pull request gets a price, a budget check, and a straight answer about whether you'll be able to tell if it worked.</strong></p>
 </div>
 
-`blast` answers one question about a pull request: what will this do to page
-performance, to infrastructure spend, and to the conversion funnel? It returns a single
-brief with a verdict and the assumptions behind every number, so the decision does not
-require opening four dashboards and holding the pieces together in your head.
+[blast](https://github.com/irisgli/blast) is an agent that reads a pull request and
+answers three questions before it merges: what the change costs to run, what it costs
+the user, and whether anyone will be able to evaluate it afterward. It is built on
+[eve](https://github.com/vercel/eve).
 
-It is built on [eve](https://github.com/vercel/eve), a filesystem-first framework for
-durable agents. A root agent parses the change and routes it to three specialists that
-each own one dimension, then synthesizes what they find.
+A one-line cache directive change costs $298 a month and passes review because it does
+not look like a spending decision. That is the class of change this exists to catch.
 
 ## The filesystem is the authoring interface
 
@@ -18,79 +17,94 @@ each own one dimension, then synthesizes what they find.
 agent/
 ├── agent.ts              # model and runtime config
 ├── instructions.md       # the always-on system prompt
-├── tools/                # typed functions: read_change, run_adapter, render_brief
-├── skills/               # procedures loaded on demand
-│   ├── bundle-delta/
-│   ├── infra-cost-model/
-│   ├── funnel-read/
-│   └── comparable-features/
-└── subagents/            # one per dimension, each with isolated context
+├── sandbox.ts            # a pure-JavaScript shell, no container
+├── tools/                # read_change, run_adapter, estimate_cost,
+│   │                     # attribute_payload, render_brief, propose_fix, post_comment
+├── lib/                  # evidence collection, brief rendering, remediations
+└── subagents/            # one specialist per dimension, isolated context
     ├── performance/
     ├── cost/
-    └── conversion/
+    └── measurability/
 ```
 
 ## Quick start
 
 ```bash
 pnpm install
-pnpm build
 pnpm dev
 ```
 
 Then ask for a brief:
 
 ```text
-blast 1234 --intent "personalized recommendations carousel on the product page"
+blast fixture --intent "personalized recommendations carousel on the product page"
 ```
 
-The repository ships with fixture data, so this runs end to end with no credentials.
+The repository ships with telemetry fixtures, so this runs end to end with no
+credentials.
 
 ## What comes back
 
 ```markdown
-# Impact brief — #1234 · personalized carousel on PDP
+# Impact brief — #1234 · personalized recommendations carousel on the product page
 
-**Verdict: ship with caveats** · confidence: medium
+**Verdict: hold** · confidence: high
 
-No measured regression. Conversion impact on PDP→cart is unmeasured, which is
-the only reason this is not a clean ship.
+Nothing regresses and the bill is survivable. The change ships no events that
+attribute a funnel movement to it, so $340 a month buys something nobody will be
+able to evaluate. Two event names fix it.
 
 ## Performance  ○
-| metric    | base   | head   | delta   | basis    |
-| --------- | ------ | ------ | ------- | -------- |
-| p75 LCP   | 2.10s  | 2.24s  | +140ms  | measured |
-| client JS | 412 KB | 430 KB | +18 KB  | measured |
-
-Budget p75 LCP ≤ 2.5s — within budget, headroom reduced to 260ms.
+| metric    | base   | head   | delta  | basis    |
+| --------- | ------ | ------ | ------ | -------- |
+| p75 LCP   | 2.04s  | 2.18s  | +140ms | measured |
+| client JS | 412 KB | 430 KB | +18 KB | measured |
 
 ## Infrastructure cost  ○
-+$340.40/mo modeled, 3.6% of current spend on touched services
++$340.40/mo, 3.6% of current spend on the services it touches.
+$298.66 of it is the product page cache TTL moving from 3600s to 300s.
 
-## User conversion  ◌
-Directional only. Touches PDP→cart, baseline 8.2% conversion.
-Watch after ship: PDP→cart rate, carousel CTR, PDP bounce rate.
+## Measurability  ⚠
+| metric             | head   | basis    |
+| ------------------ | ------ | -------- |
+| detectable effect  | 0.05pp | modeled  |
+| effects seen here  | 0.75pp | measured |
+| attributable events| 0      | measured |
+
+The surface resolves far below what features here have moved. Attribution is
+what is missing: emit `pdp_recommendations_carousel_impression` and
+`pdp_recommendations_carousel_click`.
 ```
 
 One glyph per dimension: `⚠` risk, `○` acceptable, `◌` unmeasured.
 
-## Two rules it holds to
+## How it decides
 
-**The model gathers evidence; code decides the verdict.** Thresholds live in
-[`packages/blast-core`](./packages/blast-core) as pure functions over findings. A
-recommendation that moves while its inputs stay still does not get trusted twice.
+The model gathers evidence and writes the narrative. Code decides the numbers and the
+verdict. Thresholds live in [`packages/blast-core`](./packages/blast-core) as pure
+functions over findings, so the same pull request produces the same verdict twice.
 
-**Conversion never reads as safe on modeled evidence.** Predicting conversion impact
-before shipping is genuinely hard, and a confident-looking estimate is the most
-damaging output this tool could produce. That dimension reports which funnel steps a
-change touches, what comparable past features did there, and what to watch after
-shipping. It escalates to `risk` only when a *measured* performance regression lands on
-a high-value funnel step.
+Each dimension is `risk`, `acceptable`, or `unmeasured`:
+
+| Dimension | Risk when |
+| --- | --- |
+| Performance | p75 LCP regresses past 200ms, projects over a 2.5s budget, INP past 50ms, p95 server past 100ms, or client JS grows 25 KB on a top-decile surface |
+| Cost | The modeled monthly delta exceeds the lower of $500 or 10% of current spend on the services it touches |
+| Measurability | The change emits no events attributable to it, or its surface cannot resolve the effect sizes it has historically produced |
+
+A `risk` at high confidence holds the change. An `unmeasured` dimension caps it at
+`ship with caveats`; missing data never produces a clean ship.
+
+## It opens the fix
+
+`propose_fix` derives remediations from the evidence that produced the findings, and
+opens one as a pull request when the change is mechanical. Restoring a cache TTL is a
+one-line revert, so it ships a patch. Adding events is not, so it ships the event names.
+Both require approval before anything is written.
 
 ## Adapters
 
-Every source implements one interface, and unavailability is a value rather than an
-exception:
+Every source implements one interface, and unavailability is a value:
 
 ```ts
 interface Adapter<Q, R> {
@@ -101,22 +115,30 @@ interface Adapter<Q, R> {
 }
 ```
 
-The adapters in [`packages/blast-adapters`](./packages/blast-adapters) read checked-in
-fixtures. Moving a dimension to live telemetry means adding one file that implements
-the same interface and registering it — the agent, the subagents, and the brief do not
-change. Contract conformance tests run against every registered adapter, fixture or
-live, so a live adapter cannot quietly violate the shape the subagents depend on.
+The seven adapters in [`packages/blast-adapters`](./packages/blast-adapters) read
+checked-in fixtures. A live source is one file implementing the same interface plus a
+registry entry; the agent, the subagents, and the brief do not change. Contract
+conformance runs over the registry, so a live adapter faces the checks the fixtures
+pass.
 
 ## Documentation
 
 - [Architecture](./docs/architecture.md) — routing, context isolation, data flow
-- [Adapters](./docs/adapters.md) — the contract, and how to add a live source
+- [Adapters](./docs/adapters.md) — the contract, and adding a live source
 - [Verdict model](./docs/verdict.md) — every threshold, and why it is code
-- [Research](./research) — the design plan this was built from
+- [Research](./research) — the design plans this was built from
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Commits carry a DCO `Signed-off-by` trailer.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) to get the repository running and land a
+change. Every commit carries a DCO `Signed-off-by` trailer. By participating, you agree
+to the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## Security
+
+Please do not open public issues for security vulnerabilities. Follow
+[SECURITY.md](./SECURITY.md) and report through
+[GitHub Security Advisories](https://github.com/irisgli/blast/security/advisories/new).
 
 ## License
 

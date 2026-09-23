@@ -5,10 +5,11 @@ pull request workflow, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## About blast
 
-`blast` produces a pre-ship impact brief for a pull request: what the change does to
-performance, infrastructure cost, and user conversion. It is an [eve](https://eve.dev/)
-agent — a root agent routes a parsed change to three dimension subagents, then
-synthesizes their findings into one verdict.
+`blast` produces a pre-ship impact brief for a pull request: what the change costs to
+run, what it costs the user, and whether anyone will be able to tell if it worked. It
+is an [eve](https://eve.dev/) agent — a root agent routes a parsed change to three
+dimension subagents, then synthesizes their findings into one verdict and offers the
+remediations that follow from it.
 
 Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headings.
 
@@ -19,7 +20,6 @@ Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headi
 - `packages/blast-adapters` — fixture-backed adapters and the source registry
 - `apps/fixtures` — the sample pull request and telemetry the repo runs on
 - `docs/` — published documentation
-- `e2e/` — fixture-owned `eve eval` suites
 - `research/` — design plans for proposed changes, written before implementation
 
 ## Invariants
@@ -41,12 +41,18 @@ fetch produces an `unmeasured` dimension, never a zero or an invented substitute
 `unmeasured` dimension caps the verdict at `ship-with-caveats`; missing data can never
 produce a `ship`.
 
-**Conversion cannot reach `acceptable` on modeled evidence.** See
-[`docs/verdict.md`](./docs/verdict.md). It reaches `acceptable` only when no funnel
-surface is touched at all.
+**Measurability reports facts, not forecasts.** It answers whether a change emits
+events attributable to it and whether its surface can resolve the effects it has
+produced before. Both are true before the change ships. Do not add a rule that predicts
+what a change will do to a funnel.
 
-**`post_comment` writes only under `--comment`.** The agent has exactly one outward
-side effect and it is opt-in per run. Do not add a default-on write path.
+**Remediations are derived, not composed.** `agent/lib/remediation.ts` builds them from
+the same evidence that produced the findings. A model-authored fix can drift from what
+the brief said; a derived one cannot.
+
+**Every outward side effect requires approval on every call.** `post_comment` and
+`propose_fix` use `always()` from `eve/tools/approval`. Do not add a write path that
+defaults to allowed, and do not downgrade either to `once()`.
 
 ## Tools versus skills
 
@@ -55,10 +61,15 @@ is a tool in `agent/tools/`; a procedure the model follows is a skill in
 `agent/skills/`. If a change needs new typed behavior, write a tool. If it needs the
 model to follow different steps with what already exists, write or edit a skill.
 
-Skills follow the packaged layout: a directory with `SKILL.md` carrying `name` and
-`description` frontmatter, plus the `scripts/`, `adapters/`, or `references/` siblings
-it shells out to. Data belongs in `references/` as checked-in files, not in prompt
+Skills are scoped to the agent that declares them, so each specialist's skills live in
+`agent/subagents/<id>/skills/`. They follow the packaged layout: a directory with
+`SKILL.md` carrying `name` and `description` frontmatter, plus its `scripts/` or
+`references/` siblings. Data belongs in `references/` or a typed module, not in prompt
 text — unit prices change, and a price change should be a reviewable one-file diff.
+
+The sandbox is just-bash, which runs no native processes. Anything a skill needs
+computed belongs in a tool in the app runtime; a script in `scripts/` is a command-line
+front end to that same function, for a person reproducing a number outside the agent.
 
 ## Git workflow
 
@@ -82,10 +93,10 @@ pnpm typecheck        # TypeScript across the workspace
 pnpm lint             # oxlint (auto-fixes)
 pnpm fmt              # oxfmt
 
-pnpm test             # unit + contract
-pnpm test:unit        # unit tests
+pnpm test             # unit + contract + agent
+pnpm test:unit        # verdict thresholds, power math, cost arithmetic
 pnpm test:contract    # adapter contract conformance
-pnpm test:e2e         # fixture-owned eve eval suites
+pnpm test:agent       # the pipeline end to end over the fixtures
 ```
 
 All of these run in CI, so running them locally before pushing saves a round trip.
