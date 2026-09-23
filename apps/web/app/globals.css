@@ -50,7 +50,13 @@
   --radius-lg: 12px;
   --radius-full: 9999px;
 
-  --shell: min(1160px, 100% - 3rem);
+  --shell: min(1200px, 100% - 3rem);
+
+  /* Display scale. The product pages lean on very large, very tight headlines and
+     leave almost everything else at reading size. */
+  --display: clamp(2.5rem, 1.4rem + 4.2vw, 4.25rem);
+  --title: clamp(1.9rem, 1.3rem + 2.4vw, 2.85rem);
+  --section-gap: clamp(5rem, 3rem + 8vw, 9.5rem);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -784,4 +790,343 @@ body {
   *::after {
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* ── marketing surface ───────────────────────────────────────────────────── */
+.section {
+  padding-block: var(--section-gap);
+  border-top: 1px solid var(--border);
+}
+
+.section--flush {
+  border-top: none;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1.5rem 4rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.display {
+  margin: 0;
+  font-size: var(--display);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  max-width: 16ch;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--title);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.038em;
+  max-width: 18ch;
+}
+
+.lede {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.lede b {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ── hero ────────────────────────────────────────────────────────────────── */
+.hero {
+  padding-block: clamp(3.5rem, 2rem + 6vw, 7rem) var(--section-gap);
+}
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3rem 4rem;
+  align-items: center;
+}
+
+@media (max-width: 1000px) {
+  .hero__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hero__wordmark {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 2rem;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.hero__sub {
+  margin: 1.75rem 0 0;
+  max-width: 44ch;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+/* ── command chip ────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 40px;
+  padding-inline: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--background-100);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.chip__prompt {
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+/* ── pill buttons ────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 40px;
+  padding-inline: 1.1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--background-100);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.btn:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-500);
+}
+
+.btn--primary {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--background-100);
+}
+
+.btn--primary:hover {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  opacity: 0.88;
+}
+
+/* ── numbered steps ──────────────────────────────────────────────────────── */
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step__index {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.step__name {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.step__code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+  color: var(--text-secondary);
+}
+
+.step__body {
+  margin: 0.55rem 0 0;
+  max-width: 44ch;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.sticky-panel {
+  position: sticky;
+  top: 5rem;
+}
+
+@media (max-width: 900px) {
+  .sticky-panel {
+    position: static;
+  }
+}
+
+/* ── feature grid ────────────────────────────────────────────────────────── */
+/*
+ * Explicit columns rather than auto-fit, because the hairline between features has to
+ * be cleared on the first item of every row and auto-fit does not say how many that is.
+ * Six features divide into two rows of three.
+ */
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2.75rem 0;
+  margin-top: 3.5rem;
+}
+
+.feature {
+  padding-left: 1.75rem;
+  padding-right: 1.5rem;
+  border-left: 1px solid var(--border);
+}
+
+.feature:nth-child(3n + 1) {
+  padding-left: 0;
+  border-left: none;
+}
+
+@media (max-width: 960px) {
+  .features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .feature:nth-child(3n + 1) {
+    padding-left: 1.75rem;
+    border-left: 1px solid var(--border);
+  }
+
+  .feature:nth-child(2n + 1) {
+    padding-left: 0;
+    border-left: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .features {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem 0;
+  }
+
+  .feature,
+  .feature:nth-child(3n + 1),
+  .feature:nth-child(2n + 1) {
+    padding-left: 0;
+    padding-right: 0;
+    border-left: none;
+  }
+}
+
+.feature__name {
+  margin: 0 0 0.5rem;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.feature__body {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ── closing call to action ──────────────────────────────────────────────── */
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 3rem;
+}
+
+/* ── footer ──────────────────────────────────────────────────────────────── */
+.site-foot {
+  border-top: 1px solid var(--border);
+  padding-block: 3.5rem 4rem;
+}
+
+.site-foot__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 2.5rem;
+}
+
+.site-foot__head {
+  margin: 0 0 0.9rem;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.site-foot__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.site-foot__list a {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.site-foot__list a:hover {
+  color: var(--text-primary);
+}
+
+.site-foot__base {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  justify-content: space-between;
+  color: var(--text-tertiary);
+  font-size: 13px;
 }
