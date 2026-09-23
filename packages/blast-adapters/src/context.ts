@@ -1,14 +1,14 @@
 import type { ChangeProfile, VerdictContext } from "@blast/core";
 import type { BillingResult, SurfaceUsage } from "./cost.js";
-import type { FunnelResult, FunnelStep } from "./conversion.js";
+import type { CoverageFinding, FunnelResult, PowerFinding } from "./measurability.js";
 
 /**
  * Assembles the facts the verdict rules need beyond the findings themselves.
  *
- * Built in code for the same reason findings are. Traffic ranking and revenue
- * quartiles decide whether two of the thresholds apply at all, and a model that
- * assembled them could move a verdict by ranking surfaces slightly differently on a
- * second run.
+ * Built in code for the same reason findings are. Traffic ranking and the
+ * instrumentation and power checks decide whether thresholds apply at all, and a model
+ * that assembled them could move a verdict by reading the same data slightly
+ * differently on a second run.
  */
 
 /** Percentile in [0, 1] by requests per month, where 1 is the busiest surface. */
@@ -27,33 +27,31 @@ export function surfaceTrafficPercentiles(usage: readonly SurfaceUsage[]): Recor
   return percentiles;
 }
 
-/** Surfaces on a funnel step in the top quartile of revenue contribution. */
-export function topRevenueQuartileSurfaces(steps: readonly FunnelStep[]): string[] {
-  if (steps.length === 0) return [];
-  const descending = [...steps].sort(
-    (left, right) => right.revenueContributionPct - left.revenueContributionPct,
-  );
-  const cutoff = Math.max(1, Math.ceil(descending.length / 4));
-  return descending.slice(0, cutoff).map((step) => step.surface);
-}
-
 export interface VerdictContextInput {
   profile: ChangeProfile;
   /** Every surface on record, not only the touched ones — ranking needs the field. */
   allUsage: readonly SurfaceUsage[];
   funnel: FunnelResult | null;
   billing: BillingResult | null;
+  coverage: readonly CoverageFinding[];
+  power: readonly PowerFinding[];
 }
 
 export function buildVerdictContext(input: VerdictContextInput): VerdictContext {
-  const touchedIds = new Set(input.profile.surfaces.map((surface) => surface.id));
-  const topRevenue =
-    input.funnel === null ? [] : topRevenueQuartileSurfaces(input.funnel.steps);
+  const measurableSurfaces = input.funnel?.matched.map((step) => step.surface) ?? [];
 
   return {
     surfaceTrafficPercentile: surfaceTrafficPercentiles(input.allUsage),
-    touchedTopRevenueFunnelSurfaces: topRevenue.filter((surface) => touchedIds.has(surface)),
     touchedServiceMonthlySpendUsd: input.billing === null ? null : input.billing.totalUsd,
-    touchesFunnel: input.funnel !== null && input.funnel.matched.length > 0,
+    measurableSurfaces,
+    surfacesMissingFeatureEvents: input.coverage
+      .filter((entry) => entry.attributable.length === 0)
+      .map((entry) => entry.surface),
+    underpoweredSurfaces: input.power
+      .filter((entry) => entry.underpowered)
+      .map((entry) => entry.surface),
+    // A funnel we could not read leaves us unable to say anything; an empty match is
+    // an answer, and the difference decides unmeasured against acceptable.
+    measurabilityDataAvailable: input.funnel !== null,
   };
 }

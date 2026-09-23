@@ -1,36 +1,62 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "envMode": "strict",
-  "globalDependencies": [".nvmrc", "pnpm-workspace.yaml", "tsconfig.json"],
+  "globalDependencies": [
+    ".nvmrc",
+    "pnpm-workspace.yaml",
+    "tsconfig.json"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "!.eve/**", "!.turbo/**", "!node_modules/**"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!.eve/**",
+        "!.turbo/**",
+        "!node_modules/**"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "build:types": {
-      "dependsOn": ["^build:types"],
-      "inputs": ["**/*.ts", "tsconfig*.json", "package.json", "!.turbo/**", "!node_modules/**"],
-      "outputs": ["dist/**/*.d.ts", "dist/**/*.d.ts.map"]
+      "dependsOn": [
+        "^build:types"
+      ],
+      "inputs": [
+        "**/*.ts",
+        "tsconfig*.json",
+        "package.json",
+        "!.turbo/**",
+        "!node_modules/**"
+      ],
+      "outputs": [
+        "dist/**/*.d.ts",
+        "dist/**/*.d.ts.map"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "test:contract": {
-      "dependsOn": ["^build"],
-      "cache": false
-    },
-    "test:e2e": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "cache": false
     },
     "test:unit": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "cache": false
     },
     "typecheck": {
-      "dependsOn": ["^build:types"]
+      "dependsOn": [
+        "^build:types"
+      ]
     }
   }
 }

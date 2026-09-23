@@ -1,5 +1,7 @@
 node_modules
 .turbo
+.eve
+.output
 dist
 .env
 .env.local

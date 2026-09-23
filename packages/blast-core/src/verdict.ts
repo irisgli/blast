@@ -51,12 +51,16 @@ export const DEFAULT_THRESHOLDS: VerdictThresholds = {
 export interface VerdictContext {
   /** Surface id to traffic percentile in [0, 1], where 1 is the busiest surface. */
   surfaceTrafficPercentile: Record<string, number>;
-  /** Touched surfaces sitting on a funnel step in the top revenue quartile. */
-  touchedTopRevenueFunnelSurfaces: string[];
   /** Current monthly spend across touched services, or null when billing is unavailable. */
   touchedServiceMonthlySpendUsd: number | null;
-  /** Whether the change touches any funnel surface at all. */
-  touchesFunnel: boolean;
+  /** Touched surfaces carrying a funnel step. Empty means there is nothing to measure. */
+  measurableSurfaces: string[];
+  /** Surfaces where the change ships no events attributable to it. */
+  surfacesMissingFeatureEvents: string[];
+  /** Surfaces where the detectable effect is larger than any effect seen there before. */
+  underpoweredSurfaces: string[];
+  /** False when funnel or instrumentation data could not be read at all. */
+  measurabilityDataAvailable: boolean;
 }
 
 export interface DimensionAssessment {
@@ -110,6 +114,11 @@ function forDimension(findings: readonly Finding[], dimension: Dimension): Findi
 
 function round(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+/** Money always carries both decimal places, so a rationale matches the brief's table. */
+function money(value: number): string {
+  return value.toFixed(2);
 }
 
 /** Returns a rationale when the finding breaches a threshold, or null when it does not. */
@@ -231,7 +240,7 @@ export function assessCost(
     return {
       status: "risk",
       confidence: monthly.confidence,
-      rationale: `Monthly spend grows by $${round(monthly.delta.value)}, past the $${round(ceiling)} ceiling for the touched services.`,
+      rationale: `Monthly spend grows by $${money(monthly.delta.value)}, past the $${money(ceiling)} ceiling for the touched services.`,
       triggeredBy: [monthly.metric],
     };
   }
@@ -239,49 +248,68 @@ export function assessCost(
   return {
     status: "acceptable",
     confidence: monthly.confidence,
-    rationale: `Monthly spend grows by $${round(monthly.delta.value)}, inside the $${round(ceiling)} ceiling.`,
+    rationale: `Monthly spend grows by $${money(monthly.delta.value)}, inside the $${money(ceiling)} ceiling.`,
     triggeredBy: [],
   };
 }
 
 /**
- * Conversion is deliberately the one dimension that cannot be cleared by evidence it
- * produced itself. Pre-ship conversion estimates are weak, and a brief that renders one
- * as reassurance is the most damaging thing this tool could emit. It clears only when
- * no funnel surface is touched, and escalates only on a measured performance regression
- * landing on a high-value step — the one well-evidenced link between these dimensions.
+ * Measurability asks whether the team will be able to judge this change after it ships.
+ *
+ * Both failures it reports are facts, not forecasts: either the events that would
+ * attribute a movement to this feature are absent, or the surface's traffic cannot
+ * resolve an effect the size this surface has historically produced. Each has a
+ * concrete remediation, which is why reaching `risk` here is useful rather than
+ * merely discouraging.
  */
-export function assessConversion(
+export function assessMeasurability(
   findings: readonly Finding[],
   context: VerdictContext,
-  performance: DimensionAssessment,
 ): DimensionAssessment {
-  const own = forDimension(findings, "conversion");
+  const own = forDimension(findings, "measurability");
 
-  if (!context.touchesFunnel) {
+  if (!context.measurabilityDataAvailable) {
     return {
-      status: "acceptable",
-      confidence: "high",
-      rationale: "The change touches no funnel surface.",
+      status: "unmeasured",
+      confidence: confidenceFromFindings(own),
+      rationale: "Funnel and instrumentation data could not be read for the touched surfaces.",
       triggeredBy: [],
     };
   }
 
-  if (performance.status === "risk" && context.touchedTopRevenueFunnelSurfaces.length > 0) {
-    const surfaces = context.touchedTopRevenueFunnelSurfaces.join(", ");
+  if (context.measurableSurfaces.length === 0) {
+    return {
+      status: "acceptable",
+      confidence: "high",
+      rationale: "The change touches no surface carrying a funnel step, so there is nothing to measure.",
+      triggeredBy: [],
+    };
+  }
+
+  if (context.surfacesMissingFeatureEvents.length > 0) {
+    const surfaces = context.surfacesMissingFeatureEvents.join(", ");
     return {
       status: "risk",
-      confidence: performance.confidence,
-      rationale: `A performance regression lands on ${surfaces}, a funnel step in the top quartile of revenue contribution.`,
-      triggeredBy: performance.triggeredBy,
+      confidence: "high",
+      rationale: `The change ships no events attributing a funnel movement to it on ${surfaces}, so its effect cannot be separated from everything else released that week.`,
+      triggeredBy: [METRIC.featureEventCoverage],
+    };
+  }
+
+  if (context.underpoweredSurfaces.length > 0) {
+    const surfaces = context.underpoweredSurfaces.join(", ");
+    return {
+      status: "risk",
+      confidence: "high",
+      rationale: `Traffic on ${surfaces} cannot resolve an effect the size this surface has produced before, so the experiment would end inconclusive however long it runs.`,
+      triggeredBy: [METRIC.minimumDetectableEffect],
     };
   }
 
   return {
-    status: "unmeasured",
+    status: "acceptable",
     confidence: confidenceFromFindings(own),
-    rationale:
-      "The change touches a funnel surface, and conversion impact cannot be established before shipping.",
+    rationale: `The change is attributable and adequately powered on ${context.measurableSurfaces.join(", ")}.`,
     triggeredBy: [],
   };
 }
@@ -313,8 +341,8 @@ export function assess(input: AssessmentInput): Assessment {
   const thresholds = input.thresholds ?? DEFAULT_THRESHOLDS;
   const performance = assessPerformance(input.findings, input.context, thresholds);
   const cost = assessCost(input.findings, input.context, thresholds);
-  const conversion = assessConversion(input.findings, input.context, performance);
-  const dimensions = { performance, cost, conversion };
+  const measurability = assessMeasurability(input.findings, input.context);
+  const dimensions = { performance, cost, measurability };
 
   return {
     verdict: overallVerdict(dimensions),

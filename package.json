@@ -11,22 +11,30 @@
     "dev": "eve dev",
     "fmt": "oxfmt",
     "lint": "oxlint --fix",
-    "test": "pnpm test:unit && pnpm test:contract",
+    "test": "pnpm test:unit && pnpm test:contract && pnpm test:agent",
     "test:contract": "turbo run test:contract",
-    "test:e2e": "turbo run test:e2e --concurrency=1",
     "test:unit": "turbo run test:unit",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck && tsc -p tsconfig.agent.json --noEmit",
+    "test:agent": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
     "@types/node": "catalog:",
+    "just-bash": "^3.4.2",
     "oxfmt": "0.70.0",
     "oxlint": "1.85.0",
     "turbo": "2.11.3",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "4.1.10"
   },
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "pnpm@12.5.1"
+  "packageManager": "pnpm@12.5.1",
+  "dependencies": {
+    "@blast/adapters": "workspace:*",
+    "@blast/core": "workspace:*",
+    "eve": "0.64.1",
+    "zod": "catalog:"
+  }
 }

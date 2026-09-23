@@ -2,17 +2,28 @@ packages:
   - apps/fixtures/*
   - packages/*
 
+# pnpm refuses to install until every dependency carrying a build script has an explicit
+# decision, and fails rather than warning under --frozen-lockfile. Both of these are
+# optional compression codecs that just-bash pulls in; the sandbox carries skill files
+# and never touches a compressed archive, so neither needs to run an install script.
+allowBuilds:
+  "@mongodb-js/zstd": false
+  node-liblzma: false
+
 catalog:
   "@types/node": "24.13.3"
   typescript: "7.0.2"
   vitest: "4.1.10"
   zod: "4.5.4"
 
+# The supply-chain policy holds back freshly published versions. These are pinned
+# deliberately and were verified on install, so they are exempted rather than aged out.
 minimumReleaseAgeExclude:
-  - '@turbo/darwin-64@2.11.3'
-  - '@turbo/darwin-arm64@2.11.3'
-  - '@turbo/linux-64@2.11.3'
-  - '@turbo/linux-arm64@2.11.3'
-  - '@turbo/windows-64@2.11.3'
-  - '@turbo/windows-arm64@2.11.3'
+  - "@turbo/darwin-64@2.11.3"
+  - "@turbo/darwin-arm64@2.11.3"
+  - "@turbo/linux-64@2.11.3"
+  - "@turbo/linux-arm64@2.11.3"
+  - "@turbo/windows-64@2.11.3"
+  - "@turbo/windows-arm64@2.11.3"
   - turbo@2.11.3
+  - eve@0.64.1

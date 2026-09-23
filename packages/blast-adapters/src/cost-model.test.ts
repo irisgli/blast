@@ -72,7 +72,12 @@ describe("the storefront estimate", () => {
         endpointsAdded: [],
         queriesAdded: [],
         cacheDirectivesChanged: [
-          { surface: "/products/[slug]", from: "s-maxage=300", to: "s-maxage=3600" },
+          {
+            surface: "/products/[slug]",
+            from: "s-maxage=300",
+            to: "s-maxage=3600",
+            file: "app/products/[slug]/page.tsx",
+          },
         ],
       },
       usage: [usage()],

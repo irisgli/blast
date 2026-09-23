@@ -19,6 +19,7 @@ export const FIXTURE_FILES = {
   billing: "billing.json",
   funnel: "funnel.json",
   featureHistory: "feature-history.json",
+  instrumentation: "instrumentation.json",
 } as const;
 
 export type FixtureFile = (typeof FIXTURE_FILES)[keyof typeof FIXTURE_FILES];
