@@ -121,7 +121,7 @@ Each dimension is `risk`, `acceptable`, or `unmeasured`:
 | Dimension | Risk when |
 | --- | --- |
 | Performance | p75 LCP regresses past 200ms, projects over a 2.5s budget, INP past 50ms, p95 server past 100ms, or client JS grows 25 KB on a top-decile surface |
-| Cost | The modeled monthly delta exceeds the lower of $500 or 10% of current spend on the services it touches |
+| Cost | The modeled monthly delta exceeds the lower of $500 or 10% of current spend on the services it touches. A range spanning that ceiling keeps the status and drops confidence: the assumptions decided it, not the estimate |
 | Measurability | The change emits no events attributable to it, or its surface cannot resolve the effect sizes it has historically produced |
 
 A `risk` at high confidence holds the change. An `unmeasured` dimension caps it at
