@@ -95,6 +95,34 @@ describe("POST /api/brief", () => {
     expect(body.brief.policy.overrides).toEqual(["monthlyCostDeltaUsd"]);
   });
 
+  it("applies per-surface rules a pipeline forwards from its own policy file", async () => {
+    const response = await POST(
+      post({
+        profile: profile(),
+        surfaces: [{ match: "/products/*", budgets: { lcpDeltaMs: 100 } }],
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-blast-verdict")).toBe("hold");
+
+    const body = (await response.json()) as {
+      brief: { dimensions: { performance: { status: string; rationale: string } } };
+    };
+    // 140ms of LCP clears the 200ms default and does not clear the 100ms this caller set
+    // for that surface. The rationale names the rule rather than the default.
+    expect(body.brief.dimensions.performance.status).toBe("risk");
+    expect(body.brief.dimensions.performance.rationale).toContain("/products/*");
+  });
+
+  it("rejects a surface rule that is not one", async () => {
+    const response = await POST(
+      post({ profile: profile(), surfaces: [{ match: "/a/*", budgets: { nope: 1 } }] }),
+    );
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("invalid-budgets");
+  });
+
   it("rejects a budget that would hold every change", async () => {
     const response = await POST(post({ profile: profile(), budgets: { monthlyCostDeltaUsd: 0 } }));
     expect(response.status).toBe(400);

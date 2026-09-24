@@ -127,10 +127,38 @@ describe("a repository that set its own budgets", () => {
       // evidence, different budget — which is the only thing that may move a verdict.
       expect(brief.dimensions.cost.status).toBe("risk");
       expect(markdown).toContain("past the $100.00 ceiling");
-      expect(markdown).toContain("From `blast.json`, overriding 1 default");
+      expect(markdown).toContain("From `blast.json`.");
+      expect(markdown).toContain("Repository-wide, overriding 1 default:");
       expect(brief.policy.overrides).toEqual(["monthlyCostDeltaUsd"]);
     } finally {
       await rm(strict, { recursive: true, force: true });
+    }
+  });
+
+  it("applies a stricter budget to one surface and names it in the brief", async () => {
+    const scoped = await mkdtemp(join(tmpdir(), "blast-scoped-"));
+    await writeFile(
+      join(scoped, "blast.json"),
+      JSON.stringify({
+        surfaces: [{ match: "/products/*", budgets: { lcpDeltaMs: 100 } }],
+      }),
+      "utf8",
+    );
+
+    try {
+      const produced = await produceBrief({ profile: profile(), headline: HEADLINE, cwd: scoped });
+      expect(produced.ok).toBe(true);
+      if (!produced.ok) return;
+
+      const { brief, markdown } = produced.value;
+      // The sample change regresses p75 LCP by 140ms on the product page: inside the
+      // 200ms default, outside the 100ms this repository gave that surface.
+      expect(brief.dimensions.performance.status).toBe("risk");
+      expect(markdown).toContain("past the 100ms threshold, set for `/products/*`");
+      expect(markdown).toContain("For `/products/*`:");
+      expect(brief.verdict).toBe("hold");
+    } finally {
+      await rm(scoped, { recursive: true, force: true });
     }
   });
 

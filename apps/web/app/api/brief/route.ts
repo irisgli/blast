@@ -40,9 +40,11 @@ const requestSchema = z
      * Budgets travel in the request rather than being read from a file, because the
      * caller is a pipeline somewhere else and this server cannot see its repository.
      * Validated by the same schema `blast.json` is, so a ceiling that would be rejected
-     * on disk is rejected here.
+     * on disk is rejected here — including the per-surface rules, which a pipeline that
+     * already holds its policy file can forward verbatim.
      */
     budgets: z.unknown().optional(),
+    surfaces: z.unknown().optional(),
   })
   .strict();
 
@@ -202,8 +204,14 @@ export async function POST(request: Request): Promise<Response> {
    * would apply one team's ceiling to another team's pull request.
    */
   let policy: Policy = DEFAULT_POLICY;
-  if (parsed.data.budgets !== undefined) {
-    const resolved = policyFrom({ budgets: parsed.data.budgets }, "the request body");
+  if (parsed.data.budgets !== undefined || parsed.data.surfaces !== undefined) {
+    const resolved = policyFrom(
+      {
+        ...(parsed.data.budgets === undefined ? {} : { budgets: parsed.data.budgets }),
+        ...(parsed.data.surfaces === undefined ? {} : { surfaces: parsed.data.surfaces }),
+      },
+      "the request body",
+    );
     if (!resolved.ok) return errorResponse(400, "invalid-budgets", resolved.detail);
     policy = resolved.value;
   }

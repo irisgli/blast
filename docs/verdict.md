@@ -91,8 +91,50 @@ team that wrote `monthlyCostUsd`, got the $500 default, and cleared a change the
 to catch has been failed by the tool in the least visible way available.
 
 The defaults are documented in the table above and are a starting point, not a
-recommendation. A marketing page and a checkout flow do not deserve the same allowance,
-and a tool that cannot be told the difference gets argued with once and then ignored.
+recommendation.
+
+### Budgets for one surface
+
+A single ceiling for a whole repository is the version of this feature that gets set to
+whatever the loosest surface needs and then never binds anywhere. A checkout flow and an
+admin settings screen do not deserve the same allowance, and the team that knows which is
+which is the one writing this file:
+
+```json
+{
+  "budgets": { "monthlyCostDeltaUsd": 150 },
+  "surfaces": [
+    { "match": "/checkout/*", "budgets": { "lcpDeltaMs": 60, "inpDeltaMs": 20 } },
+    { "match": "/admin/*", "budgets": { "clientJsDeltaBytes": 204800 } }
+  ]
+}
+```
+
+A rule layers on the repository's budgets rather than on the defaults, so a repository
+that tightened everything does not have that undone by a rule about one route. Anything a
+rule does not name keeps whatever governs the rest.
+
+A list, not an object, because precedence has to be a contract: **the first rule whose
+pattern matches decides**, and an object's key order is not something to rest a verdict
+on. In the example above, a `/checkout/*` rule written before a `/checkout/payment` rule
+governs the payment page.
+
+`*` matches any run of characters; everything else is literal. That matters more than it
+looks, because route ids carry `[slug]`, `(group)` and `.`, all of which mean something to
+a regular expression and nothing to the person writing the pattern. `/checkout/*` matches
+`/checkout/payment` and not `/checkout` — a rule about the pages under a path should not
+silently capture the path itself. Write `/checkout*` for that.
+
+A brief names the rule that decided, not the default it replaced: *past the 60ms
+threshold, set for `/checkout/*`*. A reader who disagrees with a verdict needs to know
+which line of `blast.json` to argue with.
+
+**Cost takes the repository's ceiling whatever a surface rule says.** The monthly delta is
+one number for the whole change — it sums drivers across every surface it touches — so
+there is no surface whose rule could govern it. Picking one would let a change that
+touches a lenient route buy headroom for the rest, which is the opposite of what a
+per-surface ceiling is for. Surface rules govern the five performance thresholds, which
+are the ones that actually differ between a checkout page and an admin screen.
 
 Every brief states the budgets it applied and where they came from. A threshold a reader
 cannot see is indistinguishable from one the model invented.

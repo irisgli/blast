@@ -37,9 +37,10 @@ curl -sS https://blast.example/api/brief \
 ```
 
 `profile` is the shape the agent's `read_change` tool returns, validated by the same
-`changeProfileSchema` that tool validates its input with. `budgets` is optional and takes
-the same keys as [`blast.json`](./verdict.md#budgets), validated by the same schema — a
-ceiling that would be rejected on disk is rejected here.
+`changeProfileSchema` that tool validates its input with. `budgets` and `surfaces` are
+optional and take the same keys as [`blast.json`](./verdict.md#budgets), validated by the
+same schema — a ceiling that would be rejected on disk is rejected here, and a pipeline
+holding its own policy file can forward both fields verbatim.
 
 Budgets come from the request or they are the defaults, never from a `blast.json` beside
 the deployment. The policy governing a change belongs to the repository the change is in,

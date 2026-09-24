@@ -75,6 +75,38 @@ export const budgetsSchema = z
 export type Budgets = z.output<typeof budgetsSchema>;
 
 /**
+ * Budgets for the surfaces a rule matches.
+ *
+ * One ceiling for a whole repository is the version of this feature that gets set to
+ * whatever the loosest surface needs and then never binds anywhere. A checkout flow and
+ * an admin settings screen do not deserve the same allowance, and the team that knows
+ * which is which is the one writing this file.
+ *
+ * A list rather than an object, because precedence has to be a contract: the first rule
+ * whose pattern matches decides, and an object's key order is not something to rest a
+ * verdict on.
+ */
+export const surfaceBudgetSchema = z
+  .object({
+    match: z
+      .string()
+      .min(1)
+      .describe("A route id, where `*` matches any run of characters: /checkout/*"),
+    budgets: budgetsSchema,
+  })
+  .strict();
+
+export type SurfaceBudget = z.output<typeof surfaceBudgetSchema>;
+
+export interface ResolvedSurfaceBudget {
+  match: string;
+  /** The repository's budgets with this rule's layered on top. */
+  thresholds: VerdictThresholds;
+  /** What this rule changed, relative to the repository-wide budgets. */
+  overrides: (keyof VerdictThresholds)[];
+}
+
+/**
  * `strict` so a misspelled key fails rather than being ignored. A team that wrote
  * `monthlyCostUsd` and got the $500 default deserves to hear about it now, not after a
  * brief cleared a change they meant to catch.
@@ -83,13 +115,17 @@ export const policyFileSchema = z
   .object({
     $schema: z.string().optional(),
     budgets: budgetsSchema.default({}),
+    surfaces: z.array(surfaceBudgetSchema).default([]),
   })
   .strict();
 
 export type PolicyFile = z.output<typeof policyFileSchema>;
 
 export interface Policy {
+  /** The repository-wide budgets, applied to anything no surface rule matches. */
   thresholds: VerdictThresholds;
+  /** Per-surface budgets, in the order they were written. First match decides. */
+  surfaces: ResolvedSurfaceBudget[];
   /** `defaults` when no policy file was found, `file` when one set at least one budget. */
   origin: "defaults" | "file";
   /** Where the budgets were read from, relative to the repository root. */
@@ -100,6 +136,7 @@ export interface Policy {
 
 export const DEFAULT_POLICY: Policy = {
   thresholds: DEFAULT_THRESHOLDS,
+  surfaces: [],
   origin: "defaults",
   path: null,
   overrides: [],
@@ -129,12 +166,24 @@ export function policyFrom(document: unknown, path: string | null): Result<Polic
 
   const budgets = parsed.data.budgets;
   const overrides = BUDGET_KEYS.filter((key) => budgets[key] !== undefined);
+  const thresholds: VerdictThresholds = { ...DEFAULT_THRESHOLDS, ...budgets };
+
+  // A surface rule layers on the repository's budgets, not on the defaults, so a repo
+  // that tightened everything does not have that undone by a rule about one route.
+  const surfaces: ResolvedSurfaceBudget[] = parsed.data.surfaces.map((rule) => ({
+    match: rule.match,
+    thresholds: { ...thresholds, ...rule.budgets },
+    overrides: BUDGET_KEYS.filter((key) => rule.budgets[key] !== undefined),
+  }));
+
+  const setsSomething = overrides.length > 0 || surfaces.length > 0;
 
   return ok(
     {
-      thresholds: { ...DEFAULT_THRESHOLDS, ...budgets },
-      origin: overrides.length === 0 ? "defaults" : "file",
-      path: overrides.length === 0 ? null : path,
+      thresholds,
+      surfaces,
+      origin: setsSomething ? "file" : "defaults",
+      path: setsSomething ? path : null,
       overrides,
     },
     // A policy is a checked-in decision rather than an observation, so it has no
@@ -166,6 +215,39 @@ function formatBudget(key: keyof VerdictThresholds, value: number): string {
     default:
       return `${value}ms`;
   }
+}
+
+/**
+ * Whether a surface rule applies to a route.
+ *
+ * `*` matches any run of characters and everything else is literal, which matters more
+ * than it looks: route ids carry `[slug]`, `(group)` and `.`, all of which mean something
+ * to a regular expression and nothing to the person writing the pattern.
+ *
+ * `/checkout/*` matches `/checkout/payment` and not `/checkout` — a rule about the pages
+ * under a path should not silently capture the path itself. Write `/checkout*` for that.
+ */
+export function surfaceMatches(pattern: string, surface: string): boolean {
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*");
+  return new RegExp(`^${escaped}$`).test(surface);
+}
+
+/**
+ * The budgets that govern one surface: the first rule that matches it, or the
+ * repository's own. A finding with no surface is change-wide and takes the repository's.
+ */
+export function thresholdsFor(policy: Policy, surface: string | null): VerdictThresholds {
+  if (surface === null) return policy.thresholds;
+  return (
+    policy.surfaces.find((rule) => surfaceMatches(rule.match, surface))?.thresholds ??
+    policy.thresholds
+  );
+}
+
+/** The rule that decided a surface's budgets, when one did. For naming it in a brief. */
+export function ruleFor(policy: Policy, surface: string | null): ResolvedSurfaceBudget | null {
+  if (surface === null) return null;
+  return policy.surfaces.find((rule) => surfaceMatches(rule.match, surface)) ?? null;
 }
 
 /** One line per budget, for the brief. Overridden budgets are named as overridden. */
