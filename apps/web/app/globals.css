@@ -1227,3 +1227,602 @@ body {
   line-height: 1.8;
   color: var(--text-secondary);
 }
+
+/* ── the impact panel ────────────────────────────────────────────────────── */
+/*
+ * A surface rather than a page section. The brief is what someone opens to decide
+ * whether to merge, so it gets the frame a product surface gets: one border holding a
+ * toolbar, a tab strip, and a body, with the same restraint as everything above it.
+ * Colour still appears only where it carries state.
+ */
+.panel {
+  margin-top: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background-100);
+  overflow: hidden;
+}
+
+.panel__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--background-200);
+}
+
+.panel__ref,
+.panel__status {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.panel__pr {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.panel__branch {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background-100);
+}
+
+.panel__arrow,
+.panel__meta {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.panel__digest {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--amber-fg);
+}
+
+.verdict--ship {
+  color: var(--green-fg);
+}
+
+.verdict--ship-with-caveats {
+  color: var(--text-secondary);
+}
+
+.panel__body {
+  padding: 0;
+}
+
+/* ── tabs ────────────────────────────────────────────────────────────────── */
+.tabs__strip {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs__strip::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 0.75rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.tabs__tab:hover {
+  color: var(--text-primary);
+}
+
+.tabs__tab--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+.tabs__tab:focus-visible {
+  outline: 2px solid var(--blue-fg);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.tabs__panel {
+  padding: 1.5rem 1.25rem;
+}
+
+/* ── status dots ─────────────────────────────────────────────────────────── */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--gray-500);
+  flex: none;
+}
+
+.dot--ok {
+  background: var(--green-solid);
+}
+
+.dot--warn {
+  background: var(--amber-solid);
+}
+
+.dot--mute {
+  background: var(--gray-400);
+}
+
+/* ── tiles ───────────────────────────────────────────────────────────────── */
+.tile {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.125rem 1.25rem;
+  background: var(--background-100);
+}
+
+.tile__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tile__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.tile__figure {
+  font-size: 15px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile__count {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.tile__foot {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.tile__note {
+  margin: 0.75rem 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.grid--split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* Tiles size to their contents. Stretching the shorter column to match the taller one
+     leaves a panel of empty bordered space, which reads as something failing to load. */
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .grid--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── breakdown bars ──────────────────────────────────────────────────────── */
+.breakdown,
+.versus,
+.accuracy,
+.budgets,
+.measures,
+.events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breakdown__row + .breakdown__row {
+  margin-top: 0.875rem;
+}
+
+.breakdown__head,
+.versus__head,
+.accuracy__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 12.5px;
+}
+
+.breakdown__label,
+.accuracy__label {
+  color: var(--text-secondary);
+}
+
+.breakdown__value,
+.accuracy__miss {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.breakdown__track,
+.versus__track,
+.allowance__track {
+  position: relative;
+  height: 6px;
+  margin-top: 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--gray-200);
+  overflow: hidden;
+}
+
+.breakdown__fill,
+.versus__fill,
+.allowance__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+}
+
+.versus__fill--muted {
+  background: var(--gray-500);
+}
+
+.breakdown__detail,
+.measure__note,
+.accuracy__note {
+  margin: 0.4rem 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+
+/* ── allowance against a budget ──────────────────────────────────────────── */
+.allowance {
+  margin-top: 0.5rem;
+}
+
+.allowance__track {
+  overflow: visible;
+}
+
+.allowance__track--over .allowance__fill {
+  background: var(--amber-solid);
+}
+
+/* The budget as a line rather than a colour, so three quarters used reads as close to
+   it instead of merely "fine" — which is the state worth noticing first. */
+.allowance__mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text-primary);
+  opacity: 0.55;
+}
+
+.allowance__legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.4rem;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.allowance__budget {
+  color: var(--text-tertiary);
+}
+
+/* ── trend ───────────────────────────────────────────────────────────────── */
+.trend__svg {
+  display: block;
+  width: 100%;
+  height: 72px;
+  overflow: visible;
+}
+
+.trend__area {
+  fill: var(--text-primary);
+  opacity: 0.06;
+}
+
+.trend__line,
+.trend__projected {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+/* Dashed and gapped, because it is the only point here that has not happened. */
+.trend__projected {
+  stroke-dasharray: 3 3;
+  opacity: 0.55;
+}
+
+.trend__dot {
+  fill: var(--background-100);
+  stroke: var(--text-primary);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend__dot--projected {
+  stroke-dasharray: 2 2;
+  opacity: 0.7;
+}
+
+.trend__axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trend__axis li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.trend__tick-label {
+  color: var(--text-tertiary);
+}
+
+.trend__tick--projected {
+  opacity: 0.6;
+}
+
+/* ── accuracy ────────────────────────────────────────────────────────────── */
+.accuracy__row + .accuracy__row {
+  margin-top: 0.875rem;
+}
+
+.accuracy__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 0.4rem;
+}
+
+.accuracy__bar {
+  display: block;
+  height: 5px;
+  min-width: 2px;
+  border-radius: var(--radius-full);
+}
+
+.accuracy__bar--estimated {
+  background: var(--gray-500);
+}
+
+.accuracy__bar--observed {
+  background: var(--text-primary);
+}
+
+/* ── measures ────────────────────────────────────────────────────────────── */
+.measure {
+  padding: 0.95rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.measure:first-child {
+  padding-top: 0;
+}
+
+.measure:last-child {
+  border-bottom: 0;
+}
+
+.measure__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.measure__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 13px;
+}
+
+.measure__surface {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.measure__numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.measure__head-value {
+  color: var(--text-primary);
+}
+
+.measure__arrow {
+  color: var(--text-tertiary);
+}
+
+.measure__delta {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+.measure__delta--up {
+  color: var(--amber-fg);
+}
+
+.chip-basis {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-tertiary);
+}
+
+.chip-basis--measured {
+  color: var(--green-fg);
+  border-color: var(--green-border);
+  background: var(--green-bg);
+}
+
+.chip-basis--assumed {
+  color: var(--amber-fg);
+  border-color: var(--amber-border);
+  background: var(--amber-bg);
+}
+
+/* ── measurability ───────────────────────────────────────────────────────── */
+.versus li + li {
+  margin-top: 0.75rem;
+}
+
+.events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.events li {
+  font-size: 11.5px;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+  color: var(--text-secondary);
+}
+
+/* ── budgets ─────────────────────────────────────────────────────────────── */
+.budgets__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.budgets__row:last-child {
+  border-bottom: 0;
+}
+
+.budgets__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.budgets__tag,
+.sources__tag {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+  border: 1px solid var(--border);
+  color: var(--text-tertiary);
+}
+
+/* ── sources ─────────────────────────────────────────────────────────────── */
+.sources--wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sources__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── empty ───────────────────────────────────────────────────────────────── */
+.empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 1.5rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* ── the fix block inside a tile ─────────────────────────────────────────── */
+.tile .fix {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.tile .fix__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}

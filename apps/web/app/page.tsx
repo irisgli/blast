@@ -1,12 +1,8 @@
 import { Suspense } from "react";
 import { ExternalIcon, TriangleMark } from "./components/icons";
-import { ChangeCard, CostCard, LiveBrief, SourceList } from "./components/panels";
-import {
-  ChangeCardSkeleton,
-  CostCardSkeleton,
-  LiveBriefSkeleton,
-  SourceListSkeleton,
-} from "./components/skeleton";
+import { Dashboard } from "./components/dashboard";
+import { ChangeCard, CostCard } from "./components/panels";
+import { ChangeCardSkeleton, CostCardSkeleton, LiveBriefSkeleton } from "./components/skeleton";
 
 /**
  * The page is a shell around four boundaries.
@@ -172,7 +168,7 @@ export default function Page() {
           </div>
 
           <Suspense fallback={<LiveBriefSkeleton />}>
-            <LiveBrief />
+            <Dashboard />
           </Suspense>
         </section>
 
@@ -227,17 +223,14 @@ server-timing: fixture-funnel;desc="ok";dur=0.4, fixture-billing;desc="ok";dur=0
           <div className="split">
             <h2 className="title">Nine sources, one contract</h2>
             <p className="lede">
-              Eight read checked-in fixtures and answered for this brief, each timed. The ninth
+              Eight read checked-in fixtures and answered for this brief, each timed — the{" "}
+              <b>Sources</b> tab above lists every one with its freshness and latency. The ninth
               talks to the npm registry, and exists so the contract has been held to something that
               rate limits, times out, and returns documents missing the field being asked for. It is
-              not consulted here, which is why it is absent below: the same change has to produce
-              the same answer twice, and a source whose answer depends on when it was asked cannot
-              be part of that.
+              deliberately not consulted for a brief: the same change has to produce the same answer
+              twice, and a source whose answer depends on when it was asked cannot be part of that.
             </p>
           </div>
-          <Suspense fallback={<SourceListSkeleton />}>
-            <SourceList />
-          </Suspense>
         </section>
 
         {/* ── closing ──────────────────────────────────────────────────── */}
