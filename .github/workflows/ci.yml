@@ -90,6 +90,38 @@ jobs:
       - name: Run the pipeline end to end
         run: pnpm test:agent
 
+      # The command a pipeline runs, run the way a pipeline runs it. The unit suites
+      # cover the engine; this covers the thing that has to work on someone else's
+      # machine — that it builds, that it resolves, and that its exit codes are what a
+      # merge gate depends on.
+      - name: Build packages
+        run: pnpm build
+
+      - name: Check the blast command gates a merge
+        run: |
+          set -euo pipefail
+
+          pnpm blast brief fixture --intent "smoke test" > /tmp/brief.md
+          grep -q "Verdict: hold" /tmp/brief.md
+
+          # The sample change is held, so a gate at `hold` must fail and a run with no
+          # gate must not. A tool that exits 0 on a held verdict is a gate nobody notices
+          # has stopped working.
+          if pnpm blast brief fixture --intent "smoke test" --fail-on hold > /dev/null 2>&1; then
+            echo "expected --fail-on hold to exit non-zero on a held verdict" >&2
+            exit 1
+          fi
+
+          # A broken run and a held verdict must not look the same to the job.
+          set +e
+          pnpm blast brief 0 --intent "smoke test" > /dev/null 2>&1
+          broken=$?
+          set -e
+          if [ "$broken" != "2" ]; then
+            echo "expected a pull request that cannot be read to exit 2, got $broken" >&2
+            exit 1
+          fi
+
   build-agent:
     runs-on: ubuntu-latest
 

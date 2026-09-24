@@ -6,6 +6,7 @@
   "homepage": "https://github.com/irisgli/blast",
   "type": "module",
   "scripts": {
+    "blast": "node --conditions=blast-dist packages/blast-vcs/dist/cli.js",
     "build": "turbo run build --filter='./packages/*'",
     "changeset": "changeset",
     "dev": "eve dev",
@@ -21,6 +22,7 @@
     "@blast/adapters": "workspace:*",
     "@blast/brief": "workspace:*",
     "@blast/core": "workspace:*",
+    "@blast/vcs": "workspace:*",
     "eve": "0.64.1",
     "zod": "catalog:"
   },

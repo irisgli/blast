@@ -37,6 +37,7 @@ The repository is a pnpm workspace orchestrated with
   the registry
 - [`packages/blast-brief`](./packages/blast-brief) — evidence collection, brief
   rendering, remediations
+- [`packages/blast-vcs`](./packages/blast-vcs) — git and GitHub, and the `blast` command
 - [`apps/web`](./apps/web) — the Next.js surface, which mounts the agent
 - [`apps/fixtures`](./apps/fixtures) — the sample pull request and telemetry
 - [`docs`](./docs) — published documentation

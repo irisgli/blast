@@ -1,15 +1,12 @@
-import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { isSafeRef, runCommand } from "@blast/vcs";
 import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
 import { produceBrief } from "@blast/brief";
 import { changeProfileSchema } from "../lib/schemas.js";
-
-const run = promisify(execFile);
 
 /**
  * Offers the fix for a finding, and opens it as a pull request when it is mechanical.
@@ -87,6 +84,23 @@ export default defineTool({
       };
     }
 
+    /**
+     * The head reaches this as model input and lands where git and gh expect a ref.
+     *
+     * `execFile` means there is no shell and nothing to quote, which is not the whole
+     * story: a ref beginning with `-` is read as a flag by both programs, and
+     * `git worktree add -b branch path --upload-pack=...` is a command nobody wrote.
+     * Checking is cheaper than reasoning about which of the six call sites below could
+     * be made to misbehave.
+     */
+    if (!isSafeRef(profile.ref.head)) {
+      return {
+        ok: false as const,
+        detail: `The change's head is not a usable git ref: ${JSON.stringify(profile.ref.head)}. Nothing was run against it.`,
+        remediation: chosen,
+      };
+    }
+
     const scratch = await mkdtemp(join(tmpdir(), "blast-"));
     const tree = join(scratch, "worktree");
     const patchFile = join(scratch, `${chosen.id}.patch`);
@@ -98,23 +112,58 @@ export default defineTool({
      * and a failure part way through would leave them there with a dirty tree. The
      * commit names its paths for the same reason: `-a` would sweep up every modified
      * file the caller happened to have open.
+     *
+     * Every step is checked rather than thrown from, so a failure says which step failed
+     * and why — "could not push" and "could not open the pull request" want different
+     * responses, and a stack trace gives neither.
      */
+    const steps: { label: string; run: () => ReturnType<typeof runCommand> }[] = [
+      {
+        label: "create a worktree for the fix",
+        run: () => runCommand("git", ["worktree", "add", "-b", branch, tree, profile.ref.head]),
+      },
+      { label: "apply the patch", run: () => runCommand("git", ["-C", tree, "apply", patchFile]) },
+      {
+        label: "stage the patched files",
+        run: () => runCommand("git", ["-C", tree, "add", "--", ...paths]),
+      },
+      {
+        label: "commit",
+        run: () =>
+          runCommand("git", [
+            "-C",
+            tree,
+            "commit",
+            "-m",
+            `fix: ${chosen.title}`,
+            "-m",
+            chosen.rationale,
+          ]),
+      },
+      {
+        // Longer than the rest: this one crosses the network.
+        label: "push the branch",
+        run: () =>
+          runCommand("git", ["-C", tree, "push", "-u", "origin", branch], { timeoutMs: 60_000 }),
+      },
+    ];
+
     try {
       await writeFile(patchFile, chosen.patch, "utf8");
-      await run("git", ["worktree", "add", "-b", branch, tree, profile.ref.head]);
-      await run("git", ["-C", tree, "apply", patchFile]);
-      await run("git", ["-C", tree, "add", "--", ...paths]);
-      await run("git", [
-        "-C",
-        tree,
-        "commit",
-        "-m",
-        `fix: ${chosen.title}`,
-        "-m",
-        chosen.rationale,
-      ]);
-      await run("git", ["-C", tree, "push", "-u", "origin", branch]);
-      const { stdout } = await run(
+
+      for (const step of steps) {
+        const result = await step.run();
+        if (!result.ok) {
+          return {
+            ok: false as const,
+            kind: result.failure.kind,
+            detail: `Could not ${step.label}: ${result.failure.detail} Nothing was committed to your checkout, which was never touched.`,
+            remediation: chosen,
+          };
+        }
+      }
+
+      const created = await runCommand(
         "gh",
         [
           "pr",
@@ -128,17 +177,22 @@ export default defineTool({
           "--body",
           `${chosen.rationale}\n\n${chosen.steps.map((step) => `- ${step}`).join("\n")}`,
         ],
-        { cwd: tree },
+        { cwd: tree, timeoutMs: 30_000 },
       );
-      return { ok: true as const, url: stdout.trim(), remediation: chosen };
-    } catch (error) {
-      return {
-        ok: false as const,
-        detail: `Could not open the pull request: ${error instanceof Error ? error.message : String(error)}. Nothing was committed to your checkout, which was never touched.`,
-        remediation: chosen,
-      };
+      if (!created.ok) {
+        return {
+          ok: false as const,
+          kind: created.failure.kind,
+          // The branch is pushed and the pull request is not. Saying so beats implying
+          // nothing happened, because something did and it is sitting on the remote.
+          detail: `The fix was pushed to ${branch} but the pull request could not be opened: ${created.failure.detail} Open it by hand, or delete the branch.`,
+          remediation: chosen,
+        };
+      }
+
+      return { ok: true as const, url: created.stdout.trim(), remediation: chosen };
     } finally {
-      await run("git", ["worktree", "remove", "--force", tree]).catch(() => undefined);
+      await runCommand("git", ["worktree", "remove", "--force", tree]);
       await rm(scratch, { recursive: true, force: true });
     }
   },
