@@ -4,6 +4,7 @@ import { formatMeasure, metricLabel } from "@blast/brief";
 import { getDemoBrief } from "../brief";
 import type { DemoBrief } from "../brief";
 import { Accuracy, Allowance, Breakdown, Trend } from "./charts";
+import { CopyButton } from "./copy";
 import { CodeBlock } from "./code-block";
 import type { CodeLine } from "./code-block";
 import { StatusBadge, StatusIcon } from "./status";
@@ -59,7 +60,7 @@ function monthLabel(month: string): string {
 
 /* ── the bar across the top ──────────────────────────────────────────────── */
 
-function Toolbar({ brief }: { brief: ImpactBrief }) {
+function Toolbar({ brief, markdown }: { brief: ImpactBrief; markdown: string }) {
   return (
     <div className="panel__bar">
       <div className="panel__ref">
@@ -84,6 +85,12 @@ function Toolbar({ brief }: { brief: ImpactBrief }) {
         <span className="panel__digest mono" title="Same digest, same assessment">
           {brief.digest}
         </span>
+        {/*
+          The brief as markdown, one keystroke from the pull request it describes. For a
+          team not ready to install anything, pasting this into a comment is the whole
+          product — and it is the same bytes the agent would have posted.
+        */}
+        <CopyButton value={markdown} label="Copy brief" copiedLabel="Copied markdown" />
       </div>
     </div>
   );
@@ -646,7 +653,7 @@ export async function Dashboard() {
 
   return (
     <div className="panel">
-      <Toolbar brief={brief} />
+      <Toolbar brief={brief} markdown={data.markdown} />
       <div className="panel__body">
         <Tabs panels={panels} label="Impact brief" />
       </div>
