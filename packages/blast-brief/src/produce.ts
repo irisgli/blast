@@ -71,7 +71,7 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
   const assessment = assess({
     findings: evidence.findings,
     context: evidence.context,
-    thresholds: policy.thresholds,
+    policy,
   });
   const remediations = remediationsFor(input.profile, evidence, assessment);
 

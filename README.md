@@ -131,8 +131,15 @@ The thresholds are defaults, not opinions to argue with. A repository sets its o
 `blast.json`, reviewed alongside the code it governs:
 
 ```json
-{ "budgets": { "monthlyCostDeltaUsd": 150, "clientJsDeltaBytes": 10240 } }
+{
+  "budgets": { "monthlyCostDeltaUsd": 150 },
+  "surfaces": [{ "match": "/checkout/*", "budgets": { "lcpDeltaMs": 60 } }]
+}
 ```
+
+A checkout flow and an admin settings screen do not deserve the same allowance, so budgets
+are scoped: the first matching rule decides, and a brief names the rule rather than the
+default it replaced.
 
 Every brief names the budgets it applied, and an unreadable policy file fails the run
 rather than quietly falling back to the defaults. Every brief also ends with a digest over

@@ -1,5 +1,5 @@
-import type { VerdictThresholds } from "./policy.js";
-import { DEFAULT_THRESHOLDS } from "./policy.js";
+import type { Policy, VerdictThresholds } from "./policy.js";
+import { DEFAULT_POLICY, DEFAULT_THRESHOLDS, ruleFor, thresholdsFor } from "./policy.js";
 import type { Confidence, Dimension, DimensionStatus, Finding, Verdict } from "./schema.js";
 import { DIMENSIONS, METRIC } from "./schema.js";
 
@@ -59,7 +59,8 @@ export interface Assessment {
 export interface AssessmentInput {
   findings: readonly Finding[];
   context: VerdictContext;
-  thresholds?: VerdictThresholds;
+  /** The budgets to measure against, per surface and repository-wide. */
+  policy?: Policy;
 }
 
 const CONFIDENCE_RANK: Record<Confidence, number> = { high: 2, medium: 1, low: 0 };
@@ -104,12 +105,20 @@ function money(value: number): string {
 function performanceBreach(
   finding: Finding,
   context: VerdictContext,
-  thresholds: VerdictThresholds,
+  policy: Policy,
 ): string | null {
+  const thresholds = thresholdsFor(policy, finding.surface);
+  /**
+   * When a surface rule decided the number, the rationale names it. A reader who
+   * disagrees with a verdict needs to know which line of `blast.json` to argue with, and
+   * "past the 200ms threshold" points at a default that may not be what applied.
+   */
+  const rule = ruleFor(policy, finding.surface);
+  const set = rule === null ? "" : `, set for \`${rule.match}\``;
   switch (finding.metric) {
     case METRIC.p75Lcp: {
       if (finding.delta !== null && finding.delta.value > thresholds.lcpDeltaMs) {
-        return `p75 LCP regresses by ${round(finding.delta.value)}ms, past the ${thresholds.lcpDeltaMs}ms threshold.`;
+        return `p75 LCP regresses by ${round(finding.delta.value)}ms, past the ${thresholds.lcpDeltaMs}ms threshold${set}.`;
       }
       return null;
     }
@@ -117,19 +126,19 @@ function performanceBreach(
       // Only the projection is comparable to a field budget. A synthetic absolute
       // measures preview hardware, and would fire this rule on every slow runner.
       if (finding.head !== null && finding.head.value > thresholds.lcpBudgetMs) {
-        return `Projected p75 LCP lands at ${round(finding.head.value)}ms, over the ${thresholds.lcpBudgetMs}ms budget.`;
+        return `Projected p75 LCP lands at ${round(finding.head.value)}ms, over the ${thresholds.lcpBudgetMs}ms budget${set}.`;
       }
       return null;
     }
     case METRIC.p75Inp: {
       if (finding.delta !== null && finding.delta.value > thresholds.inpDeltaMs) {
-        return `p75 INP regresses by ${round(finding.delta.value)}ms, past the ${thresholds.inpDeltaMs}ms threshold.`;
+        return `p75 INP regresses by ${round(finding.delta.value)}ms, past the ${thresholds.inpDeltaMs}ms threshold${set}.`;
       }
       return null;
     }
     case METRIC.p95Server: {
       if (finding.delta !== null && finding.delta.value > thresholds.serverP95DeltaMs) {
-        return `p95 server response regresses by ${round(finding.delta.value)}ms, past the ${thresholds.serverP95DeltaMs}ms threshold.`;
+        return `p95 server response regresses by ${round(finding.delta.value)}ms, past the ${thresholds.serverP95DeltaMs}ms threshold${set}.`;
       }
       return null;
     }
@@ -140,7 +149,7 @@ function performanceBreach(
       const percentile = context.surfaceTrafficPercentile[finding.surface];
       if (percentile === undefined || percentile < thresholds.topTrafficPercentile) return null;
       const kb = round(finding.delta.value / 1024);
-      return `Client JS grows ${kb} KB on ${finding.surface}, a top-decile traffic surface.`;
+      return `Client JS grows ${kb} KB on ${finding.surface}, a top-decile traffic surface, past the ${round(thresholds.clientJsDeltaBytes / 1024)} KB threshold${set}.`;
     }
     default:
       return null;
@@ -150,7 +159,7 @@ function performanceBreach(
 export function assessPerformance(
   findings: readonly Finding[],
   context: VerdictContext,
-  thresholds: VerdictThresholds = DEFAULT_THRESHOLDS,
+  policy: Policy = DEFAULT_POLICY,
 ): DimensionAssessment {
   const own = forDimension(findings, "performance");
   const usable = informative(own);
@@ -165,7 +174,7 @@ export function assessPerformance(
   }
 
   for (const finding of usable) {
-    const breach = performanceBreach(finding, context, thresholds);
+    const breach = performanceBreach(finding, context, policy);
     if (breach !== null) {
       return {
         status: "risk",
@@ -196,11 +205,20 @@ export function costCeilingUsd(
   );
 }
 
+/**
+ * Cost takes the repository's budgets and not a surface rule's.
+ *
+ * The monthly delta is one number for the whole change — it sums drivers across every
+ * surface it touches — so there is no surface whose rule could govern it. Picking one
+ * would mean letting a change that touches a lenient route buy headroom for the rest,
+ * which is the opposite of what a per-surface ceiling is for.
+ */
 export function assessCost(
   findings: readonly Finding[],
   context: VerdictContext,
-  thresholds: VerdictThresholds = DEFAULT_THRESHOLDS,
+  policy: Policy = DEFAULT_POLICY,
 ): DimensionAssessment {
+  const thresholds = policy.thresholds;
   const own = forDimension(findings, "cost");
   const monthly = own.find(
     (finding) => finding.metric === METRIC.monthlyCostUsd && finding.delta !== null,
@@ -336,9 +354,9 @@ export function overallConfidence(dimensions: Record<Dimension, DimensionAssessm
 }
 
 export function assess(input: AssessmentInput): Assessment {
-  const thresholds = input.thresholds ?? DEFAULT_THRESHOLDS;
-  const performance = assessPerformance(input.findings, input.context, thresholds);
-  const cost = assessCost(input.findings, input.context, thresholds);
+  const policy = input.policy ?? DEFAULT_POLICY;
+  const performance = assessPerformance(input.findings, input.context, policy);
+  const cost = assessCost(input.findings, input.context, policy);
   const measurability = assessMeasurability(input.findings, input.context);
   const dimensions = { performance, cost, measurability };
 

@@ -36,7 +36,9 @@ asking the model to weigh dimensions or pick a verdict, the logic belongs in tho
 instead. A verdict re-derived per run drifts on identical input.
 
 **Budgets are data, and a brief names the ones it applied.** A repository sets its own in
-`blast.json`, validated by `policyFileSchema`. A policy file that cannot be read fails
+`blast.json`, repository-wide and per surface, validated by `policyFileSchema`. A brief
+cites the rule that decided rather than the default it replaced, and the first matching
+rule wins — precedence is a contract, not an artifact of key order. A policy file that cannot be read fails
 the run; it never falls back to the defaults, because budgets nobody chose produce
 verdicts nobody chose and the run would look ordinary. Every brief carries a digest over
 its inputs and its verdict, so two briefs can be compared without re-running either.

@@ -246,12 +246,45 @@ function renderBudgets(brief: ImpactBrief): string[] {
   }
 
   const overridden = describePolicy(policy).filter((budget) => budget.overridden);
-  return [
-    "## Budgets",
-    "",
-    `From \`${policy.path ?? "blast.json"}\`, overriding ${overridden.length} default${overridden.length === 1 ? "" : "s"}:`,
-    "",
-    ...overridden.map((budget) => `- ${budget.label}: ${budget.value}`),
-    "",
-  ];
+  const lines = ["## Budgets", "", `From \`${policy.path ?? "blast.json"}\`.`, ""];
+
+  if (overridden.length > 0) {
+    lines.push(
+      `Repository-wide, overriding ${overridden.length} default${overridden.length === 1 ? "" : "s"}:`,
+      "",
+      ...overridden.map((budget) => `- ${budget.label}: ${budget.value}`),
+      "",
+    );
+  }
+
+  /**
+   * Surface rules are listed whether or not one applied to this change. A reader
+   * checking why a surface cleared needs to see that a stricter rule exists and did not
+   * match as readily as they need to see one that did.
+   */
+  for (const rule of policy.surfaces) {
+    const changed = describeSurfaceBudget(policy, rule);
+    if (changed.length === 0) continue;
+    lines.push(
+      `For \`${rule.match}\`:`,
+      "",
+      ...changed.map((budget) => `- ${budget.label}: ${budget.value}`),
+      "",
+    );
+  }
+
+  return lines;
+}
+
+/** What a surface rule changed relative to the repository-wide budgets. */
+function describeSurfaceBudget(
+  policy: ImpactBrief["policy"],
+  rule: ImpactBrief["policy"]["surfaces"][number],
+): { label: string; value: string }[] {
+  const scoped = describePolicy({
+    ...policy,
+    thresholds: rule.thresholds,
+    overrides: rule.overrides,
+  });
+  return scoped.filter((budget) => budget.overridden);
 }
