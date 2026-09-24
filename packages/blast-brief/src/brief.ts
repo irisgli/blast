@@ -11,6 +11,7 @@ import type {
   Verdict,
 } from "@blast/core";
 import { briefDigest, DEFAULT_POLICY, describePolicy, DIMENSIONS, METRIC } from "@blast/core";
+import { renderBriefMarker } from "./thread.js";
 
 /**
  * Assembles and renders the brief.
@@ -213,6 +214,19 @@ export function renderBrief(brief: ImpactBrief): string {
    * what makes the determinism above a claim someone can check.
    */
   lines.push(`\`${brief.digest}\` · same digest, same assessment.`, "");
+
+  /**
+   * An invisible marker, so a brief already on a pull request can be found and updated
+   * rather than posted beneath itself. A reviewer scrolling a thread should see one
+   * brief for the current head, not one per push with no way to tell which verdict is
+   * live.
+   *
+   * It carries the whole record — head, verdict, confidence, digest — rather than only
+   * the digest, because the thread's history is built from it. Written here by code and
+   * read back by the poster, the record travels inside the artifact it describes, so the
+   * model cannot alter what the history says without altering the brief it is posting.
+   */
+  lines.push(renderBriefMarker(brief), "");
 
   return lines.join("\n");
 }

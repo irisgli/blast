@@ -123,6 +123,31 @@ the edit it most exists to catch.
 
 It is a fingerprint, not a signature. It detects drift; it does not prove authorship.
 
+It is also what makes posting idempotent, and what the thread's history is keyed on.
+
+Every rendered brief ends with an invisible marker carrying its whole record — head,
+verdict, confidence, digest. `post_comment` finds the brief already on the pull request
+and replaces it instead of appending another: a reviewer scrolling past three verdicts
+cannot tell which one describes the current head, and the stale ones read as confidently
+as the live one. When the digest matches, nothing is written at all, because an edit
+would move a timestamp, change nothing anyone would act on, and notify a thread for no
+reason.
+
+Replacing in place would otherwise discard the more interesting artifact, so the comment
+keeps what it used to say. Each update prepends a row to a collapsed table — when, which
+head, which verdict, which digest — and the comment becomes the record. A verdict that
+moved from `hold` to `ship` between two pushes is the thing a reviewer most wants to see,
+and it is visible without re-running anything.
+
+The record travels inside the marker rather than beside it, so `post_comment` reads it
+back out of the markdown it was handed. The history is built from what `renderBrief`
+wrote, not from fields a model passed along — the same reason findings are re-derived
+rather than carried between tools. Markdown with no marker is refused rather than posted.
+
+Nothing is stored anywhere else. Anywhere else is a place the record can be missing from
+when someone goes looking, and the decision already has a home: the pull request where it
+was made.
+
 ## Changing a threshold
 
 A one-line change here reclassifies briefs across the board. Changes to `verdict.ts` or

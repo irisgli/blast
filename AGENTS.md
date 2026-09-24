@@ -70,6 +70,13 @@ agent's tools, the web surface, and the HTTP API all call it. Three copies of th
 sequence would let a page assess a change against different budgets than a comment on the
 same pull request, and both would look right.
 
+**The pull request is where the record lives.** `post_comment` replaces the brief already
+on the thread and keeps the verdicts it replaced in a collapsed table, built from the
+record `renderBrief` wrote into the brief's marker. Do not move that history into a store
+beside it: anywhere else is a place it can be missing from when someone goes looking, and
+do not let a caller supply the record, for the reason findings are re-derived rather than
+carried.
+
 **Every outward side effect requires approval on every call.** `post_comment` and
 `propose_fix` use `always()` from `eve/tools/approval`. Do not add a write path that
 defaults to allowed, and do not downgrade either to `once()`.

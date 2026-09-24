@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # Every pull request, not only the ones targeting main. A change stacked on another
+  # branch ran no checks at all, which is the case where they are worth the most: it is
+  # the one nobody has reviewed against a green build yet.
   pull_request:
-    branches: [main]
 
 jobs:
   lint:

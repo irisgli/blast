@@ -2,6 +2,7 @@ import { loadFixtureChangeProfile } from "@blast/adapters";
 import { assess } from "@blast/core";
 import { describe, expect, it } from "vitest";
 import { buildBrief, formatMeasure, renderBrief } from "./brief.js";
+import { BRIEF_MARKER, digestOf } from "./thread.js";
 import { collectEvidence } from "./collect.js";
 
 describe("measure formatting", () => {
@@ -13,7 +14,9 @@ describe("measure formatting", () => {
 
   it("renders bytes, money, and rates the way the brief reads them", () => {
     expect(formatMeasure({ value: 18_432, unit: "bytes" }, { signed: true })).toBe("+18 KB");
-    expect(formatMeasure({ value: 340.4, unit: "usd/month" }, { signed: true })).toBe("+$340.40/mo");
+    expect(formatMeasure({ value: 340.4, unit: "usd/month" }, { signed: true })).toBe(
+      "+$340.40/mo",
+    );
     expect(formatMeasure({ value: 8.2, unit: "%" })).toBe("8.2%");
   });
 
@@ -30,7 +33,6 @@ describe("measure formatting", () => {
 });
 
 describe("the full pipeline over the sample pull request", () => {
-
   it("holds a change that cannot be evaluated after it ships", async () => {
     const change = loadFixtureChangeProfile();
     expect(change.ok).toBe(true);
@@ -153,5 +155,40 @@ describe("determinism", () => {
     };
 
     expect(await render()).toBe(await render());
+  });
+});
+
+describe("the marker a posted brief carries", () => {
+  /**
+   * A pull request gets pushed to. Without a way to find the brief already on the
+   * thread, each run appends another, and a reviewer scrolling past three verdicts
+   * cannot tell which one describes the current head.
+   */
+  it("ends with an invisible marker carrying the digest", async () => {
+    const change = loadFixtureChangeProfile();
+    if (!change.ok) return;
+
+    const evidence = await collectEvidence(change.value);
+    const assessment = assess({ findings: evidence.findings, context: evidence.context });
+    const brief = buildBrief({
+      profile: change.value,
+      assessment,
+      findings: evidence.findings,
+      headline: "fixed",
+      watchAfterShip: {},
+      sources: evidence.sources,
+      generatedAt: "2026-09-22T00:00:00Z",
+    });
+    const markdown = renderBrief(brief);
+
+    expect(markdown).toContain(BRIEF_MARKER);
+    expect(digestOf(markdown)).toBe(brief.digest);
+    // An HTML comment, so it is findable by a tool and invisible to a reader.
+    expect(markdown.trimEnd().endsWith("-->")).toBe(true);
+  });
+
+  it("reads no digest out of text that is not a brief", () => {
+    expect(digestOf("Looks fine to me")).toBeNull();
+    expect(digestOf("<!-- blast:brief digest=nope -->")).toBeNull();
   });
 });
