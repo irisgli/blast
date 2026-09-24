@@ -1826,3 +1826,212 @@ body {
   font-size: 13px;
   font-weight: 500;
 }
+
+/* ── reveal on scroll ────────────────────────────────────────────────────── */
+/*
+ * Armed by an inline script in the head, so the hidden state applies before the first
+ * paint rather than after it — otherwise a section paints, vanishes, and eases back,
+ * which is the flash this pattern is usually guilty of. Without JavaScript the attribute
+ * is never set and none of this applies.
+ */
+html[data-reveal-armed] [data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+html[data-reveal-armed] [data-reveal][data-revealed] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Someone who asked for less motion has not asked for faster motion. */
+  html[data-reveal-armed] [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+.section--tight {
+  padding-block: clamp(3.5rem, 2rem + 5vw, 6rem);
+}
+
+/* ── terminal ────────────────────────────────────────────────────────────── */
+.term {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background-200);
+  overflow: hidden;
+}
+
+.term__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--gray-100);
+}
+
+.term__dots {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.term__dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--gray-400);
+}
+
+.term__caption {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.term__replay {
+  margin-left: auto;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background-100);
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.term__replay:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.term__replay:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.term__body {
+  margin: 0;
+  padding: 1.1rem 1.25rem 1.35rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+  line-height: 1.85;
+}
+
+.term__body code {
+  display: block;
+}
+
+.term__line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-height: 1.85em;
+  /* Wraps rather than scrolling sideways. A real command is longer than a phone is wide,
+     and a value pushed past the right edge of the box is a value nobody reads. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+
+/*
+ * Lines are hidden only once something is here to play them. The server renders the
+ * finished transcript, so a reader without JavaScript gets the whole thing rather than an
+ * empty box — the animation decides when a line appears, never whether it exists.
+ */
+.term--live .term__line {
+  opacity: 0;
+  transform: translateY(2px);
+}
+
+.term--live .term__line--command,
+.term--live .term__line--in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease;
+}
+
+.term__line--blank {
+  min-height: 0.7em;
+}
+
+.term__line--command {
+  color: var(--text-primary);
+}
+
+.term__line--muted {
+  color: var(--text-tertiary);
+}
+
+.term__line--risk {
+  color: var(--amber-fg);
+}
+
+.term__line--ok {
+  color: var(--green-fg);
+}
+
+.term__prompt {
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.term__value {
+  margin-left: auto;
+  padding-left: 1.5rem;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.term__caret {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 1px;
+  background: var(--text-primary);
+  translate: 0 0.12em;
+  animation: term-caret 1s steps(1) infinite;
+}
+
+@keyframes term-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term__caret {
+    animation: none;
+  }
+
+  .term__line {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ── ghost button ────────────────────────────────────────────────────────── */
+.btn--ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0.3rem 0.65rem;
+}
+
+.btn--ghost:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}

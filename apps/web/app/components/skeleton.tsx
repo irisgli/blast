@@ -71,6 +71,25 @@ export function LiveBriefSkeleton() {
   );
 }
 
+export function TerminalSkeleton() {
+  return (
+    <div className="term" role="status" aria-label="Preparing the demo">
+      <div className="term__bar">
+        <span className="term__dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      </div>
+      <div className="skeleton-rows">
+        {[0, 1, 2, 3, 4].map((row) => (
+          <Bar key={row} width={`${70 - row * 9}%`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SourceListSkeleton() {
   return (
     <ul className="sources" style={{ marginTop: "2.5rem" }} aria-label="Reading sources">

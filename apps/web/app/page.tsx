@@ -1,8 +1,13 @@
 import { Suspense } from "react";
 import { ExternalIcon, TriangleMark } from "./components/icons";
 import { Dashboard } from "./components/dashboard";
-import { ChangeCard, CostCard } from "./components/panels";
-import { ChangeCardSkeleton, CostCardSkeleton, LiveBriefSkeleton } from "./components/skeleton";
+import { ChangeCard, CommandDemo, CostCard } from "./components/panels";
+import {
+  ChangeCardSkeleton,
+  CostCardSkeleton,
+  LiveBriefSkeleton,
+  TerminalSkeleton,
+} from "./components/skeleton";
 
 /**
  * The page is a shell around four boundaries.
@@ -119,8 +124,26 @@ export default function Page() {
           </div>
         </section>
 
+        {/* ── the demo ─────────────────────────────────────────────────── */}
+        <section className="shell section section--tight" data-reveal>
+          <div className="split">
+            <h2 className="title">One command, on every pull request</h2>
+            <p className="lede">
+              Not a recording. The lines below are computed by the same engine that renders
+              everything else on this page, so the figures in the demo are the figures in the brief
+              — and it exits <span className="mono">1</span>, which is what makes it a merge gate
+              rather than a comment.
+            </p>
+          </div>
+          <div style={{ marginTop: "2.5rem" }}>
+            <Suspense fallback={<TerminalSkeleton />}>
+              <CommandDemo />
+            </Suspense>
+          </div>
+        </section>
+
         {/* ── how it works ─────────────────────────────────────────────── */}
-        <section className="shell section">
+        <section className="shell section" data-reveal>
           <div className="split">
             <h2 className="title">An answer, not a dashboard</h2>
             <p className="lede">
@@ -153,7 +176,7 @@ export default function Page() {
         </section>
 
         {/* ── the live brief ───────────────────────────────────────────── */}
-        <section className="shell section" id="brief">
+        <section className="shell section" id="brief" data-reveal>
           <div className="split">
             <h2 className="title">This brief was computed when you loaded the page</h2>
             <p className="lede">
@@ -173,7 +196,7 @@ export default function Page() {
         </section>
 
         {/* ── the engine as an endpoint ────────────────────────────────── */}
-        <section className="shell section">
+        <section className="shell section" data-reveal>
           <div className="split">
             <h2 className="title">Gate a merge on it, without an agent turn</h2>
             <p className="lede">
@@ -199,7 +222,7 @@ server-timing: fixture-funnel;desc="ok";dur=0.4, fixture-billing;desc="ok";dur=0
         </section>
 
         {/* ── why the number is trustworthy ────────────────────────────── */}
-        <section className="shell section">
+        <section className="shell section" data-reveal>
           <div className="split">
             <h2 className="title">Everything that makes the number worth reading</h2>
             <p className="lede">
@@ -219,7 +242,7 @@ server-timing: fixture-funnel;desc="ok";dur=0.4, fixture-billing;desc="ok";dur=0
         </section>
 
         {/* ── sources ──────────────────────────────────────────────────── */}
-        <section className="shell section">
+        <section className="shell section" data-reveal>
           <div className="split">
             <h2 className="title">Nine sources, one contract</h2>
             <p className="lede">
@@ -234,7 +257,7 @@ server-timing: fixture-funnel;desc="ok";dur=0.4, fixture-billing;desc="ok";dur=0
         </section>
 
         {/* ── closing ──────────────────────────────────────────────────── */}
-        <section className="shell section">
+        <section className="shell section" data-reveal>
           <div className="cta">
             <h2 className="display">Put a price on your next pull request</h2>
             <a className="btn btn--primary" href={REPO}>
