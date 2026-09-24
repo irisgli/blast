@@ -19,6 +19,7 @@ Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headi
 - `packages/blast-core` — the impact schema, the adapter contract, the verdict rules
 - `packages/blast-adapters` — fixture-backed sources and the registry
 - `packages/blast-brief` — evidence collection, brief rendering, remediations
+- `packages/blast-vcs` — git and GitHub: reading a change, posting a brief, the `blast` command
 - `apps/web` — the Next.js surface, which mounts the agent at `/eve/v1/*`
 - `apps/fixtures` — the sample pull request and telemetry the repo runs on
 - `docs/` — published documentation
@@ -65,6 +66,14 @@ brief in a pull request says, which is the one thing that has to stay true.
 `packages/blast-brief/src/remediation.ts` builds them from the same evidence that
 produced the findings. A model-authored fix can drift from what the brief said; a derived
 one cannot.
+
+**Nothing starts a process outside `@blast/vcs`.** `runCommand` gives every `git` and
+`gh` call a timeout, a bounded output buffer, and a failure with a *kind* — `not-found`,
+`unauthorized`, `rate-limited`, `timeout`, `too-large`, `failed` — because only one of
+those is worth retrying and they used to be one sentence. Any ref reaching a command is
+checked with `isSafeRef` first: `execFile` has no shell, but a ref beginning with `-`
+still lands where git expects a flag, and the refs come from a profile the model hands
+back.
 
 **Every caller drives the engine through `produceBrief`.** Collect, assess, build,
 render, derive the fixes, in that order, in `packages/blast-brief/src/produce.ts`. The
@@ -127,6 +136,8 @@ pnpm test             # unit + contract + agent
 pnpm test:unit        # verdict thresholds, power math, cost arithmetic
 pnpm test:contract    # adapter contract conformance
 pnpm test:agent       # the pipeline end to end over the fixtures
+
+pnpm build && pnpm blast brief fixture --intent "…"   # the command a pipeline runs
 ```
 
 All of these run in CI, so running them locally before pushing saves a round trip.

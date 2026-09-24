@@ -57,6 +57,22 @@ blast fixture --intent "personalized recommendations carousel on the product pag
 Deployed, `@blast` on a pull request answers in the thread with the diff in context.
 See [Deploying](./docs/deploying.md).
 
+## It runs without being asked
+
+Everything that decides is deterministic code, so none of it needs a model — and none of
+it needs to wait for someone to remember to ask. `blast` is that part as a command:
+
+```sh
+blast brief 1234 --intent "personalized recommendations carousel" --post --fail-on hold
+```
+
+One job on every pull request and the brief is already there when a reviewer opens the
+thread. It posts one brief and updates it in place, keeping the verdicts it replaced. It
+exits `1` when the verdict does not clear the gate and `2` when it could not produce a
+brief at all, because a held change and a broken tool both stop a pipeline and a tool
+that reports them the same way teaches a team to ignore the failure. See
+[Running blast in CI](./docs/ci.md).
+
 ## What comes back
 
 ```markdown
@@ -185,6 +201,7 @@ the subagents, and the brief do not change.
 ## Documentation
 
 - [Architecture](./docs/architecture.md) — routing, context isolation, data flow
+- [Running in CI](./docs/ci.md) — the command, its exit codes, and a workflow
 - [HTTP API](./docs/api.md) — gating a merge on the verdict without an agent turn
 - [Deploying](./docs/deploying.md) — Vercel, credentials, the GitHub App
 - [Adapters](./docs/adapters.md) — the contract, and adding a live source
