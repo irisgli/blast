@@ -23,11 +23,12 @@ describe("the page", () => {
     const html = await render();
 
     // The shell, which must not wait on a cost model.
-    expect(html).toContain("Know what a pull request costs before you merge it");
+    expect(html).toContain("costs before you merge it");
+    expect(html).toContain("Set your budgets in blast.json");
 
     // The panels, each behind its own boundary.
     expect(html).toContain("Cache-Control"); // the priced diff
-    expect(html).toContain("Estimated monthly cost"); // the cost table
+    expect(html).toContain("Where the money goes"); // the cost breakdown
     expect(html).toContain("Hold"); // the verdict
     expect(html).toContain("Suggested fixes"); // the remediations
     expect(html).toContain("Conversion funnel"); // the source list

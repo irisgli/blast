@@ -26,24 +26,6 @@ export function ChangeCardSkeleton() {
   );
 }
 
-export function CostCardSkeleton() {
-  return (
-    <div className="card" role="status" aria-label="Estimating monthly cost">
-      <div className="card__head card__head--divided">
-        <Bar width="180px" height={14} />
-      </div>
-      <div className="skeleton-rows">
-        {[0, 1, 2, 3].map((row) => (
-          <div className="skeleton-row" key={row}>
-            <Bar width={`${55 - row * 6}%`} />
-            <Bar width="64px" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function LiveBriefSkeleton() {
   return (
     <div
