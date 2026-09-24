@@ -11,6 +11,7 @@ import type {
   Verdict,
 } from "@blast/core";
 import { briefDigest, DEFAULT_POLICY, describePolicy, DIMENSIONS, METRIC } from "@blast/core";
+import { renderBriefMarker } from "./thread.js";
 
 /**
  * Assembles and renders the brief.
@@ -51,18 +52,6 @@ const METRIC_LABEL: Record<string, string> = {
   [METRIC.historicalEffect]: "effects seen here",
   [METRIC.featureEventCoverage]: "attributable events",
 };
-
-/**
- * The opening of the HTML comment every rendered brief ends with. Matching on this
- * prefix is how `post_comment` finds the brief it posted last time.
- */
-export const BRIEF_MARKER = "<!-- blast:brief";
-
-/** The digest carried by a rendered brief, or null when the text is not one. */
-export function digestOf(markdown: string): string | null {
-  const match = new RegExp(`${BRIEF_MARKER} digest=([0-9a-f]{16}) -->`).exec(markdown);
-  return match?.[1] ?? null;
-}
 
 export function formatMeasure(measure: Measure | null, options: { signed?: boolean } = {}): string {
   if (measure === null) return "—";
@@ -230,10 +219,14 @@ export function renderBrief(brief: ImpactBrief): string {
    * An invisible marker, so a brief already on a pull request can be found and updated
    * rather than posted beneath itself. A reviewer scrolling a thread should see one
    * brief for the current head, not one per push with no way to tell which verdict is
-   * live. The digest rides along so the poster can tell a re-run from a real change
-   * without re-deriving anything.
+   * live.
+   *
+   * It carries the whole record — head, verdict, confidence, digest — rather than only
+   * the digest, because the thread's history is built from it. Written here by code and
+   * read back by the poster, the record travels inside the artifact it describes, so the
+   * model cannot alter what the history says without altering the brief it is posting.
    */
-  lines.push(`${BRIEF_MARKER} digest=${brief.digest} -->`, "");
+  lines.push(renderBriefMarker(brief), "");
 
   return lines.join("\n");
 }

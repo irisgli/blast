@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { BRIEF_MARKER, digestOf } from "@blast/brief";
+import { BRIEF_MARKER, composeComment, digestOf } from "@blast/brief";
 import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
@@ -96,7 +96,25 @@ export default defineTool({
             "The brief already on the pull request has the same digest, so the evidence, the budgets, and the verdict are identical. Nothing was written, and nobody was notified.",
         };
       }
+    }
 
+    /**
+     * The comment is the brief plus what this thread decided before it. The record comes
+     * out of the markdown rather than from an argument, so the history cannot say
+     * something the brief above it does not.
+     */
+    const composed = composeComment(markdown, existing?.body ?? null);
+    if (composed === null) {
+      return {
+        ok: false as const,
+        detail:
+          "That markdown carries no brief marker, so it was not produced by render_brief. Nothing was posted: a comment this tool cannot recognise later is one it would append beneath on the next run.",
+      };
+    }
+
+    const earlier = composed.history.length - 1;
+
+    if (existing !== null) {
       try {
         await run(
           "gh",
@@ -106,15 +124,16 @@ export default defineTool({
             "PATCH",
             `repos/{owner}/{repo}/issues/comments/${existing.id}`,
             "--field",
-            `body=${markdown}`,
+            `body=${composed.body}`,
           ],
           { maxBuffer: 8 * 1024 * 1024 },
         );
         return {
           ok: true as const,
           action: "updated" as const,
-          digest: digestOf(markdown),
-          detail: "The brief already on the pull request was replaced, so the thread carries one.",
+          digest: composed.history[0]?.digest ?? null,
+          earlierVerdicts: earlier,
+          detail: `The brief already on the pull request was replaced, so the thread carries one${earlier === 0 ? "" : `, with the ${earlier} verdict${earlier === 1 ? "" : "s"} before it kept underneath`}.`,
         };
       } catch (error) {
         return {
@@ -125,13 +144,14 @@ export default defineTool({
     }
 
     try {
-      const { stdout } = await run("gh", ["pr", "comment", pullRequest, "--body", markdown], {
+      const { stdout } = await run("gh", ["pr", "comment", pullRequest, "--body", composed.body], {
         maxBuffer: 8 * 1024 * 1024,
       });
       return {
         ok: true as const,
         action: "created" as const,
-        digest: digestOf(markdown),
+        digest: composed.history[0]?.digest ?? null,
+        earlierVerdicts: earlier,
         url: stdout.trim(),
       };
     } catch (error) {

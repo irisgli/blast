@@ -1,7 +1,8 @@
 import { loadFixtureChangeProfile } from "@blast/adapters";
 import { assess } from "@blast/core";
 import { describe, expect, it } from "vitest";
-import { BRIEF_MARKER, buildBrief, digestOf, formatMeasure, renderBrief } from "./brief.js";
+import { buildBrief, formatMeasure, renderBrief } from "./brief.js";
+import { BRIEF_MARKER, digestOf } from "./thread.js";
 import { collectEvidence } from "./collect.js";
 
 describe("measure formatting", () => {
