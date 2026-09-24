@@ -24,9 +24,11 @@ import type {
   BillingResult,
   CostEstimate,
   CoverageFinding,
+  EstimateRecord,
   FeatureHistoryResult,
   FunnelResult,
   PowerFinding,
+  SurfaceUsage,
 } from "@blast/adapters";
 import type {
   AnyAdapter,
@@ -65,6 +67,20 @@ export interface Evidence {
   estimateAccuracy: { medianPct: number; records: number } | null;
   coverage: CoverageFinding[];
   power: PowerFinding[];
+  /**
+   * The rest of what the sources returned, retained rather than re-fetched.
+   *
+   * A brief needs a total and a median; a reader deciding whether to believe them wants
+   * the series behind both — which estimates were high, which were low, and what the
+   * touched services have actually been billing. All of it was already fetched to
+   * produce the findings above, so keeping it costs a reference and dropping it costs
+   * a second round trip to say something the first one already knew.
+   */
+  estimateRecords: EstimateRecord[];
+  billing: BillingResult | null;
+  /** Every surface on record, which is what makes one surface's traffic mean anything. */
+  usage: SurfaceUsage[];
+  funnel: FunnelResult | null;
 }
 
 function statusOf(adapter: AnyAdapter, result: Result<unknown>, durationMs: number): SourceStatus {
@@ -220,5 +236,9 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
     estimateAccuracy,
     coverage: coverage.bySurface,
     power: power.bySurface,
+    estimateRecords: accuracy.result.ok ? accuracy.result.value.records : [],
+    billing,
+    usage: allUsage?.surfaces ?? [],
+    funnel,
   };
 }

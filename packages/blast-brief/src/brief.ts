@@ -39,7 +39,15 @@ const VERDICT_LABEL: Record<Verdict, string> = {
   hold: "hold",
 };
 
-const METRIC_LABEL: Record<string, string> = {
+/**
+ * What each metric is called in prose.
+ *
+ * Exported because the page shows the same findings the markdown does, and a metric
+ * named `p75_lcp_ms` in one place and "p75 LCP" in the other is two names for one
+ * number — which is the kind of small drift that makes a reader check whether they are
+ * looking at the same thing.
+ */
+export const METRIC_LABEL: Record<string, string> = {
   [METRIC.p75Lcp]: "p75 LCP",
   [METRIC.p75LcpProjected]: "p75 LCP, projected",
   [METRIC.p75Inp]: "p75 INP",
@@ -51,7 +59,14 @@ const METRIC_LABEL: Record<string, string> = {
   [METRIC.minimumDetectableEffect]: "detectable effect",
   [METRIC.historicalEffect]: "effects seen here",
   [METRIC.featureEventCoverage]: "attributable events",
+  [METRIC.estimateAccuracy]: "past estimate error",
+  [METRIC.dependencyUnpackedBytes]: "dependency, unpacked",
 };
+
+/** The metric's name in prose, or the identifier when nothing has named it yet. */
+export function metricLabel(metric: string): string {
+  return METRIC_LABEL[metric] ?? metric.replace(/_/g, " ");
+}
 
 export function formatMeasure(measure: Measure | null, options: { signed?: boolean } = {}): string {
   if (measure === null) return "—";
@@ -79,8 +94,9 @@ export function formatMeasure(measure: Measure | null, options: { signed?: boole
   }
 }
 
-function metricLabel(finding: Finding): string {
-  const label = METRIC_LABEL[finding.metric] ?? finding.metric;
+/** A finding's row label: the metric, and the surface when it has one. */
+function findingLabel(finding: Finding): string {
+  const label = metricLabel(finding.metric);
   return finding.surface === null ? label : `${label} · ${finding.surface}`;
 }
 
@@ -149,7 +165,7 @@ function renderFindingsTable(findings: readonly Finding[]): string[] {
     ...findings.map((finding) =>
       [
         "",
-        metricLabel(finding),
+        findingLabel(finding),
         formatMeasure(finding.base),
         formatMeasure(finding.head),
         formatMeasure(finding.delta, { signed: true }),
