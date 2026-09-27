@@ -11,6 +11,21 @@ the user, and whether anyone will be able to evaluate it afterward. It is built 
 A one-line cache directive change costs $298 a month and passes review because it does
 not look like a spending decision. That is the class of change this exists to catch.
 
+It is not trying to out-measure the tools you already run. Infracost prices your Terraform
+plan, Lighthouse measures your preview, Datadog holds your p95 — blast puts their numbers in
+one decision, compares them to budgets you set once, and holds the merge on the result.
+Every signal is an adapter; the product is the adjudication.
+
+```sh
+blast decide "$PR" --intent "$TITLE" \
+  --ingest infracost=infracost.json \
+  --ingest lighthouse=lhr.json \
+  --fail-on hold
+```
+
+One decision object, with every rule that fired, both numbers, the basis of each, and the
+line of `blast.json` that set the threshold. See [Integrating](./docs/integrating.md).
+
 ## The filesystem is the authoring interface
 
 ```text
@@ -73,6 +88,54 @@ brief at all, because a held change and a broken tool both stop a pipeline and a
 that reports them the same way teaches a team to ignore the failure. See
 [Running blast in CI](./docs/ci.md).
 
+## Your rules, in a file, under review
+
+`blast.json` is the policy: budgets repository-wide and per route, rules over any metric
+including ones blast has never heard of, severity separate from enforcement, exceptions that
+need a reason and an approver and expire on a date, ownership, and `extends` so an
+organization keeps one baseline and a repository states its difference from it.
+
+```json
+{
+  "extends": "./policies/org.json",
+  "budgets": { "monthlyCostDeltaUsd": 150 },
+  "rules": [
+    {
+      "id": "datadog.error-rate",
+      "title": "checkout error rate",
+      "dimension": "performance",
+      "metric": "datadog.error_rate_pct",
+      "appliesTo": "/checkout/*",
+      "threshold": 1,
+      "enforcement": "warn",
+      "owner": "@payments"
+    }
+  ]
+}
+```
+
+A new rule starts `silent`: it records what it would have caught until you know its false
+positive rate, then you promote it. See [Policy](./docs/policy.md).
+
+## What it can tell you in three months
+
+Every decision is recorded, append-only. `blast audit` answers the questions that decide
+whether a gate stays installed:
+
+```text
+94 decisions: 11 held, 8 blocked by a gate
+monthly spend on held changes: $4,120.60 (modeled, not billed)
+
+rules
+  cost.monthly-delta        fired 7  waived 1  silent 0  waive rate 12%  owner @finops
+  measurability.underpowered  fired 2  waived 6  silent 0  waive rate 75%  owner @growth
+```
+
+That second line is the useful one. A rule waived three times out of four is a rule the team
+disagrees with, whether or not anyone has said so — the honest version of a false-positive
+rate, and the thing to look at before turning another rule on. See
+[HTTP API](./docs/api.md).
+
 ## What comes back
 
 ```markdown
@@ -84,7 +147,7 @@ Nothing regresses and the bill is survivable. The change ships no events that
 attribute a funnel movement to it, so $340 a month buys something nobody will be
 able to evaluate. Two event names fix it.
 
-## Performance  ○
+## Performance ○
 
 | metric                                | base   | head   | delta  | basis    |
 | ------------------------------------- | ------ | ------ | ------ | -------- |
@@ -94,7 +157,7 @@ able to evaluate. Two event names fix it.
 
 Every performance metric stays inside its threshold across 6 measurements.
 
-## Infrastructure cost  ○
+## Infrastructure cost ○
 
 | metric        | base | head | delta       | basis   |
 | ------------- | ---- | ---- | ----------- | ------- |
@@ -102,14 +165,14 @@ Every performance metric stays inside its threshold across 6 measurements.
 
 Monthly spend grows by $340.40, inside the $500.00 ceiling.
 
-## Measurability  ⚠
+## Measurability ⚠
 
-| metric                                  | base | head   | delta | basis    |
-| --------------------------------------- | ---- | ------ | ----- | -------- |
-| funnel baseline · /products/[slug]      | 8.2% | —      | —     | measured |
-| detectable effect · /products/[slug]    | —    | 0.05pp | —     | modeled  |
-| effects seen here · /products/[slug]    | —    | 0.75pp | —     | measured |
-| attributable events · /products/[slug]  | —    | 0      | —     | measured |
+| metric                                 | base | head   | delta | basis    |
+| -------------------------------------- | ---- | ------ | ----- | -------- |
+| funnel baseline · /products/[slug]     | 8.2% | —      | —     | measured |
+| detectable effect · /products/[slug]   | —    | 0.05pp | —     | modeled  |
+| effects seen here · /products/[slug]   | —    | 0.75pp | —     | measured |
+| attributable events · /products/[slug] | —    | 0      | —     | measured |
 
 The change ships no events attributing a funnel movement to it on
 /products/[slug], so its effect cannot be separated from everything else
@@ -134,11 +197,11 @@ functions over findings, so the same pull request produces the same verdict twic
 
 Each dimension is `risk`, `acceptable`, or `unmeasured`:
 
-| Dimension | Risk when |
-| --- | --- |
-| Performance | p75 LCP regresses past 200ms, projects over a 2.5s budget, INP past 50ms, p95 server past 100ms, or client JS grows 25 KB on a top-decile surface |
-| Cost | The modeled monthly delta exceeds the lower of $500 or 10% of current spend on the services it touches. A range spanning that ceiling keeps the status and drops confidence: the assumptions decided it, not the estimate |
-| Measurability | The change emits no events attributable to it, or its surface cannot resolve the effect sizes it has historically produced |
+| Dimension     | Risk when                                                                                                                                                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Performance   | p75 LCP regresses past 200ms, projects over a 2.5s budget, INP past 50ms, p95 server past 100ms, or client JS grows 25 KB on a top-decile surface                                                                         |
+| Cost          | The modeled monthly delta exceeds the lower of $500 or 10% of current spend on the services it touches. A range spanning that ceiling keeps the status and drops confidence: the assumptions decided it, not the estimate |
+| Measurability | The change emits no events attributable to it, or its surface cannot resolve the effect sizes it has historically produced                                                                                                |
 
 A `risk` at high confidence holds the change. An `unmeasured` dimension caps it at
 `ship with caveats`; missing data never produces a clean ship.
@@ -178,7 +241,8 @@ Both require approval before anything is written.
 
 ## Adapters
 
-Every source implements one interface, and unavailability is a value:
+Two contracts, depending on whether blast can reach the system. For one it queries,
+unavailability is a value rather than an exception:
 
 ```ts
 interface Adapter<Q, R> {
@@ -189,20 +253,42 @@ interface Adapter<Q, R> {
 }
 ```
 
-Eight of the nine adapters in [`packages/blast-adapters`](./packages/blast-adapters)
-read checked-in fixtures. The ninth talks to the npm registry, and exists so the
-contract has been held to something that rate limits, times out, and returns documents
-missing the field being asked for. Conformance sweeps all nine, with a stubbed transport
-so the suite stays offline; `BLAST_LIVE_TESTS=1` points it at the real thing.
+For a tool that already ran in the pipeline and left JSON behind — which is most of what a
+team already measures — an adapter is a parser with provenance attached:
 
-Adding a source is one file implementing the interface plus a registry entry. The agent,
-the subagents, and the brief do not change.
+```ts
+interface IngestAdapter {
+  id: string;
+  provider: string;
+  dimension: Dimension;
+  describe(): SourceInfo;
+  ingest(payload: unknown, context: IngestContext): Result<EvidenceRecord[]>;
+}
+```
+
+`infracost` and `lighthouse` are implemented. Neither re-prices or re-measures anything;
+both refuse to report under a built-in metric, because a vendor number and a field number
+mean different things and a rule about one must not fire on the other. Lighthouse arrives
+`measured` with the runner hardware stated in every record's assumptions; Infracost arrives
+`modeled`, because a rate card times a declared resource is a model.
+
+Eight of the nine queried adapters in [`packages/blast-adapters`](./packages/blast-adapters)
+read checked-in fixtures. The ninth talks to the npm registry, and exists so the contract has
+been held to something that rate limits, times out, and returns documents missing the field
+being asked for. Conformance sweeps both registries, with a stubbed transport so the suite
+stays offline; `BLAST_LIVE_TESTS=1` points it at the real thing.
+
+Adding a source is one file implementing the interface plus a registry entry. The agent, the
+subagents, the engine and the brief do not change — that is the property the built-in rules
+being declared in the same shape a policy file uses is there to protect.
 
 ## Documentation
 
 - [Architecture](./docs/architecture.md) — routing, context isolation, data flow
 - [Running in CI](./docs/ci.md) — the command, its exit codes, and a workflow
-- [HTTP API](./docs/api.md) — gating a merge on the verdict without an agent turn
+- [HTTP API](./docs/api.md) — the decision endpoint, authentication, the audit trail
+- [Policy](./docs/policy.md) — budgets, rules, enforcement, exceptions, inheritance
+- [Integrating](./docs/integrating.md) — contributing evidence from a system blast cannot reach
 - [Deploying](./docs/deploying.md) — Vercel, credentials, the GitHub App
 - [Adapters](./docs/adapters.md) — the contract, and adding a live source
 - [Verdict model](./docs/verdict.md) — every threshold, and why it is code

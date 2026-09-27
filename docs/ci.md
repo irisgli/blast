@@ -11,27 +11,76 @@ has to think to request — which, for a check about cost, is the same as not ha
 ## The command
 
 ```sh
-blast brief <pr-number|branch|fixture> --intent "what the change is for"
+blast brief  <pr-number|branch|fixture> --intent "what the change is for"   # for a human
+blast decide <pr-number|branch|fixture> --intent "what the change is for"   # for a job
+blast audit                                                                 # the log so far
 ```
+
+`brief` renders markdown to post on the thread. `decide` prints the same decision as JSON,
+for a job that is going to act on it: every rule that fired, both numbers, the basis of each,
+and the threshold's source. One engine underneath both, so they cannot disagree.
 
 | flag | |
 | --- | --- |
 | `--intent <text>` | Required. One line, user-facing. A diff says what moved and never what it is for, and the measurability dimension is the one that most needs the difference |
-| `--post` | Post the brief to the pull request, or update the one already there |
+| `--post` | `brief` only. Post the brief to the pull request, or update the one already there |
 | `--fail-on <verdict>` | Exit 1 when the verdict is this or worse: `hold`, or `ship-with-caveats` |
-| `--format <fmt>` | `markdown` (default) or `json` |
+| `--format <fmt>` | `brief` only. `markdown` (default) or `json` |
 | `--policy <path>` | A `blast.json` to apply, instead of searching upwards |
+| `--evidence <path>` | Evidence records to contribute, as JSON, or `-` for stdin |
+| `--ingest <id>=<path>` | Output from a tool that already ran: `infracost=cost.json` |
+| `--repo <owner/name>`, `--org <name>` | Recorded on the decision, for the audit log |
+| `--as-of <YYYY-MM-DD>` | The day exception expiry is judged against. Defaults to today |
+| `--log <path>`, `--no-log` | Where to append the decision, or not to |
 
 The brief goes to stdout and everything else to stderr, so `blast brief … > brief.md` is
 the brief and nothing else.
+
+## Evidence from tools that already ran
+
+Most of what a team measures is already in the pipeline, in a file. Point blast at it and the
+numbers land in the same decision as its own, compared against the same budgets:
+
+```sh
+infracost breakdown --path . --format json --out-file infracost.json
+lighthouse "$PREVIEW_URL/products/widget" --output json --output-path lhr.json --quiet
+
+blast decide "$PR" --intent "$TITLE" \
+  --ingest infracost=infracost.json \
+  --ingest lighthouse=lhr.json \
+  --repo "$GITHUB_REPOSITORY" \
+  --fail-on hold
+```
+
+A contributed number only reaches the verdict if a rule in `blast.json` names its metric —
+see [Integrating](./integrating.md). A malformed payload, or an adapter id that is not
+registered, exits `2`: a cost gate that silently contributed nothing because somebody typed
+`infracosts` looks exactly like a clean run, and that is the one failure mode worth being
+loud about.
+
+## The decision log
+
+Both commands append to `BLAST_DECISION_LOG` (default `.blast/decisions.jsonl`) unless
+`--no-log`. On an ephemeral CI runner that file dies with the job, so point it at something
+that outlives the run — a cache, an artifact, object storage, or the HTTP API, which records
+server-side.
+
+```sh
+blast audit --repo acme/storefront --since 2026-09-01T00:00:00Z
+```
+
+This is what answers whether the gate is worth keeping: which rules fire, which are waived
+around, what the held changes were modeled to cost. It also says out loud when every change is
+being held and nothing is being blocked, which is the most common way this quietly stops
+working. See [HTTP API](./api.md#get-apiv1decisions).
 
 ## Exit codes
 
 | code | |
 | --- | --- |
-| `0` | The brief was produced and the verdict cleared `--fail-on` |
+| `0` | A decision was produced and the verdict cleared `--fail-on` |
 | `1` | The verdict did not clear `--fail-on` |
-| `2` | The brief could not be produced at all |
+| `2` | No decision could be produced at all: unreadable budgets, a broken evidence file, an unparseable change |
 
 `1` and `2` are deliberately different. A held change and a broken tool both stop a
 pipeline, and a tool that reports them the same way teaches a team to ignore the failure —

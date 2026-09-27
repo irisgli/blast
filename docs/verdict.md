@@ -1,26 +1,35 @@
 # Verdict model
 
-Every rule in `blast` is a pure function over findings, in
-[`packages/blast-core/src/verdict.ts`](../packages/blast-core/src/verdict.ts), and every
-budget those rules compare against is data, in
-[`policy.ts`](../packages/blast-core/src/policy.ts). The model gathers evidence and writes
-the narrative; it does not weigh dimensions or pick a verdict.
+Rules in `blast` are data, in
+[`packages/blast-core/src/rules.ts`](../packages/blast-core/src/rules.ts), with the defaults
+declared in [`builtin-rules.ts`](../packages/blast-core/src/builtin-rules.ts) and the budgets
+they compare against in [`policy.ts`](../packages/blast-core/src/policy.ts).
+[`verdict.ts`](../packages/blast-core/src/verdict.ts) runs them. The model gathers evidence
+and writes the narrative; it does not weigh dimensions or pick a verdict.
 
 This is not a style preference. A verdict re-derived by a model each run can change
 while its inputs stay still, and a recommendation that moves without its evidence
-moving is not used twice. Thresholds in code are also testable at their boundaries,
+moving is not used twice. Rules evaluated by code are also testable at their boundaries,
 which is where they are worth arguing about.
+
+Rules being data rather than control flow is what lets a signal blast has never heard of
+decide. A repository declares a rule over `datadog.error_rate_pct` in `blast.json` and it is
+evaluated exactly as a built-in is — see [Policy](./policy.md) and
+[Integrating](./integrating.md). Making thresholds configurable is the opposite of making
+them negotiable: a threshold in a file under review is more accountable than one compiled in.
 
 ## Basis and confidence
 
 Every finding carries both, and they are separate fields.
 
 `basis` is how the number was arrived at: `measured` from telemetry, `modeled` through
-a stated calculation, `assumed` because nothing better existed.
+a stated calculation, `inferred` off the change itself without telemetry — a diff says an
+endpoint was added, a manifest says a bundle grew — and `assumed` because nothing better
+existed.
 
 `confidence` is how much to trust it. Adapters start from the basis default —
-`measured` is high, `modeled` medium, `assumed` low — and adjust where they know
-something the basis does not. Two cases in the current adapters move it:
+`measured` is high, `modeled` and `inferred` medium, `assumed` low — and adjust where they
+know something the basis does not. Two cases in the current adapters move it:
 
 - A web vitals delta is measured on preview hardware, not in the field. It stays
   `measured` and the projection built from it is `modeled`.
@@ -58,11 +67,33 @@ instrumentation data could not be read.
 Missing instrumentation is reported ahead of insufficient power when both hold. Adding
 the events is the cheaper fix and a precondition for the other one.
 
+## Enforcement
+
+A rule's severity describes the finding; its enforcement decides what a breach may do.
+
+- `block` — a breach can hold the change.
+- `warn` — a breach is reported and caps the verdict at `ship with caveats`.
+- `silent` — a breach is recorded in the decision and never affects the verdict.
+
+Every built-in rule is `block`. A repository can soften one without restating it, and a new
+rule should start `silent` until its false positive rate is known — see
+[Policy](./policy.md#severity-and-enforcement).
+
+An exception suspends a rule for a named person's stated reason until a stated date. A
+suppressed breach is reported as `waived` rather than dropped: a change that cleared the gate
+because somebody accepted a risk is a different fact from one that had no risk.
+
 ## Aggregation
 
-`hold` when any dimension is `risk` at high confidence, or two or more are `risk`.
-`ship with caveats` when one dimension is `risk` at medium or low confidence, or any
-dimension is `unmeasured`. `ship` only when all three are `acceptable`.
+`hold` when a `block`-enforced dimension is `risk` at high confidence, or two or more are.
+`ship with caveats` when one dimension is `risk` at medium or low confidence, when a risk is
+only `warn`-enforced, or when any dimension is `unmeasured`. `ship` only when all three are
+`acceptable`.
+
+Promoting a rule to `block` is necessary for a hold and not sufficient. A modeled number
+earns medium confidence, and one medium-confidence risk is a caveat — so a rate card is a
+good enough reason to make somebody look and not a good enough reason to refuse the change on
+its own. An integration does not get to route around that.
 
 Overall confidence is the floor across contributing dimensions, where a dimension
 contributes when its status is not `acceptable`, or all three when every dimension is
