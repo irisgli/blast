@@ -25,9 +25,21 @@ export const DIMENSIONS = [
  *
  * - `measured` — read from telemetry describing what actually happened.
  * - `modeled` — derived from measured inputs through a stated model.
+ * - `inferred` — read off the change itself, without telemetry: a diff says an endpoint
+ *   was added, a manifest says a bundle grew. True about the code, silent about traffic.
  * - `assumed` — a stated guess, because nothing better was available.
+ *
+ * Never promote one of these to make a brief read better. A modeled number presented as
+ * measured is the single worst failure mode this tool has.
  */
-export type Basis = "measured" | "modeled" | "assumed";
+export type Basis = "measured" | "modeled" | "inferred" | "assumed";
+
+export const BASIS_VALUES = [
+  "measured",
+  "modeled",
+  "inferred",
+  "assumed",
+] as const satisfies readonly Basis[];
 
 export type Confidence = "high" | "medium" | "low";
 
@@ -68,6 +80,16 @@ export const METRIC = {
 
 export type MetricId = (typeof METRIC)[keyof typeof METRIC];
 
+/**
+ * Any metric identifier, built-in or not.
+ *
+ * Findings carry this rather than `MetricId`, because an integration reports numbers
+ * under names this repository has never seen and a rule declared in `blast.json` compares
+ * them. `MetricId` keeps its autocomplete for the built-ins; the widening is what makes
+ * the engine open.
+ */
+export type Metric = MetricId | (string & {});
+
 export interface Measure {
   value: number;
   unit: string;
@@ -76,7 +98,7 @@ export interface Measure {
 /** One piece of evidence about one metric. */
 export interface Finding {
   dimension: Dimension;
-  metric: MetricId;
+  metric: Metric;
   /** The surface this applies to, or null for a change-wide finding. */
   surface: string | null;
   base: Measure | null;
@@ -88,6 +110,20 @@ export interface Finding {
   sourceId: string | null;
   assumptions: string[];
   note: string | null;
+  /**
+   * When the underlying observation was made, as an ISO instant.
+   *
+   * Distinct from when the brief was generated, and the difference is the point: a p75
+   * read from a window that closed three days ago is a different claim from one read an
+   * hour ago, and only the finding knows which it is.
+   */
+  observedAt?: string | null;
+  /** The external system behind the adapter — `datadog`, `infracost` — when there is one. */
+  provider?: string | null;
+  /** What the baseline was taken from: a branch, a deployment, a time window. */
+  baselineRef?: string | null;
+  /** Anything the source wants to carry through to the decision, unread by the engine. */
+  metadata?: Record<string, string | number | boolean | null>;
 }
 
 /**
@@ -100,6 +136,10 @@ export function confidenceForBasis(basis: Basis): Confidence {
     case "measured":
       return "high";
     case "modeled":
+      return "medium";
+    case "inferred":
+      // True about the change and silent about the traffic it will meet, which is enough
+      // to raise a question and not enough to settle one.
       return "medium";
     case "assumed":
       return "low";
