@@ -1,4 +1,5 @@
 import type {
+  AccuracyReport,
   Assessment,
   ChangeProfile,
   Decision,
@@ -14,6 +15,7 @@ import type {
   Verdict,
 } from "@blast/core";
 import {
+  accuracyCaveat,
   assess,
   buildDecision,
   captureSnapshot,
@@ -86,6 +88,15 @@ export interface ProduceBriefInput {
   snapshot?: EvidenceSnapshot;
   /** Signs the decision when a deployment has a key. */
   signingKey?: SigningKey;
+  /**
+   * The cost model's measured error against past bills, when a deployment has reconciled any.
+   *
+   * Passed in rather than read here, because where the reconciliation log lives is a deployment's
+   * decision and this function already reads one file more than it would like to. A caller that
+   * has the record supplies it; one that does not gets a brief with no accuracy claim, which is
+   * the honest state of a model whose predictions have never been checked.
+   */
+  costAccuracy?: AccuracyReport;
 }
 
 export interface ProducedBrief {
@@ -230,6 +241,8 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
    */
   const remediations = remediationsFor(input.profile, evidence, assessment);
 
+  const caveat = input.costAccuracy === undefined ? null : accuracyCaveat(input.costAccuracy);
+
   const brief = buildBrief({
     profile: input.profile,
     assessment,
@@ -238,6 +251,7 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     headline: input.headline,
     sources: evidence.sources,
     policy,
+    ...(caveat === null ? {} : { extraAssumptions: [caveat] }),
     ...(input.generatedAt === undefined ? {} : { generatedAt: input.generatedAt }),
   });
 

@@ -115,6 +115,15 @@ export interface BriefInput {
   sources: readonly SourceStatus[];
   /** The budgets the assessment applied. Defaults when the repository set none. */
   policy?: Policy;
+  /**
+   * Assumptions that belong to the run rather than to a finding.
+   *
+   * The one that matters today is the cost model's measured error against past bills. It is a
+   * caveat on every estimate in the brief and belongs to none of them, and stating it beside
+   * the findings' own assumptions is what lets a reader decide how much to act on a modeled
+   * number instead of taking the label on trust.
+   */
+  extraAssumptions?: readonly string[];
   generatedAt?: string;
 }
 
@@ -145,7 +154,10 @@ export function buildBrief(input: BriefInput): ImpactBrief {
     confidence: input.assessment.confidence,
     headline: input.headline,
     dimensions,
-    assumptions: unique(input.findings.flatMap((finding) => finding.assumptions)),
+    assumptions: unique([
+      ...input.findings.flatMap((finding) => finding.assumptions),
+      ...(input.extraAssumptions ?? []),
+    ]),
     sources: [...input.sources],
     policy,
     digest: briefDigest({
