@@ -4,17 +4,30 @@ import type {
   Decision,
   Dimension,
   EvidenceRecord,
+  EvidenceSnapshot,
   Finding,
   ImpactBrief,
   Policy,
   Result,
+  SigningKey,
   SourceStatus,
   Verdict,
 } from "@blast/core";
-import { assess, buildDecision, fail, fromFinding, ok, toFinding } from "@blast/core";
+import {
+  assess,
+  buildDecision,
+  captureSnapshot,
+  fail,
+  fromFinding,
+  ok,
+  signDecision,
+  snapshotMatchesRef,
+  toContributedFinding,
+  toFinding,
+} from "@blast/core";
 import { buildBrief, renderBrief } from "./brief.js";
 import type { Evidence } from "./collect.js";
-import { collectEvidence } from "./collect.js";
+import { collectEvidence, emptyEvidence } from "./collect.js";
 import { loadPolicy } from "./policy.js";
 import type { Remediation } from "./remediation.js";
 import { remediationsFor } from "./remediation.js";
@@ -61,6 +74,18 @@ export interface ProduceBriefInput {
   repo?: string | null;
   /** The day exception expiry is judged against. Defaults to today, UTC. */
   asOf?: string;
+  /**
+   * Frozen evidence to decide from instead of collecting.
+   *
+   * The caller is responsible for having verified it with `readSnapshot`, which recomputes the
+   * content address — an unverified snapshot is a caller-supplied set of findings, which is the
+   * one thing this function otherwise refuses. A snapshot taken for a different change is
+   * rejected here regardless, because replaying one change's evidence against another's profile
+   * would produce a decision that looked ordinary and meant nothing.
+   */
+  snapshot?: EvidenceSnapshot;
+  /** Signs the decision when a deployment has a key. */
+  signingKey?: SigningKey;
 }
 
 export interface ProducedBrief {
@@ -76,6 +101,13 @@ export interface ProducedBrief {
    * that might disagree.
    */
   decision: Decision;
+  /**
+   * The evidence this decision was derived from, frozen and content-addressed.
+   *
+   * Returned on every call, not only on replay, so the thing needed to reproduce a decision
+   * is a by-product of making one rather than something a caller has to remember to ask for.
+   */
+  snapshot: EvidenceSnapshot;
 }
 
 /**
@@ -128,15 +160,61 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     policy = loaded.value;
   }
 
-  const collected = await collectEvidence(input.profile);
-  const contributed = input.evidence ?? [];
-  const contributedFindings: Finding[] = contributed.map(toFinding);
+  /**
+   * Replay decides from frozen evidence; a fresh run collects and then freezes what it got.
+   *
+   * On replay the adapters are not called at all. Calling them and discarding the answer would
+   * be slower and, worse, would make a replay depend on a source being reachable — a
+   * verification that fails because a vendor is down verifies nothing.
+   */
+  const replaying = input.snapshot !== undefined;
+  let evidence: Evidence;
+  let snapshot: EvidenceSnapshot;
 
-  const evidence: Evidence = {
-    ...collected,
-    findings: [...collected.findings, ...contributedFindings],
-    sources: [...collected.sources, ...externalSources(contributed)],
-  };
+  if (input.snapshot !== undefined) {
+    if (!snapshotMatchesRef(input.snapshot, input.profile.ref)) {
+      return fail(
+        "no-data",
+        `That snapshot was taken for ${input.snapshot.ref.kind} ${input.snapshot.ref.id} (${input.snapshot.ref.base}...${input.snapshot.ref.head}) and this is ${input.profile.ref.kind} ${input.profile.ref.id} (${input.profile.ref.base}...${input.profile.ref.head}). Replaying one change's evidence against another's profile would produce a decision that looked ordinary and meant nothing.`,
+      );
+    }
+
+    snapshot = input.snapshot;
+    const contributed = input.evidence ?? [];
+    evidence = {
+      ...emptyEvidence(),
+      /**
+       * Snapshot records are rehydrated faithfully and contributed ones go through the
+       * submission rules. Reading a snapshot through the submission path would derive deltas a
+       * source deliberately omitted and clamp confidence an adapter deliberately raised, which
+       * changes the digest and makes a replay fail to reproduce what it is replaying.
+       */
+      findings: [
+        ...input.snapshot.records.map(toFinding),
+        ...contributed.map(toContributedFinding),
+      ],
+      context: input.snapshot.context,
+      sources: [...input.snapshot.sources, ...externalSources(contributed)],
+    };
+  } else {
+    const collected = await collectEvidence(input.profile);
+    const contributed = input.evidence ?? [];
+    const contributedFindings: Finding[] = contributed.map(toContributedFinding);
+
+    evidence = {
+      ...collected,
+      findings: [...collected.findings, ...contributedFindings],
+      sources: [...collected.sources, ...externalSources(contributed)],
+    };
+
+    snapshot = captureSnapshot({
+      ref: input.profile.ref,
+      records: evidence.findings.map(fromFinding),
+      context: evidence.context,
+      sources: evidence.sources,
+      ...(input.generatedAt === undefined ? {} : { capturedAt: input.generatedAt }),
+    });
+  }
 
   const assessment = assess({
     findings: evidence.findings,
@@ -144,6 +222,12 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     policy,
     ...(input.asOf === undefined ? {} : { asOf: input.asOf }),
   });
+  /**
+   * Derived from the adapter-shaped evidence, which a replay does not carry — see
+   * `emptyEvidence`. A replay therefore offers no fixes, and that is the honest outcome: the
+   * verdict is reproduced exactly and the remediations would have to be re-derived from data
+   * the snapshot deliberately does not hold.
+   */
   const remediations = remediationsFor(input.profile, evidence, assessment);
 
   const brief = buildBrief({
@@ -157,7 +241,7 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     ...(input.generatedAt === undefined ? {} : { generatedAt: input.generatedAt }),
   });
 
-  const decision = buildDecision({
+  let decision = buildDecision({
     subject: {
       org: input.org ?? null,
       repo: input.repo ?? null,
@@ -172,10 +256,27 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     gate: input.gate ?? null,
     decidedAt: brief.generatedAt,
     engineVersion: ENGINE_VERSION,
+    evidenceSource: replaying ? "snapshot" : "collected",
+    snapshotId: snapshot.id,
   });
 
+  if (input.signingKey !== undefined) {
+    decision = {
+      ...decision,
+      signature: await signDecision(decision, input.signingKey),
+    };
+  }
+
   return ok(
-    { brief, markdown: renderBrief(brief), assessment, evidence, remediations, decision },
+    {
+      brief,
+      markdown: renderBrief(brief),
+      assessment,
+      evidence,
+      remediations,
+      decision,
+      snapshot,
+    },
     brief.generatedAt,
   );
 }

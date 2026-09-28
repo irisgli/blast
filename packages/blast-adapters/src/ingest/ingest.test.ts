@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Policy, VerdictContext } from "@blast/core";
-import { assess, policyFrom, rulesFor, toFinding } from "@blast/core";
+import { assess, policyFrom, rulesFor, toContributedFinding } from "@blast/core";
 import { INFRACOST_METRIC, infracostAdapter, infracostRecommendedPolicy } from "./infracost.js";
 import { LIGHTHOUSE_LCP, lighthouseAdapter, lighthouseRecommendedPolicy } from "./lighthouse.js";
 import { describeIngestAdapters, ingestWith } from "./index.js";
@@ -82,7 +82,7 @@ describe("infracost", () => {
     const lying = { ...INFRACOST_OUTPUT, diffTotalMonthlyCost: "3.00" };
     const result = infracostAdapter.ingest(lying, { surfaces: [] });
     if (!result.ok) throw new Error(result.detail);
-    expect(toFinding(result.value[0]!).delta).toEqual({ value: 260.5, unit: "usd" });
+    expect(toContributedFinding(result.value[0]!).delta).toEqual({ value: 260.5, unit: "usd" });
   });
 
   it("carries no delta when Infracost had no baseline to compare against", () => {
@@ -91,7 +91,7 @@ describe("infracost", () => {
     const result = infracostAdapter.ingest(noBase, { surfaces: [] });
     if (!result.ok) throw new Error(result.detail);
     expect(result.value[0]?.base).toBeNull();
-    expect(toFinding(result.value[0]!).delta).toBeNull();
+    expect(toContributedFinding(result.value[0]!).delta).toBeNull();
   });
 
   it("refuses a currency it cannot compare to a USD budget", () => {
@@ -197,7 +197,7 @@ describe("a vendor's output decides a verdict", () => {
 
     const policy = policyWith(infracostRecommendedPolicy);
     const assessment = assess({
-      findings: ingested.value.map(toFinding),
+      findings: ingested.value.map(toContributedFinding),
       context: context(),
       policy,
       asOf: "2026-09-20",
@@ -224,7 +224,7 @@ describe("a vendor's output decides a verdict", () => {
       enforcement: { byRule: { "infracost.monthly-delta": "block" } },
     });
     const assessment = assess({
-      findings: ingested.value.map(toFinding),
+      findings: ingested.value.map(toContributedFinding),
       context: context(),
       policy,
       asOf: "2026-09-20",
@@ -245,7 +245,7 @@ describe("a vendor's output decides a verdict", () => {
       ...infracostRecommendedPolicy,
       enforcement: { byRule: { "infracost.monthly-delta": "block" } },
     });
-    const measured = ingested.value.map((record) => toFinding({ ...record, basis: "measured" }));
+    const measured = ingested.value.map((record) => toContributedFinding({ ...record, basis: "measured" }));
     const assessment = assess({
       findings: measured,
       context: context(),
@@ -268,7 +268,7 @@ describe("a vendor's output decides a verdict", () => {
     if (!ingested.ok) throw new Error(ingested.detail);
 
     const assessment = assess({
-      findings: ingested.value.map(toFinding),
+      findings: ingested.value.map(toContributedFinding),
       context: context(),
       asOf: "2026-09-20",
     });
@@ -295,7 +295,7 @@ describe("a vendor's output decides a verdict", () => {
     expect(rulesFor(policy).map((rule) => rule.id)).toContain("lighthouse.lcp");
 
     const assessment = assess({
-      findings: ingested.value.map(toFinding),
+      findings: ingested.value.map(toContributedFinding),
       context: context(),
       policy,
       asOf: "2026-09-20",

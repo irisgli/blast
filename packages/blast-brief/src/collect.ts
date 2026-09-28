@@ -242,3 +242,43 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
     funnel,
   };
 }
+
+/**
+ * Evidence with nothing in it but the shape.
+ *
+ * Replay fills the fields a decision is derived from — the findings and the context — and
+ * leaves the adapter-shaped extras empty. That is a real limit and worth stating rather than
+ * papering over: a snapshot holds the *normalized* evidence contract, because the alternative
+ * is `@blast/core` knowing the result type of every adapter, and a snapshot format that has to
+ * change whenever a vendor adds a field is a snapshot format nobody can verify against an old
+ * decision.
+ *
+ * So a replay reproduces the verdict, every rule that fired, and the digest, exactly. It does
+ * not reproduce the remediations, which are derived from the richer per-adapter data — the cost
+ * drivers, the funnel steps, the instrumentation gaps — that only a live collection has. A
+ * replay is for verifying an answer, not for re-offering the fixes.
+ */
+export function emptyEvidence(): Evidence {
+  return {
+    findings: [],
+    context: {
+      surfaceTrafficPercentile: {},
+      touchedServiceMonthlySpendUsd: null,
+      costRangeUsd: null,
+      measurableSurfaces: [],
+      surfacesMissingFeatureEvents: [],
+      underpoweredSurfaces: [],
+      measurabilityDataAvailable: false,
+    },
+    sources: [],
+    estimate: null,
+    featureKey: "",
+    estimateAccuracy: null,
+    coverage: [],
+    power: [],
+    estimateRecords: [],
+    billing: null,
+    usage: [],
+    funnel: null,
+  };
+}

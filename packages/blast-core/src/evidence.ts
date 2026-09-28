@@ -61,7 +61,17 @@ export const evidenceRecordSchema = z
     delta: measureSchema.nullable().default(null),
     basis: z.enum(BASIS_VALUES),
     confidence: z.enum(["high", "medium", "low"]).optional(),
-    /** The adapter or integration id. Shown in the brief's source table. */
+    /**
+     * The adapter or integration id. Shown in the brief's source table.
+     *
+     * Required, because an external submitter must attribute its numbers — a record nobody
+     * owns is a number a reader cannot follow up on. `unattributed` is the one reserved value,
+     * and it means what a null `sourceId` means internally: derived rather than fetched, by a
+     * subagent's reasoning or by a model over evidence that was already here. Reserving a
+     * spelling is what makes the round trip through this contract lossless, which the evidence
+     * snapshot depends on: a record that came back with a different `sourceId` than it went out
+     * with would change the digest and make every replay of it fail.
+     */
     sourceId: z.string().min(1).max(120),
     /** The system behind it, when the adapter is a client for one. */
     provider: z.string().min(1).max(120).nullable().default(null),
@@ -133,13 +143,24 @@ function deltaOf(record: EvidenceRecord): Finding["delta"] {
   return record.delta;
 }
 
+export const UNATTRIBUTED = "unattributed";
+
 /**
- * A submitted record as the engine's internal finding.
+ * A record as the engine's internal finding, faithfully.
  *
- * Confidence defaults from the basis rather than from the submitter when it is not
- * stated, and a stated confidence may only be lower than what the basis earns. An
- * integration can tell blast its measurement is shakier than it looks — a stale feed, a
- * thin sample — and cannot tell blast that its guess is as good as a measurement.
+ * This is the direction a snapshot is read in, so it has to be the exact inverse of
+ * `fromFinding` — a round trip that changed any field would change the brief digest and make
+ * every replay of that snapshot fail to reproduce the decision it was taken from.
+ *
+ * Which means it applies none of the submission rules. It does not derive a delta, because a
+ * source may deliberately report two levels and no difference: the projected p75 LCP does
+ * exactly that, since the projection is an absolute and a delta over it would double-count the
+ * synthetic regression it was built from. And it does not clamp confidence, because an adapter
+ * is allowed to know something the basis does not — a minimum detectable effect is `modeled`
+ * with high confidence, being a closed-form result over measured traffic with no free
+ * parameters.
+ *
+ * For evidence arriving from outside, use `toContributedFinding`.
  */
 export function toFinding(record: EvidenceRecord): Finding {
   return {
@@ -148,10 +169,10 @@ export function toFinding(record: EvidenceRecord): Finding {
     surface: record.surface,
     base: record.base,
     head: record.head,
-    delta: deltaOf(record),
+    delta: record.delta,
     basis: record.basis,
-    confidence: clampConfidence(record.basis, record.confidence),
-    sourceId: record.sourceId,
+    confidence: record.confidence ?? confidenceForBasis(record.basis),
+    sourceId: record.sourceId === UNATTRIBUTED ? null : record.sourceId,
     assumptions: record.assumptions,
     note: record.note,
     observedAt: record.observedAt,
@@ -169,8 +190,31 @@ export function clampConfidence(basis: Basis, stated: Confidence | undefined): C
   return CONFIDENCE_RANK[stated] < CONFIDENCE_RANK[earned] ? stated : earned;
 }
 
+/**
+ * A record from outside, as a finding, with the submission rules applied.
+ *
+ * Two of them, and both are about what a submitter may assert rather than about arithmetic.
+ *
+ * A delta is derived from the two levels when both are present. A submitter that sends base,
+ * head and a delta that is not their difference has a bug or an agenda, and either way the two
+ * numbers it did send are the ones that can be checked — the schema rejects a contradictory
+ * delta outright, and this is what makes the derived value authoritative for the rest.
+ *
+ * Confidence may only be lower than what the basis earns. An integration can tell blast its
+ * measurement is shakier than it looks — a stale feed, a thin sample — and cannot tell blast
+ * that its guess is as good as a measurement. An adapter inside this repository can raise it,
+ * because its reasoning is reviewable here; a caller's cannot be.
+ */
+export function toContributedFinding(record: EvidenceRecord): Finding {
+  return {
+    ...toFinding(record),
+    delta: deltaOf(record),
+    confidence: clampConfidence(record.basis, record.confidence),
+  };
+}
+
 export function toFindings(submission: EvidenceSubmission): Finding[] {
-  return submission.records.map(toFinding);
+  return submission.records.map(toContributedFinding);
 }
 
 /** A finding as a public record, for a decision that has to be readable off the wire. */
@@ -189,7 +233,7 @@ export function fromFinding(finding: Finding): EvidenceRecord {
     delta: finding.delta,
     basis: finding.basis,
     confidence: finding.confidence,
-    sourceId: finding.sourceId ?? "unattributed",
+    sourceId: finding.sourceId ?? UNATTRIBUTED,
     provider: finding.provider ?? null,
     observedAt: finding.observedAt ?? null,
     baselineRef: finding.baselineRef ?? null,

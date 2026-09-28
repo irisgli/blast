@@ -3,6 +3,7 @@ import type { EvidenceRecord } from "./evidence.js";
 import type { Policy } from "./policy.js";
 import type { WaivableException } from "./ruleset.js";
 import type { RuleEvaluation, Severity } from "./rules.js";
+import type { DecisionSignature } from "./signature.js";
 import { rulesFor } from "./ruleset.js";
 import type { Confidence, Dimension, DimensionStatus, SourceStatus, Verdict } from "./schema.js";
 import { DIMENSIONS, METRIC } from "./schema.js";
@@ -112,6 +113,23 @@ export interface Decision {
   impact: DecisionImpact;
   digest: string;
   engine: { name: string; version: string };
+  /**
+   * Proof this came from a particular deployment, when one was configured to sign.
+   *
+   * Separate from `digest`, which detects drift and proves nothing about authorship. Null
+   * rather than absent when signing is off, so a consumer that requires a signature can tell
+   * an unsigned decision from an old one that predates the field.
+   */
+  signature?: DecisionSignature | null;
+  /**
+   * `collected` when the evidence was gathered during this run, `snapshot` when the decision
+   * was replayed from frozen evidence. A replay reproduces an answer; it is not a fresh
+   * assessment, and a consumer that treated the two as interchangeable would report a
+   * verification as though it were a new reading of the world.
+   */
+  evidenceSource?: "collected" | "snapshot";
+  /** The content address of the evidence this was decided from. */
+  snapshotId?: string | null;
 }
 
 export function summarizePolicy(policy: Policy): DecisionPolicySummary {
@@ -187,6 +205,8 @@ export interface BuildDecisionInput {
   gate?: Verdict | null;
   decidedAt?: string;
   engineVersion?: string;
+  evidenceSource?: "collected" | "snapshot";
+  snapshotId?: string | null;
 }
 
 export function buildDecision(input: BuildDecisionInput): Decision {
@@ -223,5 +243,8 @@ export function buildDecision(input: BuildDecisionInput): Decision {
     impact: impactFrom(input.evidence),
     digest: input.digest,
     engine: { name: ENGINE_NAME, version: input.engineVersion ?? "0.0.0" },
+    signature: null,
+    evidenceSource: input.evidenceSource ?? "collected",
+    snapshotId: input.snapshotId ?? null,
   };
 }
