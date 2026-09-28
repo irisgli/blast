@@ -5,24 +5,34 @@ pull request workflow, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## About blast
 
-`blast` produces a pre-ship impact brief for a pull request: what the change costs to
-run, what it costs the user, and whether anyone will be able to tell if it worked. It
-is an [eve](https://eve.dev/) agent — a root agent routes a parsed change to three
-dimension subagents, then synthesizes their findings into one verdict and offers the
-remediations that follow from it.
+`blast` produces a pre-ship impact decision for a change: what it costs to run, what it
+costs the user, and whether anyone will be able to tell if it worked. It is an
+[eve](https://eve.dev/) agent — a root agent routes a parsed change to three dimension
+subagents, then synthesizes their findings into one verdict and offers the remediations
+that follow from it.
+
+The product is the _decision_, not any one rendering of it. A brief on a pull request, a
+JSON object a pipeline gates on, and a page are three views of one `Decision`. Evidence
+comes from anywhere — blast's own adapters, a vendor's output, a company's own service —
+and blast's job is to adjudicate it against budgets the team set. Treat a new measurement
+as an input to that, never as a feature of its own.
 
 Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headings.
 
 ## Repository layout
 
 - `agent/` — the agent itself: instructions, tools, skills, subagents, channels
-- `packages/blast-core` — the impact schema, the adapter contract, the verdict rules
-- `packages/blast-adapters` — fixture-backed sources and the registry
+- `packages/blast-core` — the impact schema, the evidence and adapter contracts, the rule
+  engine, the policy system, the decision, auth, and the audit model
+- `packages/blast-adapters` — sources blast queries, ingest adapters for tools that already
+  ran, and both registries
 - `packages/blast-brief` — evidence collection, brief rendering, remediations
 - `packages/blast-vcs` — git and GitHub: reading a change, posting a brief, the `blast` command
 - `apps/web` — the Next.js surface, which mounts the agent at `/eve/v1/*`
 - `apps/fixtures` — the sample pull request and telemetry the repo runs on
-- `docs/` — published documentation
+- `docs/` — published documentation; `policy.md` and `integrating.md` are the two a
+  contributor changing behaviour most often has to update
+- `blast.schema.json` — generated from `policyFileSchema` by `pnpm schema`, checked in CI
 - `research/` — design plans for proposed changes, written before implementation
 
 ## Invariants
@@ -30,23 +40,52 @@ Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headi
 These are the rules that make the output trustworthy. Breaking one is never a
 refactor; it changes what the tool means.
 
-**The model never decides the verdict.** The rules live in
-`packages/blast-core/src/verdict.ts` as pure functions over `Finding[]`, and the budgets
-they compare against live in `packages/blast-core/src/policy.ts`. If you find yourself
-asking the model to weigh dimensions or pick a verdict, the logic belongs in those files
-instead. A verdict re-derived per run drifts on identical input.
+**The model never decides the verdict.** Rules are data in
+`packages/blast-core/src/rules.ts`, the defaults are declared in `builtin-rules.ts`,
+composition lives in `ruleset.ts`, and `verdict.ts` runs them. If you find yourself asking
+the model to weigh dimensions or pick a verdict, the logic belongs in a rule instead. A
+verdict re-derived per run drifts on identical input.
 
-**Budgets are data, and a brief names the ones it applied.** A repository sets its own in
-`blast.json`, repository-wide and per surface, validated by `policyFileSchema`. A brief
-cites the rule that decided rather than the default it replaced, and the first matching
-rule wins — precedence is a contract, not an artifact of key order. A policy file that cannot be read fails
-the run; it never falls back to the defaults, because budgets nobody chose produce
-verdicts nobody chose and the run would look ordinary. Every brief carries a digest over
-its inputs and its verdict, so two briefs can be compared without re-running either.
+**The rule engine stays open to metrics core has never seen.** This used to be a `switch`
+over known metric ids, which made every integration a change to core — an adapter could
+hand back a perfectly good measurement and the engine had no way to compare it to anything.
+A rule matches evidence by metric and dimension, so a repository can declare a rule over
+`datadog.error_rate_pct` and have it decide. Do not add a code path that special-cases a
+metric; add a rule. The built-ins are declared in the same shape a policy file uses, which
+is the check that the shape is general — if a default needs something a file cannot express,
+external integrations are second-class and the next one will ask for a core change.
 
-**Every number carries a basis.** `measured`, `modeled`, or `assumed`. Never promote a
-basis to make a brief read better. A modeled number presented as measured is the single
-worst failure mode this tool has.
+**Adapters contribute evidence; they never decide.** `Adapter` is for a source blast can
+reach, `IngestAdapter` for a tool that already ran and left JSON behind. Either way the
+output is `EvidenceRecord[]` and the only route to a verdict is a rule somebody wrote down.
+Prefer turning an existing product into an adapter over reimplementing it: blast is not
+competing with Datadog, Lighthouse, Infracost or Statsig, and a worse copy of one of them
+would cost the thing it is actually good at.
+
+**Budgets and rules are data, and a decision names the ones it applied.** A repository sets
+them in `blast.json`, validated by `policyFileSchema` and documented in `docs/policy.md`. A
+brief cites the rule that decided rather than the default it replaced, and the first matching
+surface rule wins — precedence is a contract, not an artifact of key order. `extends` composes
+an organization baseline with a repository's difference from it, nearest last, and every
+decision names the whole chain: a budget a reader cannot locate is indistinguishable from one
+the tool invented. A policy file that cannot be read fails the run; it never falls back to the
+defaults, because budgets nobody chose produce verdicts nobody chose and the run would look
+ordinary. Every brief carries a digest over its inputs and its verdict, so two briefs can be
+compared without re-running either.
+
+**Severity describes the finding; enforcement decides what it may do.** `block`, `warn`,
+`silent`. Keep them separate — collapsing them means a team that wants to watch a rule before
+trusting it has to lie about how bad a breach is, and `silent` is the only honest way a new
+rule gets adopted. An exception suspends a rule and requires a reason, an approver and an
+expiry; expiry is enforced rather than reported, and the day it is judged against is an input
+rather than the clock, so replaying an old change reproduces the decision it got.
+
+**Every number carries a basis.** `measured`, `modeled`, `inferred`, or `assumed`. Never
+promote a basis to make a brief read better. A modeled number presented as measured is the
+single worst failure mode this tool has. Contributed evidence obeys the same rule from the
+outside: confidence defaults from the basis and a submitter may only lower it, so an
+integration can say its measurement is shakier than it looks and cannot say its guess is as
+good as a measurement.
 
 **Missing data is a value, not an exception.** Adapters return `Result`, and a failed
 fetch produces an `unmeasured` dimension, never a zero or an invented substitute. An
@@ -68,7 +107,7 @@ produced the findings. A model-authored fix can drift from what the brief said; 
 one cannot.
 
 **Nothing starts a process outside `@blast/vcs`.** `runCommand` gives every `git` and
-`gh` call a timeout, a bounded output buffer, and a failure with a *kind* — `not-found`,
+`gh` call a timeout, a bounded output buffer, and a failure with a _kind_ — `not-found`,
 `unauthorized`, `rate-limited`, `timeout`, `too-large`, `failed` — because only one of
 those is worth retrying and they used to be one sentence. Any ref reaching a command is
 checked with `isSafeRef` first: `execFile` has no shell, but a ref beginning with `-`
@@ -87,6 +126,23 @@ record `renderBrief` wrote into the brief's marker. Do not move that history int
 beside it: anywhere else is a place it can be missing from when someone goes looking, and
 do not let a caller supply the record, for the reason findings are re-derived rather than
 carried.
+
+**The decision log answers about the aggregate, and never decides anything.** It is
+append-only, a row is never edited, and a reassessed change produces a new decision with a
+new digest rather than replacing one. It exists for the questions a platform team has after
+installing a gate — which rules are doing work, which are being waived around, what the held
+changes were modeled to cost — and `summarize` is a pure function over rows so a dashboard
+and a CLI cannot disagree. Never read a decision back and replay it as a verdict; decisions
+are re-derived from evidence, for the reason findings are. Every total that includes a
+modeled number carries its basis: `heldMonthlyCostUsd` is not savings, and calling it that
+is the overreach that makes engineers stop believing the rest of the output.
+
+**A scope is checked on every call, not at issue time.** API keys carry an org, a repository
+pattern and a permission, and `authorize` re-checks all three per request. A key minted for
+one repository and later used against another is the ordinary shape of this going wrong, and
+without a scope there is nothing to stop one team's pipeline being answered against another
+team's policy. A malformed key configuration refuses every request rather than falling
+through to the unauthenticated path.
 
 **Every outward side effect requires approval on every call.** `post_comment` and
 `propose_fix` use `always()` from `eve/tools/approval`. Do not add a write path that
@@ -133,11 +189,15 @@ pnpm lint             # oxlint (auto-fixes)
 pnpm fmt              # oxfmt
 
 pnpm test             # unit + contract + agent
-pnpm test:unit        # verdict thresholds, power math, cost arithmetic
-pnpm test:contract    # adapter contract conformance
+pnpm schema           # regenerate blast.schema.json from policyFileSchema
+
+pnpm test:unit        # rules, policy composition, verdicts, auth, the audit model
+pnpm test:contract    # adapter and ingest contract conformance
 pnpm test:agent       # the pipeline end to end over the fixtures
 
-pnpm build && pnpm blast brief fixture --intent "…"   # the command a pipeline runs
+pnpm build && pnpm blast brief fixture --intent "…"    # the brief a human reads
+pnpm build && pnpm blast decide fixture --intent "…"   # the decision a pipeline acts on
+pnpm blast audit                                       # what the log says so far
 ```
 
 All of these run in CI, so running them locally before pushing saves a round trip.

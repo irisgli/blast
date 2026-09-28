@@ -4,6 +4,13 @@ An adapter is a data source behind one interface. The agent cannot tell a fixtur
 a live system, which is what makes moving a dimension to real telemetry a one-file
 change.
 
+This page is the *pull* contract, for a source blast queries itself. For a tool that already
+ran in the pipeline and left JSON behind — Infracost, Lighthouse, a load test — the contract
+is `IngestAdapter`, documented in [Integrating](./integrating.md). Prefer that one when it
+applies: a decision has to be reproducible for the same change, and a source whose answer
+depends on when it was asked cannot be part of that unless its answer is snapshotted with the
+change.
+
 ```ts
 interface Adapter<Q, R> {
   id: string;

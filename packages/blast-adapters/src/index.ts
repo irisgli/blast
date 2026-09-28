@@ -7,3 +7,4 @@ export * from "./fixture-store.js";
 export * from "./performance.js";
 export * from "./registry.js";
 export * from "./live/npm-registry.js";
+export * from "./ingest/index.js";

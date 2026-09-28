@@ -1,0 +1,454 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blast.dev/schema/blast.json",
+  "title": "blast policy",
+  "description": "Budgets, rules, exceptions and ownership for one repository. A repository may extend an organization baseline; the nearest document wins.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "extends": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "budgets": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "lcpDeltaMs": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 5000
+        },
+        "lcpBudgetMs": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 30000
+        },
+        "inpDeltaMs": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 5000
+        },
+        "serverP95DeltaMs": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 30000
+        },
+        "clientJsDeltaBytes": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10485760
+        },
+        "topTrafficPercentile": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "monthlyCostDeltaUsd": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10000000
+        },
+        "monthlyCostDeltaRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "surfaces": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "match": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A route id, where `*` matches any run of characters: /checkout/*"
+          },
+          "budgets": {
+            "type": "object",
+            "properties": {
+              "lcpDeltaMs": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 5000
+              },
+              "lcpBudgetMs": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 30000
+              },
+              "inpDeltaMs": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 5000
+              },
+              "serverP95DeltaMs": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 30000
+              },
+              "clientJsDeltaBytes": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 10485760
+              },
+              "topTrafficPercentile": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "monthlyCostDeltaUsd": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 10000000
+              },
+              "monthlyCostDeltaRatio": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "match",
+          "budgets"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "rules": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A short noun phrase naming what the rule is about."
+          },
+          "dimension": {
+            "type": "string",
+            "enum": [
+              "performance",
+              "cost",
+              "measurability"
+            ]
+          },
+          "metric": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The metric id an adapter reports this number under."
+          },
+          "subject": {
+            "default": "delta",
+            "type": "string",
+            "enum": [
+              "delta",
+              "head",
+              "base"
+            ]
+          },
+          "comparator": {
+            "default": "gt",
+            "type": "string",
+            "enum": [
+              "gt",
+              "gte",
+              "lt",
+              "lte"
+            ]
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "budget": {
+                    "type": "string",
+                    "enum": [
+                      "lcpDeltaMs",
+                      "lcpBudgetMs",
+                      "inpDeltaMs",
+                      "serverP95DeltaMs",
+                      "clientJsDeltaBytes",
+                      "topTrafficPercentile",
+                      "monthlyCostDeltaUsd",
+                      "monthlyCostDeltaRatio"
+                    ]
+                  }
+                },
+                "required": [
+                  "budget"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "severity": {
+            "default": "major",
+            "type": "string",
+            "enum": [
+              "critical",
+              "major",
+              "minor",
+              "info"
+            ]
+          },
+          "enforcement": {
+            "default": "block",
+            "type": "string",
+            "enum": [
+              "block",
+              "warn",
+              "silent"
+            ]
+          },
+          "appliesTo": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requiresSurface": {
+            "default": false,
+            "type": "boolean"
+          },
+          "minTrafficPercentile": {
+            "default": null,
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "budget": {
+                        "type": "string",
+                        "enum": [
+                          "lcpDeltaMs",
+                          "lcpBudgetMs",
+                          "inpDeltaMs",
+                          "serverP95DeltaMs",
+                          "clientJsDeltaBytes",
+                          "topTrafficPercentile",
+                          "monthlyCostDeltaUsd",
+                          "monthlyCostDeltaRatio"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "budget"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "dimension",
+          "metric",
+          "threshold"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "disable": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "exceptions": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The rule id to suspend, or `*` for every rule."
+          },
+          "surface": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 12,
+            "description": "Why this breach is acceptable, for the person who finds it in six months."
+          },
+          "approvedBy": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Who accepted the risk. A handle or a team."
+          },
+          "expires": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "The day this stops applying. Required: an exception is a loan, not a gift."
+          }
+        },
+        "required": [
+          "rule",
+          "reason",
+          "approvedBy",
+          "expires"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "owners": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "string",
+          "minLength": 1
+        },
+        "byDimension": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "performance",
+              "cost",
+              "measurability"
+            ]
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "byRule": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "enforcement": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "string",
+          "enum": [
+            "block",
+            "warn",
+            "silent"
+          ]
+        },
+        "byDimension": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "performance",
+              "cost",
+              "measurability"
+            ]
+          },
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "block",
+              "warn",
+              "silent"
+            ]
+          }
+        },
+        "byRule": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "block",
+              "warn",
+              "silent"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

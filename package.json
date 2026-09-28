@@ -12,6 +12,7 @@
     "dev": "eve dev",
     "fmt": "oxfmt",
     "lint": "oxlint --fix",
+    "schema": "node scripts/write-policy-schema.mjs",
     "test": "pnpm test:unit && pnpm test:contract && pnpm test:agent",
     "test:agent": "turbo run test:agent",
     "test:contract": "turbo run test:contract",

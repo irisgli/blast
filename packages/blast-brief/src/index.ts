@@ -4,3 +4,4 @@ export * from "./policy.js";
 export * from "./produce.js";
 export * from "./remediation.js";
 export * from "./thread.js";
+export * from "./decision-log.js";
