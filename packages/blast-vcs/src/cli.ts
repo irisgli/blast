@@ -1,14 +1,26 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { describeIngestAdapters, ingestWith, loadFixtureChangeProfile } from "@blast/adapters";
 import { FileDecisionStore, decisionLogPath, loadPolicy, produceBrief } from "@blast/brief";
-import type { ChangeProfile, EvidenceRecord, Policy, Verdict } from "@blast/core";
+import type {
+  ChangeProfile,
+  Decision,
+  EvidenceRecord,
+  EvidenceSnapshot,
+  Policy,
+  SigningKey,
+  Verdict,
+} from "@blast/core";
 import {
   EXIT_BLOCKED,
   EXIT_OK,
   EXIT_UNAVAILABLE,
   evidenceRecordSchema,
+  readSnapshot,
+  signingKeysFrom,
   summarize,
+  verifyDecision,
 } from "@blast/core";
 import { readChange } from "./change.js";
 import { postBrief } from "./comment.js";
@@ -49,6 +61,7 @@ usage
   blast brief  <pr-number|branch|fixture> [options]
   blast decide <pr-number|branch|fixture> [options]
   blast audit  [options]
+  blast verify <decision.json>
 
 brief and decide
   --intent <text>       what the change is for, in user-facing terms (required)
@@ -61,6 +74,9 @@ brief and decide
   --as-of <YYYY-MM-DD>  the day exception expiry is judged against (default: today)
   --log <path>          where to append the decision (default: .blast/decisions.jsonl)
   --no-log              do not record this decision
+  --snapshot <path>     replay a frozen snapshot instead of collecting evidence
+  --write-snapshot <p>  write the evidence this decision was made from to a file
+  --sign <key-id>       sign the decision with a key from BLAST_SIGNING_KEYS
 
 brief only
   --post                post the brief to the pull request, or update the one there
@@ -73,6 +89,10 @@ audit
   --summary             the aggregate rather than the rows (default)
   --json                machine-readable output
   --log <path>          which log to read
+
+verify
+  Reads a decision and checks it against BLAST_SIGNING_KEYS. Exit 0 when the signature
+  holds, 1 when it does not, 2 when there is nothing to check it with.
 
 exit codes
   0  decision produced and the verdict cleared --fail-on
@@ -87,7 +107,7 @@ const SEVERITY: Record<Verdict, number> = {
   ship: 0,
 };
 
-type Command = "brief" | "decide" | "audit";
+type Command = "brief" | "decide" | "audit" | "verify";
 
 interface Options {
   command: Command;
@@ -107,6 +127,9 @@ interface Options {
   rule: string | null;
   since: string | null;
   json: boolean;
+  snapshot: string | null;
+  writeSnapshot: string | null;
+  sign: string | null;
 }
 
 function defaults(command: Command, ref: string): Options {
@@ -128,14 +151,30 @@ function defaults(command: Command, ref: string): Options {
     rule: null,
     since: null,
     json: false,
+    snapshot: null,
+    writeSnapshot: null,
+    sign: null,
   };
 }
 
 function parseArgs(argv: readonly string[]): Options | { error: string } {
   const [command, ...rest] = argv;
   if (command === undefined || command === "--help" || command === "-h") return { error: USAGE };
-  if (command !== "brief" && command !== "decide" && command !== "audit") {
+  if (
+    command !== "brief" &&
+    command !== "decide" &&
+    command !== "audit" &&
+    command !== "verify"
+  ) {
     return { error: `Unknown command ${command}.\n\n${USAGE}` };
+  }
+
+  if (command === "verify") {
+    const path = rest[0];
+    if (path === undefined || path.startsWith("-")) {
+      return { error: `A decision file is required.\n\n${USAGE}` };
+    }
+    return { ...defaults(command, path), intent: "n/a" };
   }
 
   let ref = "";
@@ -251,6 +290,21 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
         options.since = value;
         index += 1;
         break;
+      case "--snapshot":
+        if (value === undefined) return { error: "--snapshot needs a path, or - for stdin." };
+        options.snapshot = value;
+        index += 1;
+        break;
+      case "--write-snapshot":
+        if (value === undefined) return { error: "--write-snapshot needs a path." };
+        options.writeSnapshot = value;
+        index += 1;
+        break;
+      case "--sign":
+        if (value === undefined) return { error: "--sign needs a key id from BLAST_SIGNING_KEYS." };
+        options.sign = value;
+        index += 1;
+        break;
       case "--help":
       case "-h":
         return { error: USAGE };
@@ -259,7 +313,7 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
     }
   }
 
-  if (options.command !== "audit" && options.intent === "") {
+  if (options.command !== "audit" && options.command !== "verify" && options.intent === "") {
     /**
      * Refused rather than defaulted. A diff says what moved and never what it is for, and
      * the measurability dimension is the one that most needs the difference — a brief
@@ -345,6 +399,54 @@ async function contributedEvidence(
   return { records, notes };
 }
 
+/**
+ * Checks a decision against the configured signing keys.
+ *
+ * This is the command an audit or a release process runs. It exits 1 on a signature that does
+ * not hold and 2 when there is nothing to check it with, because "this decision was forged" and
+ * "I have no keys" are different facts and a process that treated them alike would pass on a
+ * misconfigured runner.
+ */
+async function runVerify(options: Options): Promise<number> {
+  let document: unknown;
+  try {
+    document = JSON.parse(await readInput(options.ref));
+  } catch (error) {
+    process.stderr.write(
+      `blast: ${options.ref} could not be read: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    return EXIT_UNAVAILABLE;
+  }
+
+  const keys = signingKeysFrom(process.env.BLAST_SIGNING_KEYS);
+  if (!keys.ok) {
+    process.stderr.write(`blast: ${keys.detail}\n`);
+    return EXIT_UNAVAILABLE;
+  }
+  if (keys.value.length === 0) {
+    process.stderr.write("blast: no signing keys configured. Set BLAST_SIGNING_KEYS to verify.\n");
+    return EXIT_UNAVAILABLE;
+  }
+
+  const decision = document as Decision;
+  if (typeof decision?.digest !== "string") {
+    process.stderr.write("blast: that file is not a decision.\n");
+    return EXIT_UNAVAILABLE;
+  }
+
+  const verified = await verifyDecision(decision, keys.value);
+  if (!verified.ok) {
+    process.stderr.write(`blast: ${verified.detail}\n`);
+    // An unsigned decision is a missing record rather than a forged one.
+    return verified.reason === "no-data" ? EXIT_UNAVAILABLE : EXIT_BLOCKED;
+  }
+
+  process.stdout.write(
+    `verified: ${decision.verdict} on ${decision.subject.repo ?? decision.subject.ref.id}, signed ${verified.value.signedAt} by ${verified.value.keyId}, digest ${decision.digest}\n`,
+  );
+  return EXIT_OK;
+}
+
 async function runAudit(options: Options): Promise<number> {
   const store = new FileDecisionStore({ path: decisionLogPath(options.log ?? undefined) });
 
@@ -424,6 +526,7 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 
   if (parsed.command === "audit") return runAudit(parsed);
+  if (parsed.command === "verify") return runVerify(parsed);
 
   let profile: ChangeProfile;
   let notes: string[];
@@ -469,6 +572,53 @@ async function main(argv: readonly string[]): Promise<number> {
   }
   notes.push(...contributed.notes);
 
+  /**
+   * A snapshot is verified before it can decide anything. `readSnapshot` recomputes the content
+   * address, so a file somebody edited after it was taken is refused rather than replayed —
+   * without that, `--snapshot` would be a way to hand the engine any numbers you like and get a
+   * decision that looked rigorous.
+   */
+  let snapshot: EvidenceSnapshot | undefined;
+  if (parsed.snapshot !== null) {
+    let document: unknown;
+    try {
+      document = JSON.parse(await readInput(parsed.snapshot));
+    } catch (error) {
+      process.stderr.write(
+        `blast: --snapshot could not be read: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      return EXIT_UNAVAILABLE;
+    }
+
+    const read = readSnapshot(document);
+    if (!read.ok) {
+      process.stderr.write(`blast: ${read.detail}\n`);
+      return EXIT_UNAVAILABLE;
+    }
+    snapshot = read.value;
+    notes.push(
+      `Replayed from a snapshot taken ${read.value.capturedAt} (${read.value.records.length} records, ${read.value.id}). No source was called.`,
+    );
+  }
+
+  let signingKey: SigningKey | undefined;
+  if (parsed.sign !== null) {
+    const keys = signingKeysFrom(process.env.BLAST_SIGNING_KEYS);
+    if (!keys.ok) {
+      process.stderr.write(`blast: ${keys.detail}\n`);
+      return EXIT_UNAVAILABLE;
+    }
+    const found = keys.value.find((key) => key.id === parsed.sign);
+    if (found === undefined) {
+      const known = keys.value.map((key) => key.id).join(", ") || "none";
+      process.stderr.write(
+        `blast: no signing key named ${parsed.sign}. Configured in BLAST_SIGNING_KEYS: ${known}.\n`,
+      );
+      return EXIT_UNAVAILABLE;
+    }
+    signingKey = found;
+  }
+
   const produced = await produceBrief({
     profile: { ...profile, intent: parsed.intent },
     /**
@@ -484,6 +634,8 @@ async function main(argv: readonly string[]): Promise<number> {
     org: parsed.org,
     ...(policy === undefined ? {} : { policy }),
     ...(parsed.asOf === null ? {} : { asOf: parsed.asOf }),
+    ...(snapshot === undefined ? {} : { snapshot }),
+    ...(signingKey === undefined ? {} : { signingKey }),
   });
 
   if (!produced.ok) {
@@ -491,7 +643,24 @@ async function main(argv: readonly string[]): Promise<number> {
     return EXIT_UNAVAILABLE;
   }
 
-  const { brief, markdown, decision } = produced.value;
+  const { brief, markdown, decision, snapshot: captured } = produced.value;
+
+  /**
+   * Written before anything else can fail. The snapshot is what makes a decision reproducible,
+   * and a run that produced one and then fell over while posting should still leave it behind.
+   */
+  if (parsed.writeSnapshot !== null) {
+    try {
+      await mkdir(dirname(parsed.writeSnapshot), { recursive: true });
+      await writeFile(parsed.writeSnapshot, `${JSON.stringify(captured, null, 2)}\n`, "utf8");
+      notes.push(`Snapshot ${captured.id} written to ${parsed.writeSnapshot}.`);
+    } catch (error) {
+      process.stderr.write(
+        `blast: the snapshot could not be written: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      return EXIT_UNAVAILABLE;
+    }
+  }
 
   if (parsed.command === "decide") {
     process.stdout.write(`${JSON.stringify(decision, null, 2)}\n`);
