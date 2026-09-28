@@ -87,6 +87,25 @@ outside: confidence defaults from the basis and a submitter may only lower it, s
 integration can say its measurement is shakier than it looks and cannot say its guess is as
 good as a measurement.
 
+**Fetching may be non-deterministic; deciding may not.** A live source reaches a decision by
+being snapshotted, never by being called while the decision is made — `snapshot.ts`. A snapshot
+carries the normalized evidence *and* the verdict context, because a rule reads traffic and
+current spend as much as it reads a number, and its id is the content address of both. Replay
+recomputes that address before trusting anything: an unverified snapshot is a caller-supplied
+set of findings, which is what `produceBrief` refuses everywhere else. Replay calls no adapter,
+because a verification that fails when a vendor is down verifies nothing.
+
+**The evidence contract is exact in one direction and defensive in the other.** `toFinding` is
+the inverse of `fromFinding` and applies no submission rules, because a round trip that changed
+a field would move the digest and make every replay of that snapshot fail. `toContributedFinding`
+is for evidence from outside: there a delta is derived and confidence may only be lowered. An
+adapter in this repository may report two levels and no delta, or raise confidence above its
+basis, and both are deliberate — do not "fix" either by unifying the two functions.
+
+**A digest is not a signature.** The digest detects drift; `signature.ts` proves a decision came
+from a deployment. Keep them separate, sign only what decided, and never let a verifier pass an
+unsigned decision — that would let an unsigned record through every check built on it.
+
 **Missing data is a value, not an exception.** Adapters return `Result`, and a failed
 fetch produces an `unmeasured` dimension, never a zero or an invented substitute. An
 `unmeasured` dimension caps the verdict at `ship-with-caveats`; missing data can never
