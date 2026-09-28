@@ -32,6 +32,9 @@ and the threshold's source. One engine underneath both, so they cannot disagree.
 | `--repo <owner/name>`, `--org <name>` | Recorded on the decision, for the audit log |
 | `--as-of <YYYY-MM-DD>` | The day exception expiry is judged against. Defaults to today |
 | `--log <path>`, `--no-log` | Where to append the decision, or not to |
+| `--write-snapshot <path>` | Write the evidence this decision was made from |
+| `--snapshot <path>` | Decide from a frozen snapshot instead of collecting |
+| `--sign <key-id>` | Sign the decision with a key from `BLAST_SIGNING_KEYS` |
 
 The brief goes to stdout and everything else to stderr, so `blast brief … > brief.md` is
 the brief and nothing else.
@@ -57,6 +60,14 @@ see [Integrating](./integrating.md). A malformed payload, or an adapter id that 
 registered, exits `2`: a cost gate that silently contributed nothing because somebody typed
 `infracosts` looks exactly like a clean run, and that is the one failure mode worth being
 loud about.
+
+## Reproducing a decision later
+
+`--write-snapshot` saves the evidence a decision was made from, content-addressed.
+`--snapshot` decides from one instead of collecting, calling no source — so a decision from
+six months ago can be reproduced exactly without depending on a vendor still being reachable.
+Pair it with `--sign` and `blast verify` when the record has to prove something. See
+[Reproducibility](./reproducibility.md).
 
 ## The decision log
 
