@@ -96,6 +96,40 @@ export async function readChange(options: ReadChangeOptions): Promise<Result<Cha
   const refs = await resolveRefs(ref, cwd);
   if (!refs.ok) return refs;
 
+  return readChangeBetween({
+    base: refs.value.base,
+    head: refs.value.head,
+    kind: refs.value.kind,
+    id: ref,
+    intent,
+    ...(cwd === undefined ? {} : { cwd }),
+  });
+}
+
+export interface ReadChangeBetweenOptions {
+  base: string;
+  head: string;
+  kind: "pr" | "branch";
+  /** What the profile calls this change: a pull request number, or a branch name. */
+  id: string;
+  intent: string;
+  cwd?: string;
+}
+
+/**
+ * The diff-reading half of `readChange`, against refs a caller already resolved.
+ *
+ * Split out for backfill, which walks history and holds two commit shas per change rather
+ * than a branch name — a merged pull request's branch is usually gone, so resolving one by
+ * name would fail on exactly the changes a backfill is about.
+ */
+export async function readChangeBetween(
+  options: ReadChangeBetweenOptions,
+): Promise<Result<ChangeRead>> {
+  const { intent, cwd } = options;
+  const refs = { value: { base: options.base, head: options.head, kind: options.kind } };
+  const ref = options.id;
+
   /**
    * Both refs are checked before either reaches a command.
    *

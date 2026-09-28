@@ -22,6 +22,7 @@ import {
   summarize,
   verifyDecision,
 } from "@blast/core";
+import { backfill, renderBackfill } from "./backfill.js";
 import { readChange } from "./change.js";
 import { postBrief } from "./comment.js";
 
@@ -62,6 +63,7 @@ usage
   blast decide <pr-number|branch|fixture> [options]
   blast audit  [options]
   blast verify <decision.json>
+  blast backfill [options]
 
 brief and decide
   --intent <text>       what the change is for, in user-facing terms (required)
@@ -90,6 +92,16 @@ audit
   --json                machine-readable output
   --log <path>          which log to read
 
+backfill
+  Assesses the current policy against changes that already merged, and reports what it
+  would have held. Every one of them shipped, so read the rates rather than the counts:
+  a rule firing on most of a repository's history is miscalibrated, not strict.
+
+  --limit <n>           how many changes back to read (default 50)
+  --branch <name>       the branch to walk (default: the checked-out one)
+  --policy <path>       a blast.json to assess, instead of searching upwards
+  --json                machine-readable output
+
 verify
   Reads a decision and checks it against BLAST_SIGNING_KEYS. Exit 0 when the signature
   holds, 1 when it does not, 2 when there is nothing to check it with.
@@ -107,7 +119,7 @@ const SEVERITY: Record<Verdict, number> = {
   ship: 0,
 };
 
-type Command = "brief" | "decide" | "audit" | "verify";
+type Command = "brief" | "decide" | "audit" | "verify" | "backfill";
 
 interface Options {
   command: Command;
@@ -130,6 +142,8 @@ interface Options {
   snapshot: string | null;
   writeSnapshot: string | null;
   sign: string | null;
+  limit: number;
+  branch: string | null;
 }
 
 function defaults(command: Command, ref: string): Options {
@@ -154,6 +168,8 @@ function defaults(command: Command, ref: string): Options {
     snapshot: null,
     writeSnapshot: null,
     sign: null,
+    limit: 50,
+    branch: null,
   };
 }
 
@@ -164,7 +180,8 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
     command !== "brief" &&
     command !== "decide" &&
     command !== "audit" &&
-    command !== "verify"
+    command !== "verify" &&
+    command !== "backfill"
   ) {
     return { error: `Unknown command ${command}.\n\n${USAGE}` };
   }
@@ -180,7 +197,7 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
   let ref = "";
   let start = 0;
 
-  if (command !== "audit") {
+  if (command !== "audit" && command !== "backfill") {
     const candidate = rest[0];
     if (candidate === undefined || candidate.startsWith("-")) {
       return { error: `A pull request number, a branch, or 'fixture' is required.\n\n${USAGE}` };
@@ -290,6 +307,20 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
         options.since = value;
         index += 1;
         break;
+      case "--limit": {
+        const parsedLimit = Number(value);
+        if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 1000) {
+          return { error: "--limit takes a whole number between 1 and 1000." };
+        }
+        options.limit = parsedLimit;
+        index += 1;
+        break;
+      }
+      case "--branch":
+        if (value === undefined) return { error: "--branch needs a name." };
+        options.branch = value;
+        index += 1;
+        break;
       case "--snapshot":
         if (value === undefined) return { error: "--snapshot needs a path, or - for stdin." };
         options.snapshot = value;
@@ -313,7 +344,12 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
     }
   }
 
-  if (options.command !== "audit" && options.command !== "verify" && options.intent === "") {
+  if (
+    options.command !== "audit" &&
+    options.command !== "verify" &&
+    options.command !== "backfill" &&
+    options.intent === ""
+  ) {
     /**
      * Refused rather than defaulted. A diff says what moved and never what it is for, and
      * the measurability dimension is the one that most needs the difference — a brief
@@ -447,6 +483,51 @@ async function runVerify(options: Options): Promise<number> {
   return EXIT_OK;
 }
 
+/**
+ * Assesses the current policy against history.
+ *
+ * Nothing here is recorded in the decision log. A backfill assesses changes against a policy
+ * that did not exist when they merged, and putting those in the audit trail would fill it with
+ * decisions that were never made about changes that were never gated.
+ */
+async function runBackfill(options: Options): Promise<number> {
+  let policy: Policy | undefined;
+  if (options.policy !== null) {
+    const loaded = await loadPolicy({ path: options.policy });
+    if (!loaded.ok) {
+      process.stderr.write(`blast: ${loaded.detail}\n`);
+      return EXIT_UNAVAILABLE;
+    }
+    policy = loaded.value;
+  }
+
+  const interactive = process.stderr.isTTY === true;
+  const report = await backfill({
+    limit: options.limit,
+    ...(options.branch === null ? {} : { branch: options.branch }),
+    ...(policy === undefined ? {} : { policy }),
+    ...(options.asOf === null ? {} : { asOf: options.asOf }),
+    onProgress: (done, total) => {
+      // Only when somebody is watching: a progress line in a CI log is noise.
+      if (interactive) process.stderr.write(`\rassessing ${done}/${total}…`);
+    },
+  });
+  if (interactive) process.stderr.write("\r\u001b[K");
+
+  if ("error" in report) {
+    process.stderr.write(`blast: ${report.error}\n`);
+    return EXIT_UNAVAILABLE;
+  }
+
+  if (options.json) {
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    return EXIT_OK;
+  }
+
+  process.stdout.write(`${renderBackfill(report).join("\n")}\n`);
+  return EXIT_OK;
+}
+
 async function runAudit(options: Options): Promise<number> {
   const store = new FileDecisionStore({ path: decisionLogPath(options.log ?? undefined) });
 
@@ -527,6 +608,7 @@ async function main(argv: readonly string[]): Promise<number> {
 
   if (parsed.command === "audit") return runAudit(parsed);
   if (parsed.command === "verify") return runVerify(parsed);
+  if (parsed.command === "backfill") return runBackfill(parsed);
 
   let profile: ChangeProfile;
   let notes: string[];
