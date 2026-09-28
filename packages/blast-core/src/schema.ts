@@ -76,6 +76,8 @@ export const METRIC = {
   historicalEffect: "historical_effect_pp",
   /** Whether the change ships events that attribute a movement to it. */
   featureEventCoverage: "feature_event_coverage",
+  /** Running experiments on a touched surface, whose results the change would contaminate. */
+  experimentCollision: "running_experiments_on_surface",
 } as const;
 
 export type MetricId = (typeof METRIC)[keyof typeof METRIC];

@@ -1,4 +1,5 @@
 import type { Adapter, Dimension, Finding, Result, SourceInfo } from "@blast/core";
+import { collisionFindings, experimentsAdapter } from "./experiments.js";
 import {
   featureHistoryAdapter,
   funnelAdapter,
@@ -90,6 +91,9 @@ export function createSources(options: RegistryOptions = {}): readonly Source[] 
     // directly they return their data and no findings, which is the honest answer.
     source(featureHistoryAdapter, () => []),
     source(instrumentationAdapter, () => []),
+    // The one measurability source that carries findings on its own: whether an experiment is
+    // running on a surface needs nothing from the change except which surfaces it touches.
+    source(experimentsAdapter, collisionFindings),
     // The one source that talks to something that can refuse.
     source(
       createNpmRegistryAdapter(options.fetch === undefined ? {} : { fetch: options.fetch }),

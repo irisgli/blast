@@ -1,6 +1,7 @@
 import type { ChangeProfile, VerdictContext } from "@blast/core";
 import type { BillingResult, SurfaceUsage } from "./cost.js";
 import type { CostEstimate } from "./cost-model.js";
+import type { CollisionFinding } from "./experiments.js";
 import type { CoverageFinding, FunnelResult, PowerFinding } from "./measurability.js";
 
 /**
@@ -37,6 +38,7 @@ export interface VerdictContextInput {
   estimate: CostEstimate | null;
   coverage: readonly CoverageFinding[];
   power: readonly PowerFinding[];
+  collisions: readonly CollisionFinding[];
 }
 
 export function buildVerdictContext(input: VerdictContextInput): VerdictContext {
@@ -54,6 +56,7 @@ export function buildVerdictContext(input: VerdictContextInput): VerdictContext 
     underpoweredSurfaces: input.power
       .filter((entry) => entry.underpowered)
       .map((entry) => entry.surface),
+    surfacesWithRunningExperiment: input.collisions.map((entry) => entry.surface),
     // A funnel we could not read leaves us unable to say anything; an empty match is
     // an answer, and the difference decides unmeasured against acceptable.
     measurabilityDataAvailable: input.funnel !== null,
