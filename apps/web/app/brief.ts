@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { loadFixtureChangeProfile } from "@blast/adapters";
 import type { ChangeProfile } from "@blast/core";
+import { DEFAULT_POLICY } from "@blast/core";
 import { produceBrief } from "@blast/brief";
 import type { ProducedBrief } from "@blast/brief";
 
@@ -55,6 +56,20 @@ async function build(): Promise<DemoBriefResult> {
     profile: change.value,
     headline: HEADLINE,
     watchAfterShip: { measurability: [...WATCH_AFTER_SHIP.measurability] },
+    /**
+     * The sample storefront's budgets are the defaults, stated rather than searched for.
+     *
+     * Without this, the demo assesses a fictional storefront's pull request against whatever
+     * `blast.json` happens to sit above this deployment — which is blast's own, once this
+     * repository has one, and which has nothing to do with the storefront. It is the same
+     * category error `/api/brief` already refuses to make by never reading a policy file beside
+     * the server: the policy that governs a change belongs to the repository the change is in.
+     *
+     * It is also what keeps the page a demonstration. A visitor is here to see what a held
+     * change looks like, and a verdict that moved because this repository softened its own
+     * enforcement would be showing them the wrong thing entirely.
+     */
+    policy: DEFAULT_POLICY,
   });
   if (!produced.ok) return { ok: false, detail: produced.detail };
 

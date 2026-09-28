@@ -1,0 +1,35 @@
+{
+  "$schema": "./blast.schema.json",
+  "description": "blast's own policy. Nothing here blocks a merge, and that is the honest setting rather than a timid one: every source this repository has reads checked-in fixtures, so a verdict about one of its pull requests is a verdict about a sample storefront's traffic. Gating on somebody else's numbers would be exactly the failure this tool exists to argue against. Promote enforcement to block, rule by rule, as real telemetry is wired in — and run `pnpm blast backfill` before each promotion.",
+  "budgets": {
+    "monthlyCostDeltaUsd": 50,
+    "lcpDeltaMs": 150,
+    "clientJsDeltaBytes": 20480
+  },
+  "surfaces": [
+    {
+      "match": "/",
+      "budgets": { "lcpDeltaMs": 80, "clientJsDeltaBytes": 15360 }
+    }
+  ],
+  "rules": [
+    {
+      "id": "lighthouse.lcp",
+      "title": "synthetic LCP on the web surface",
+      "dimension": "performance",
+      "metric": "lighthouse.lcp_ms",
+      "subject": "head",
+      "comparator": "gt",
+      "threshold": 2500,
+      "severity": "minor",
+      "enforcement": "silent",
+      "owner": "@blast"
+    }
+  ],
+  "owners": {
+    "default": "@blast"
+  },
+  "enforcement": {
+    "default": "warn"
+  }
+}

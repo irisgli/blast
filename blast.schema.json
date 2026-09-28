@@ -8,6 +8,10 @@
     "$schema": {
       "type": "string"
     },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
     "extends": {
       "anyOf": [
         {
