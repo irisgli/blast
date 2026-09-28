@@ -16,3 +16,5 @@ export * from "./evidence.js";
 export * from "./auth.js";
 export * from "./audit.js";
 export * from "./decision.js";
+export * from "./snapshot.js";
+export * from "./signature.js";

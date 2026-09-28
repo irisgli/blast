@@ -21,8 +21,15 @@ import type { ChangeProfile, Finding } from "./index.js";
  * and nothing should treat a matching digest as evidence a brief was not tampered with.
  */
 
-/** Stable serialization: object keys in sorted order, so key order cannot move a hash. */
-function canonical(value: unknown): string {
+/**
+ * Stable serialization: object keys in sorted order, so key order cannot move a hash.
+ *
+ * Exported because the evidence snapshot needs the same serialization the brief digest
+ * uses. Two content addresses computed by two different canonicalizations would be two
+ * incompatible notions of identity in one codebase, and the bug that produces would look
+ * like a snapshot that will not verify.
+ */
+export function canonical(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   const entries = Object.entries(value as Record<string, unknown>)
@@ -36,7 +43,7 @@ const PRIME = 0x100000001b3n;
 const MASK = 0xffffffffffffffffn;
 
 /** FNV-1a over UTF-8, 64 bits. Chosen for being short enough to read in a diff. */
-function fnv1a64(input: string): bigint {
+export function fnv1a64(input: string): bigint {
   const bytes = new TextEncoder().encode(input);
   let hash = OFFSET;
   for (const byte of bytes) {
@@ -89,5 +96,22 @@ function digestBody(input: DigestInput): string {
 }
 
 export function briefDigest(input: DigestInput): string {
-  return fnv1a64(digestBody(input)).toString(16).padStart(16, "0");
+  return fingerprint(digestBody(input));
+}
+
+/**
+ * A 16-character fingerprint of an already-canonical string.
+ *
+ * Not a cryptographic hash and never used as one. FNV-1a detects drift, which is what a
+ * digest and a content address are both for; `signature.ts` is what proves a decision came
+ * from a particular deployment, and the two are deliberately separate so nobody reads a
+ * matching digest as evidence of authenticity.
+ */
+export function fingerprint(canonicalString: string): string {
+  return fnv1a64(canonicalString).toString(16).padStart(16, "0");
+}
+
+/** The content address of any value, over its canonical form. */
+export function contentAddress(value: unknown): string {
+  return fingerprint(canonical(value));
 }
