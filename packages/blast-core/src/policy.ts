@@ -255,6 +255,19 @@ export const policyFileSchema = z
   .object({
     $schema: z.string().optional(),
     /**
+     * Why this policy is what it is, for whoever inherits it.
+     *
+     * JSON has no comments, and a budget is exactly the kind of number that gets argued with a
+     * year later by somebody who was not in the room. Without somewhere to write the reasoning
+     * down it lives in a pull request description nobody will find, and the schema is `strict`
+     * — deliberately, so a misspelled budget fails rather than being ignored — which means
+     * there is no `//` key to smuggle it into either.
+     *
+     * Free text. The engine never reads it; a brief names the rule that decided and this is for
+     * the person who then goes looking for why.
+     */
+    description: z.string().max(2000).optional(),
+    /**
      * Policy documents this one builds on, nearest last. An organization keeps its
      * baseline in one place and a repository states only its difference from it, which is
      * the difference between a policy a platform team can move and eighty copies of one.

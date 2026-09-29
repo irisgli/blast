@@ -52,6 +52,7 @@ const verdictContextSchema = z
     measurableSurfaces: z.array(z.string()),
     surfacesMissingFeatureEvents: z.array(z.string()),
     underpoweredSurfaces: z.array(z.string()),
+    surfacesWithRunningExperiment: z.array(z.string()),
     measurabilityDataAvailable: z.boolean(),
   })
   .strict();
@@ -126,6 +127,7 @@ export function snapshotAddress(
       measurableSurfaces: [...context.measurableSurfaces].sort(),
       surfacesMissingFeatureEvents: [...context.surfacesMissingFeatureEvents].sort(),
       underpoweredSurfaces: [...context.underpoweredSurfaces].sort(),
+      surfacesWithRunningExperiment: [...context.surfacesWithRunningExperiment].sort(),
     },
   });
 }

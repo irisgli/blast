@@ -189,6 +189,27 @@ const MEASURABILITY_RULES: PredicateRule[] = [
   },
   {
     kind: "predicate",
+    /**
+     * Ships as `warn` rather than `block`, alone among the built-ins.
+     *
+     * The collision is a real cost and it is not this change's correctness problem: the right
+     * answer is usually a conversation with whoever owns the experiment, sometimes waiting a
+     * week, and occasionally shipping anyway because the experiment matters less than the fix.
+     * A rule that held the merge would be making that call on the team's behalf with none of
+     * the context, and would get switched off. Saying it loudly and letting the change through
+     * is the version that survives.
+     */
+    id: "measurability.experiment-collision",
+    dimension: "measurability",
+    metric: METRIC.experimentCollision,
+    severity: "major",
+    enforcement: "warn",
+    owner: null,
+    title: "running experiment",
+    origin: "builtin",
+  },
+  {
+    kind: "predicate",
     id: "measurability.underpowered",
     dimension: "measurability",
     metric: METRIC.minimumDetectableEffect,

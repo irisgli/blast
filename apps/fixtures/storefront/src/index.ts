@@ -8,6 +8,7 @@ import funnel from "./data/funnel.js";
 import featureHistory from "./data/feature-history.js";
 import estimateHistory from "./data/estimate-history.js";
 import instrumentation from "./data/instrumentation.js";
+import experiments from "./data/experiments.js";
 
 /**
  * Telemetry for a fictional storefront, and one sample pull request against it.
@@ -29,6 +30,7 @@ export const FIXTURE_FILES = {
   featureHistory: "feature-history.json",
   instrumentation: "instrumentation.json",
   estimateHistory: "estimate-history.json",
+  experiments: "experiments.json",
 } as const;
 
 export type FixtureFile = (typeof FIXTURE_FILES)[keyof typeof FIXTURE_FILES];
@@ -45,4 +47,5 @@ export const FIXTURE_DOCUMENTS: Readonly<Record<string, unknown>> = {
   "feature-history.json": featureHistory,
   "instrumentation.json": instrumentation,
   "estimate-history.json": estimateHistory,
+  "experiments.json": experiments,
 };

@@ -94,6 +94,42 @@ function raisePower(evidence: Evidence): Remediation | null {
   };
 }
 
+/**
+ * What to do about shipping into a running experiment.
+ *
+ * Derived rather than composed, like the rest: the experiment's id, owner, end date and primary
+ * metric all come from the evidence that produced the finding. There is no patch, and there
+ * could not be — the fix is a conversation or a week of waiting, not an edit — so the steps are
+ * the deliverable.
+ *
+ * The ordering of the steps is the judgement worth making explicit. Talking to the owner comes
+ * first because they hold the context nobody else does: whether the experiment is nearly
+ * finished, whether it reads a metric this change cannot move, whether they would rather take
+ * the contamination than the delay. Holding the change is listed after that, not before it.
+ */
+function coordinateWithExperiment(evidence: Evidence): Remediation | null {
+  const collision = evidence.collisions[0];
+  const experiment = collision?.experiments[0];
+  if (collision === undefined || experiment === undefined) return null;
+
+  const others = collision.experiments.length - 1;
+  const alsoOn =
+    others > 0 ? ` (and ${others} other${others === 1 ? "" : "s"} on the same surface)` : "";
+
+  return {
+    id: "coordinate-with-experiment",
+    dimension: "measurability",
+    title: `Coordinate with ${experiment.owner} before shipping to ${collision.surface}`,
+    rationale: `${experiment.name} is allocating traffic on ${collision.surface} until ${experiment.endsAt}${alsoOn}, reading ${experiment.primaryMetric}. Shipping into it leaves both arms carrying this change, so its difference stops being attributable to its own treatment.`,
+    steps: [
+      `Ask ${experiment.owner} whether ${experiment.id} can absorb this: if it reads ${experiment.primaryMetric} and this change cannot move that, there is nothing to coordinate.`,
+      `If it can't, hold until ${experiment.endsAt}, or ship behind a flag held off for the experiment's population.`,
+      `If it ships anyway, record the date on ${experiment.id} so whoever reads its result knows what moved underneath it.`,
+    ],
+    patch: null,
+  };
+}
+
 export function remediationsFor(
   profile: ChangeProfile,
   evidence: Evidence,
@@ -110,6 +146,16 @@ export function remediationsFor(
     const power = raisePower(evidence);
     if (power !== null) remediations.push(power);
   }
+
+  /**
+   * Offered whenever a collision exists, not only when it decided the dimension's rationale.
+   * It usually will not have: the attribution failures are reported ahead of it, because they
+   * are this change's own problem. The collision is somebody else's experiment and is the thing
+   * a change author is least likely to know about, so it should not disappear behind a rule that
+   * happened to sort first.
+   */
+  const experiment = coordinateWithExperiment(evidence);
+  if (experiment !== null) remediations.push(experiment);
 
   // Cost is offered whenever a single directive dominates the bill, even when the
   // total stays inside its ceiling. A $298 line nobody intended is worth a sentence

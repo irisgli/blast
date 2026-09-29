@@ -1,0 +1,122 @@
+name: blast
+
+on:
+  pull_request:
+
+# The brief is posted as a comment and updated in place, so the job needs write access to
+# the thread and nothing else. Read access to contents is for the diff.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  decide:
+    runs-on: ubuntu-latest
+
+    steps:
+      # The whole history, because a decision is a diff between two refs and a shallow clone
+      # has neither. The checkout leaves a detached HEAD with the branches under `origin/`,
+      # which `readChange` now resolves against — a bare branch name exists locally on a
+      # developer's machine and does not here.
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      # The decision, and the evidence it was made from. The snapshot is what makes this
+      # run reproducible later: `blast decide --snapshot` reaches the same digest without
+      # calling a single source. It is uploaded rather than kept, because an ephemeral
+      # runner's filesystem is not a record.
+      - name: Decide
+        run: |
+          pnpm blast decide "${{ github.event.pull_request.number }}" \
+            --intent "${{ github.event.pull_request.title }}" \
+            --repo "${{ github.repository }}" \
+            --write-snapshot blast-snapshot.json \
+            --log blast-decisions.jsonl \
+            > blast-decision.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Posted from the decision that was already made, so the comment and the gate cannot
+      # disagree about what was decided.
+      - name: Post the brief
+        run: |
+          pnpm blast brief "${{ github.event.pull_request.number }}" \
+            --intent "${{ github.event.pull_request.title }}" \
+            --no-log \
+            --post
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload the decision and its evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: blast-decision
+          path: |
+            blast-decision.json
+            blast-snapshot.json
+            blast-decisions.jsonl
+          retention-days: 90
+
+      # Nothing in this repository blocks a merge, and `blast.json` says why: every source
+      # reads checked-in fixtures, so a verdict here is a verdict about a sample storefront's
+      # traffic. Gating on it would be gating on somebody else's numbers. The policy sets
+      # `enforcement.default: warn` for exactly that reason, and this step is here so the
+      # exit code is still exercised on every pull request rather than only in a test.
+      - name: Report the verdict
+        run: |
+          node -e "
+            const decision = require('./blast-decision.json');
+            const rules = decision.triggered.map((entry) => entry.ruleId).join(', ') || 'none';
+            console.log('verdict: ' + decision.verdict + ' (' + decision.confidence + ')');
+            console.log('rules fired: ' + rules);
+            console.log('evidence: ' + decision.evidenceSource + ' ' + decision.snapshotId);
+          "
+
+  # What the policy would have done to history, on every change to the policy itself.
+  # A threshold edited without this is a threshold nobody checked against real changes.
+  calibrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Backfill against merged history
+        run: pnpm blast backfill --limit 50 | tee "$GITHUB_STEP_SUMMARY"

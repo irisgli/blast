@@ -117,6 +117,20 @@ organization keeps one baseline and a repository states its difference from it.
 A new rule starts `silent`: it records what it would have caught until you know its false
 positive rate, then you promote it. See [Policy](./docs/policy.md).
 
+## Before you turn it on
+
+```sh
+blast backfill --limit 100
+```
+
+What this policy would have done to the changes that already merged. Every one of them
+shipped, so read the rates rather than the counts: a rule firing on most of your history is
+miscalibrated, not strict — and the report says so and names the fix.
+
+That is the whole adoption story in one command. You find out what a threshold costs against
+your own work before it costs a colleague their afternoon. See
+[Adopting blast](./docs/adopting.md).
+
 ## What it can tell you in three months
 
 Every decision is recorded, append-only. `blast audit` answers the questions that decide
@@ -133,8 +147,21 @@ rules
 
 That second line is the useful one. A rule waived three times out of four is a rule the team
 disagrees with, whether or not anyone has said so — the honest version of a false-positive
-rate, and the thing to look at before turning another rule on. See
-[HTTP API](./docs/api.md).
+rate, and the thing to look at before turning another rule on. It renders at `/audit` too,
+from the same function, so a page and the command cannot disagree about a total.
+
+## And whether to believe the numbers
+
+Every cost figure is `modeled`. So blast measures itself:
+
+```sh
+blast reconcile 5f3c1a9e7d20b481 --observed 298.10 --from 2026-10-01 --to 2026-10-31
+```
+
+After five reconciled changes, every brief carries the answer — *"across 30 reconciled
+changes this model's median absolute error against the bill was 11%, and it usually reads
+low"* — which is the only honest reply to "why should I act on a modeled number". Nothing is
+auto-tuned: it measures the error and reports it. See [HTTP API](./docs/api.md).
 
 ## What comes back
 
@@ -287,6 +314,7 @@ being declared in the same shape a policy file uses is there to protect.
 - [Architecture](./docs/architecture.md) — routing, context isolation, data flow
 - [Running in CI](./docs/ci.md) — the command, its exit codes, and a workflow
 - [HTTP API](./docs/api.md) — the decision endpoint, authentication, the audit trail
+- [Adopting blast](./docs/adopting.md) — the order that earns the right to block a merge
 - [Policy](./docs/policy.md) — budgets, rules, enforcement, exceptions, inheritance
 - [Reproducibility](./docs/reproducibility.md) — digests, evidence snapshots, signatures
 - [Integrating](./docs/integrating.md) — contributing evidence from a system blast cannot reach

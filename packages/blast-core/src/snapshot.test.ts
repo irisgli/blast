@@ -42,6 +42,7 @@ function context(overrides: Partial<VerdictContext> = {}): VerdictContext {
     measurableSurfaces: ["/products/[slug]"],
     surfacesMissingFeatureEvents: [],
     underpoweredSurfaces: [],
+    surfacesWithRunningExperiment: [],
     measurabilityDataAvailable: true,
     ...overrides,
   };

@@ -53,6 +53,15 @@ export interface VerdictContext {
   surfacesMissingFeatureEvents: string[];
   /** Surfaces where the detectable effect is larger than any effect seen there before. */
   underpoweredSurfaces: string[];
+  /**
+   * Surfaces carrying an experiment that is still allocating traffic.
+   *
+   * A change shipping here moves the ground under it: the difference between arms stops being
+   * attributable to the treatment, because one arm is now also getting the change. Empty when
+   * no experiment is running, and empty when the platform could not be read — the second case
+   * is covered by `measurabilityDataAvailable`, for the reason the funnel is.
+   */
+  surfacesWithRunningExperiment: string[];
   /** False when funnel or instrumentation data could not be read at all. */
   measurabilityDataAvailable: boolean;
 }
@@ -437,6 +446,23 @@ export function assessMeasurability(
       policy,
       `Traffic on ${surfaces} cannot resolve an effect the size this surface has produced before, so the experiment would end inconclusive however long it runs.`,
       context.underpoweredSurfaces[0] ?? null,
+    );
+    if (evaluation !== null) fired.push(evaluation);
+  }
+
+  /**
+   * Last of the three, because it is about somebody else's measurement rather than this
+   * change's. The other two say this change cannot be evaluated; this one says shipping it
+   * costs an experiment that is already running, which is a cost to a different team and is the
+   * one a change author is least likely to know about.
+   */
+  if (context.surfacesWithRunningExperiment.length > 0) {
+    const surfaces = context.surfacesWithRunningExperiment.join(", ");
+    const evaluation = predicateEvaluation(
+      "measurability.experiment-collision",
+      policy,
+      `An experiment is still allocating traffic on ${surfaces}. Shipping here makes its difference between arms unattributable to its own treatment, so it will report a number and the number will be wrong.`,
+      context.surfacesWithRunningExperiment[0] ?? null,
     );
     if (evaluation !== null) fired.push(evaluation);
   }

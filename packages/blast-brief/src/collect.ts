@@ -7,8 +7,11 @@ import {
   costFindings,
   estimateAccuracyFindings,
   estimateHistoryAdapter,
+  collisionFindings,
+  collisionsBySurface,
   coverageFindings,
   estimateMonthlyCost,
+  experimentsAdapter,
   featureHistoryAdapter,
   featureKeyFromBranch,
   funnelAdapter,
@@ -22,9 +25,11 @@ import {
 } from "@blast/adapters";
 import type {
   BillingResult,
+  CollisionFinding,
   CostEstimate,
   CoverageFinding,
   EstimateRecord,
+  ExperimentsResult,
   FeatureHistoryResult,
   FunnelResult,
   PowerFinding,
@@ -67,6 +72,8 @@ export interface Evidence {
   estimateAccuracy: { medianPct: number; records: number } | null;
   coverage: CoverageFinding[];
   power: PowerFinding[];
+  /** Surfaces carrying an experiment this change would contaminate, and what it would hit. */
+  collisions: CollisionFinding[];
   /**
    * The rest of what the sources returned, retained rather than re-fetched.
    *
@@ -157,6 +164,7 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
   const instrumentationCall = timed(instrumentationAdapter, () =>
     instrumentationAdapter.fetch({ surfaces }),
   );
+  const experimentsCall = timed(experimentsAdapter, () => experimentsAdapter.fetch({ surfaces }));
 
   const speed = await speedCall;
   sources.push(speed.status);
@@ -217,6 +225,20 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
     : { findings: [], bySurface: [] };
   findings.push(...coverage.findings);
 
+  /**
+   * Last of the measurability sources, and the only one about somebody else's measurement
+   * rather than this change's. A running experiment on a touched surface is a cost the change's
+   * author is least likely to know about, which is the argument for checking it here rather
+   * than hoping the two teams talk.
+   */
+  const experiments = await experimentsCall;
+  sources.push(experiments.status);
+  const experimentResult: ExperimentsResult | null = experiments.result.ok
+    ? experiments.result.value
+    : null;
+  const collisions = experimentResult === null ? [] : collisionsBySurface(experimentResult);
+  if (experimentResult !== null) findings.push(...collisionFindings(experimentResult));
+
   const context = buildVerdictContext({
     profile,
     allUsage: allUsage?.surfaces ?? [],
@@ -225,6 +247,7 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
     estimate,
     coverage: coverage.bySurface,
     power: power.bySurface,
+    collisions,
   });
 
   return {
@@ -236,6 +259,7 @@ export async function collectEvidence(profile: ChangeProfile): Promise<Evidence>
     estimateAccuracy,
     coverage: coverage.bySurface,
     power: power.bySurface,
+    collisions,
     estimateRecords: accuracy.result.ok ? accuracy.result.value.records : [],
     billing,
     usage: allUsage?.surfaces ?? [],
@@ -268,6 +292,7 @@ export function emptyEvidence(): Evidence {
       measurableSurfaces: [],
       surfacesMissingFeatureEvents: [],
       underpoweredSurfaces: [],
+      surfacesWithRunningExperiment: [],
       measurabilityDataAvailable: false,
     },
     sources: [],
@@ -276,6 +301,7 @@ export function emptyEvidence(): Evidence {
     estimateAccuracy: null,
     coverage: [],
     power: [],
+    collisions: [],
     estimateRecords: [],
     billing: null,
     usage: [],

@@ -2,7 +2,14 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { describeIngestAdapters, ingestWith, loadFixtureChangeProfile } from "@blast/adapters";
-import { FileDecisionStore, decisionLogPath, loadPolicy, produceBrief } from "@blast/brief";
+import {
+  FileDecisionStore,
+  FileReconciliationStore,
+  decisionLogPath,
+  loadPolicy,
+  produceBrief,
+  reconciliationLogPath,
+} from "@blast/brief";
 import type {
   ChangeProfile,
   Decision,
@@ -13,15 +20,19 @@ import type {
   Verdict,
 } from "@blast/core";
 import {
+  DEFAULT_POLICY,
   EXIT_BLOCKED,
   EXIT_OK,
   EXIT_UNAVAILABLE,
+  MINIMUM_RECONCILIATIONS,
   evidenceRecordSchema,
   readSnapshot,
+  reconciliationSchema,
   signingKeysFrom,
   summarize,
   verifyDecision,
 } from "@blast/core";
+import { backfill, renderBackfill } from "./backfill.js";
 import { readChange } from "./change.js";
 import { postBrief } from "./comment.js";
 
@@ -62,6 +73,8 @@ usage
   blast decide <pr-number|branch|fixture> [options]
   blast audit  [options]
   blast verify <decision.json>
+  blast backfill [options]
+  blast reconcile <decision-id> --observed <usd> --from <date> --to <date> [options]
 
 brief and decide
   --intent <text>       what the change is for, in user-facing terms (required)
@@ -90,6 +103,28 @@ audit
   --json                machine-readable output
   --log <path>          which log to read
 
+backfill
+  Assesses the current policy against changes that already merged, and reports what it
+  would have held. Every one of them shipped, so read the rates rather than the counts:
+  a rule firing on most of a repository's history is miscalibrated, not strict.
+
+  --limit <n>           how many changes back to read (default 50)
+  --branch <name>       the branch to walk (default: the checked-out one)
+  --policy <path>       a blast.json to assess, instead of searching upwards
+  --json                machine-readable output
+
+reconcile
+  Records what a change actually cost, against what the decision predicted. Run it once the
+  bill for the change has arrived. 'blast audit' then reports the model's measured error,
+  and a brief carries it as a caveat on every estimate it makes.
+
+  --observed <usd>      the monthly delta that actually appeared on the bill (required)
+  --from <YYYY-MM-DD>   start of the billing window observed (required)
+  --to <YYYY-MM-DD>     end of the billing window observed (required)
+  --source <text>       where the figure came from: an invoice, a cost explorer
+  --note <text>         why the two differ, for whoever reads this later
+  --log <path>          the decision log to look the prediction up in
+
 verify
   Reads a decision and checks it against BLAST_SIGNING_KEYS. Exit 0 when the signature
   holds, 1 when it does not, 2 when there is nothing to check it with.
@@ -107,7 +142,7 @@ const SEVERITY: Record<Verdict, number> = {
   ship: 0,
 };
 
-type Command = "brief" | "decide" | "audit" | "verify";
+type Command = "brief" | "decide" | "audit" | "verify" | "backfill" | "reconcile";
 
 interface Options {
   command: Command;
@@ -130,6 +165,13 @@ interface Options {
   snapshot: string | null;
   writeSnapshot: string | null;
   sign: string | null;
+  limit: number;
+  branch: string | null;
+  observed: number | null;
+  from: string | null;
+  to: string | null;
+  source: string | null;
+  note: string | null;
 }
 
 function defaults(command: Command, ref: string): Options {
@@ -154,6 +196,13 @@ function defaults(command: Command, ref: string): Options {
     snapshot: null,
     writeSnapshot: null,
     sign: null,
+    limit: 50,
+    branch: null,
+    observed: null,
+    from: null,
+    to: null,
+    source: null,
+    note: null,
   };
 }
 
@@ -164,7 +213,9 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
     command !== "brief" &&
     command !== "decide" &&
     command !== "audit" &&
-    command !== "verify"
+    command !== "verify" &&
+    command !== "backfill" &&
+    command !== "reconcile"
   ) {
     return { error: `Unknown command ${command}.\n\n${USAGE}` };
   }
@@ -180,7 +231,7 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
   let ref = "";
   let start = 0;
 
-  if (command !== "audit") {
+  if (command !== "audit" && command !== "backfill") {
     const candidate = rest[0];
     if (candidate === undefined || candidate.startsWith("-")) {
       return { error: `A pull request number, a branch, or 'fixture' is required.\n\n${USAGE}` };
@@ -290,6 +341,51 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
         options.since = value;
         index += 1;
         break;
+      case "--limit": {
+        const parsedLimit = Number(value);
+        if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 1000) {
+          return { error: "--limit takes a whole number between 1 and 1000." };
+        }
+        options.limit = parsedLimit;
+        index += 1;
+        break;
+      }
+      case "--branch":
+        if (value === undefined) return { error: "--branch needs a name." };
+        options.branch = value;
+        index += 1;
+        break;
+      case "--observed": {
+        const usd = Number(value);
+        if (!Number.isFinite(usd)) return { error: "--observed takes a dollar amount." };
+        options.observed = usd;
+        index += 1;
+        break;
+      }
+      case "--from":
+        if (value === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return { error: "--from takes a date, as YYYY-MM-DD." };
+        }
+        options.from = value;
+        index += 1;
+        break;
+      case "--to":
+        if (value === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return { error: "--to takes a date, as YYYY-MM-DD." };
+        }
+        options.to = value;
+        index += 1;
+        break;
+      case "--source":
+        if (value === undefined) return { error: "--source needs a description." };
+        options.source = value;
+        index += 1;
+        break;
+      case "--note":
+        if (value === undefined) return { error: "--note needs text." };
+        options.note = value;
+        index += 1;
+        break;
       case "--snapshot":
         if (value === undefined) return { error: "--snapshot needs a path, or - for stdin." };
         options.snapshot = value;
@@ -313,7 +409,20 @@ function parseArgs(argv: readonly string[]): Options | { error: string } {
     }
   }
 
-  if (options.command !== "audit" && options.command !== "verify" && options.intent === "") {
+  if (options.command === "reconcile") {
+    if (options.observed === null) return { error: "--observed is required.\n\n" + USAGE };
+    if (options.from === null || options.to === null) {
+      return { error: "--from and --to are required: an observation needs a window.\n\n" + USAGE };
+    }
+    return options;
+  }
+
+  if (
+    options.command !== "audit" &&
+    options.command !== "verify" &&
+    options.command !== "backfill" &&
+    options.intent === ""
+  ) {
     /**
      * Refused rather than defaulted. A diff says what moved and never what it is for, and
      * the measurability dimension is the one that most needs the difference — a brief
@@ -447,6 +556,140 @@ async function runVerify(options: Options): Promise<number> {
   return EXIT_OK;
 }
 
+/**
+ * Assesses the current policy against history.
+ *
+ * Nothing here is recorded in the decision log. A backfill assesses changes against a policy
+ * that did not exist when they merged, and putting those in the audit trail would fill it with
+ * decisions that were never made about changes that were never gated.
+ */
+async function runBackfill(options: Options): Promise<number> {
+  let policy: Policy | undefined;
+  if (options.policy !== null) {
+    const loaded = await loadPolicy({ path: options.policy });
+    if (!loaded.ok) {
+      process.stderr.write(`blast: ${loaded.detail}\n`);
+      return EXIT_UNAVAILABLE;
+    }
+    policy = loaded.value;
+  }
+
+  const interactive = process.stderr.isTTY === true;
+  const report = await backfill({
+    limit: options.limit,
+    ...(options.branch === null ? {} : { branch: options.branch }),
+    ...(policy === undefined ? {} : { policy }),
+    ...(options.asOf === null ? {} : { asOf: options.asOf }),
+    onProgress: (done, total) => {
+      // Only when somebody is watching: a progress line in a CI log is noise.
+      if (interactive) process.stderr.write(`\rassessing ${done}/${total}…`);
+    },
+  });
+  if (interactive) process.stderr.write("\r\u001b[K");
+
+  if ("error" in report) {
+    process.stderr.write(`blast: ${report.error}\n`);
+    return EXIT_UNAVAILABLE;
+  }
+
+  if (options.json) {
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    return EXIT_OK;
+  }
+
+  process.stdout.write(`${renderBackfill(report).join("\n")}\n`);
+  return EXIT_OK;
+}
+
+/**
+ * Records what a change actually cost against what the decision predicted.
+ *
+ * The prediction is read from the decision log rather than taken from the caller. A
+ * reconciliation whose "predicted" number came from whoever was typing would measure nothing —
+ * the point is to compare the model against reality, and the model's side of that has to come
+ * from the record it wrote at the time.
+ */
+async function runReconcile(options: Options): Promise<number> {
+  const store = new FileDecisionStore({ path: decisionLogPath(options.log ?? undefined) });
+
+  let found;
+  try {
+    found = await store.get(options.ref);
+  } catch (error) {
+    process.stderr.write(
+      `blast: the decision log could not be read: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    return EXIT_UNAVAILABLE;
+  }
+
+  if (found === null) {
+    process.stderr.write(
+      `blast: no decision ${options.ref} in the log. Reconcile against a decision that was recorded, so the prediction comes from the record rather than from memory.\n`,
+    );
+    return EXIT_UNAVAILABLE;
+  }
+
+  const predicted = found.decision.impact.monthlyCostDeltaUsd;
+  if (predicted === null) {
+    process.stderr.write(
+      `blast: decision ${options.ref} carried no monthly cost estimate, so there is nothing to compare a bill to.\n`,
+    );
+    return EXIT_UNAVAILABLE;
+  }
+
+  const record = reconciliationSchema.safeParse({
+    schemaVersion: 1,
+    decisionId: found.decision.id,
+    repo: found.decision.subject.repo,
+    predictedMonthlyCostUsd: predicted,
+    observedMonthlyCostUsd: options.observed,
+    observedFrom: options.from,
+    observedTo: options.to,
+    observedFrom_source: options.source ?? "stated by the caller",
+    reconciledAt: new Date().toISOString(),
+    note: options.note,
+  });
+  if (!record.success) {
+    const issue = record.error.issues[0];
+    process.stderr.write(
+      `blast: ${issue?.message ?? "invalid reconciliation"} at ${issue?.path.join(".") || "the record"}.\n`,
+    );
+    return EXIT_UNAVAILABLE;
+  }
+
+  const reconciliations = new FileReconciliationStore({
+    path: reconciliationLogPath(),
+  });
+  try {
+    await reconciliations.append(record.data);
+  } catch (error) {
+    process.stderr.write(
+      `blast: the reconciliation could not be written: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    return EXIT_UNAVAILABLE;
+  }
+
+  const accuracy = await reconciliations.accuracy();
+  const observed = record.data.observedMonthlyCostUsd;
+  const direction = predicted < observed ? "under" : predicted > observed ? "over" : "exactly";
+
+  process.stdout.write(
+    `recorded: predicted $${predicted.toFixed(2)}, billed $${observed.toFixed(2)} — the model read ${direction}.\n`,
+  );
+  if (accuracy.medianAbsoluteErrorPct !== null) {
+    process.stdout.write(
+      `model error across ${accuracy.records} reconciled change${accuracy.records === 1 ? "" : "s"}: ${accuracy.medianAbsoluteErrorPct}% median absolute\n`,
+    );
+  }
+  if (accuracy.records < MINIMUM_RECONCILIATIONS) {
+    process.stdout.write(
+      `not yet quoted in briefs: ${MINIMUM_RECONCILIATIONS} reconciled changes are needed before a median means anything.\n`,
+    );
+  }
+
+  return EXIT_OK;
+}
+
 async function runAudit(options: Options): Promise<number> {
   const store = new FileDecisionStore({ path: decisionLogPath(options.log ?? undefined) });
 
@@ -467,8 +710,17 @@ async function runAudit(options: Options): Promise<number> {
 
   const summary = summarize(records);
 
+  /**
+   * The model's measured error belongs next to the totals it qualifies. A report that stated
+   * "$4,120 of modeled monthly spend on held changes" without saying how well this model has
+   * predicted bills before is asking to be read as a savings figure.
+   */
+  const accuracy = await new FileReconciliationStore({ path: reconciliationLogPath() }).accuracy(
+    options.repo === null ? {} : { repo: options.repo },
+  );
+
   if (options.json) {
-    process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ ...summary, costAccuracy: accuracy }, null, 2)}\n`);
     return EXIT_OK;
   }
 
@@ -507,6 +759,32 @@ async function runAudit(options: Options): Promise<number> {
     }
   }
 
+  if (accuracy.records > 0) {
+    lines.push(
+      "",
+      "cost model, against the bill",
+      `  reconciled changes  ${accuracy.records}`,
+      `  median error        ${accuracy.medianAbsoluteErrorPct === null ? "—" : `${accuracy.medianAbsoluteErrorPct}%`}`,
+      `  predicted / billed  $${accuracy.totalPredictedUsd.toFixed(2)} / $${accuracy.totalObservedUsd.toFixed(2)}`,
+    );
+    if (accuracy.worst !== null) {
+      lines.push(
+        `  worst miss          ${accuracy.worst.errorPct}% on ${accuracy.worst.decisionId}`,
+      );
+    }
+    if (accuracy.records < MINIMUM_RECONCILIATIONS) {
+      lines.push(
+        `  (not quoted in briefs yet: ${MINIMUM_RECONCILIATIONS} reconciled changes are needed first)`,
+      );
+    }
+  } else {
+    lines.push(
+      "",
+      "No change has been reconciled against a bill, so this model's error is unknown.",
+      "Run `blast reconcile <decision-id> --observed <usd> --from … --to …` once a bill arrives.",
+    );
+  }
+
   if (summary.lapsedExceptions.length > 0) {
     lines.push("", "lapsed exceptions still being relied on");
     for (const entry of summary.lapsedExceptions) {
@@ -527,6 +805,8 @@ async function main(argv: readonly string[]): Promise<number> {
 
   if (parsed.command === "audit") return runAudit(parsed);
   if (parsed.command === "verify") return runVerify(parsed);
+  if (parsed.command === "backfill") return runBackfill(parsed);
+  if (parsed.command === "reconcile") return runReconcile(parsed);
 
   let profile: ChangeProfile;
   let notes: string[];
@@ -562,6 +842,18 @@ async function main(argv: readonly string[]): Promise<number> {
       return EXIT_UNAVAILABLE;
     }
     policy = loaded.value;
+  } else if (parsed.ref === "fixture") {
+    /**
+     * The sample pull request is a fictional storefront's, and its budgets are the defaults.
+     *
+     * Without this, running `blast brief fixture` inside a repository that has a `blast.json`
+     * assesses somebody else's change against that repository's budgets — which is the same
+     * category error `/api/brief` refuses by never reading a policy beside the server, and the
+     * one the demo page had to be pinned against. Asked for by name with `--policy`, a file
+     * still applies: that is a caller saying what they mean.
+     */
+    policy = DEFAULT_POLICY;
+    notes.push("Assessed against the default budgets: the sample change is not this repository's.");
   }
 
   const surfaces = profile.surfaces.map((surface) => surface.id);
@@ -636,6 +928,14 @@ async function main(argv: readonly string[]): Promise<number> {
     ...(parsed.asOf === null ? {} : { asOf: parsed.asOf }),
     ...(snapshot === undefined ? {} : { snapshot }),
     ...(signingKey === undefined ? {} : { signingKey }),
+    /**
+     * The model's measured error, so a brief states how much a reader should act on its
+     * estimate. Absent until enough changes have been reconciled, which is the honest state of
+     * a model whose predictions have never been checked.
+     */
+    costAccuracy: await new FileReconciliationStore({ path: reconciliationLogPath() }).accuracy(
+      parsed.repo === null ? {} : { repo: parsed.repo },
+    ),
   });
 
   if (!produced.ok) {
