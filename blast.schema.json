@@ -11,14 +11,60 @@
     "extends": {
       "anyOf": [
         {
-          "type": "string",
-          "minLength": 1
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "An https URL serving a policy document."
+                },
+                "digest": {
+                  "description": "The content address of the document. Pin it: unpinned budgets can move.",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{16}$"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          ]
         },
         {
           "type": "array",
           "items": {
-            "type": "string",
-            "minLength": 1
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "An https URL serving a policy document."
+                  },
+                  "digest": {
+                    "description": "The content address of the document. Pin it: unpinned budgets can move.",
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{16}$"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            ]
           }
         }
       ]

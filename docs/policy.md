@@ -150,6 +150,29 @@ high waive rate is a rule some team disagrees with, and the log can say which te
 baseline in one place and a repository states only its difference from it, which is the
 difference between a policy a platform team can move and eighty copies of one.
 
+A baseline may be a path or an https URL, and a URL should be pinned:
+
+```json
+{ "extends": { "url": "https://policies.acme.example/blast.json", "digest": "a2b83368a7934082" } }
+```
+
+A path only works when the baseline is vendored into the repository, which is the eighty
+copies problem one layer up. A bare URL solves that and introduces a worse one — budgets that
+change under a repository change its verdicts without a commit there. Pinning restores the
+property the vendored file had: bumping the organization's budgets becomes a reviewable
+one-line diff in every repository that inherits them. An unpinned URL is allowed, because a
+team adopting this should not have to compute a digest before anything works, and the policy
+reports which it was.
+
+The digest is over the parsed document rather than the raw bytes, so reformatting upstream does
+not break every repository that pinned it while a changed budget still does.
+
+Three refusals, each because the alternative is a verdict measured against budgets nobody
+chose: plain http, because a policy in transit is exactly what somebody would rewrite; a failed
+fetch or non-200, which fails the run rather than falling back to the defaults; and an
+`extends` inside a fetched document, which is not followed, because a pinned digest vouches for
+the bytes it names and not for whatever they point at next.
+
 Precedence is stated rather than emergent:
 
 - Budgets merge key by key, and the nearest document wins.

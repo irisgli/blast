@@ -122,6 +122,35 @@ const BUDGET_NAMES = [
 const budgetRefSchema = z.object({ budget: z.enum(BUDGET_NAMES) }).strict();
 
 /**
+ * A document to inherit from: a path, a URL, or a URL pinned to a digest.
+ *
+ * A path only works when the baseline is vendored into the repository, which is the eighty
+ * copies problem `extends` exists to solve. A URL solves it and introduces a worse one: a
+ * policy that changes under a repository changes its verdicts without a commit, which is the
+ * one thing budgets-as-data is supposed to prevent.
+ *
+ * So a remote baseline may be pinned. `{ "url": "…", "digest": "…" }` fetches it and refuses
+ * to apply it unless the bytes hash to the digest, which makes bumping an organization's
+ * budgets a reviewable one-line diff in every repository that inherits them — the same
+ * property a vendored file had, without the copies.
+ */
+const extendsEntrySchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      url: z.string().url().describe("An https URL serving a policy document."),
+      digest: z
+        .string()
+        .regex(/^[0-9a-f]{16}$/)
+        .optional()
+        .describe("The content address of the document. Pin it: unpinned budgets can move."),
+    })
+    .strict(),
+]);
+
+export type ExtendsEntry = z.output<typeof extendsEntrySchema>;
+
+/**
  * A rule a repository declares for itself.
  *
  * This is the half of the integration contract that lives in the repository. An adapter
@@ -230,7 +259,7 @@ export const policyFileSchema = z
      * baseline in one place and a repository states only its difference from it, which is
      * the difference between a policy a platform team can move and eighty copies of one.
      */
-    extends: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    extends: z.union([extendsEntrySchema, z.array(extendsEntrySchema)]).optional(),
     budgets: budgetsSchema.default({}),
     surfaces: z.array(surfaceBudgetSchema).default([]),
     rules: z.array(ruleSchema).default([]),

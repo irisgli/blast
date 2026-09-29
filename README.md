@@ -288,6 +288,7 @@ being declared in the same shape a policy file uses is there to protect.
 - [Running in CI](./docs/ci.md) — the command, its exit codes, and a workflow
 - [HTTP API](./docs/api.md) — the decision endpoint, authentication, the audit trail
 - [Policy](./docs/policy.md) — budgets, rules, enforcement, exceptions, inheritance
+- [Reproducibility](./docs/reproducibility.md) — digests, evidence snapshots, signatures
 - [Integrating](./docs/integrating.md) — contributing evidence from a system blast cannot reach
 - [Deploying](./docs/deploying.md) — Vercel, credentials, the GitHub App
 - [Adapters](./docs/adapters.md) — the contract, and adding a live source

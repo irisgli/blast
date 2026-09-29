@@ -1,7 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import type { Policy, PolicyDocument, Result } from "@blast/core";
-import { composePolicy, DEFAULT_POLICY, fail, ok, parsePolicyDocument } from "@blast/core";
+import type { ExtendsEntry, Policy, PolicyDocument, Result } from "@blast/core";
+import {
+  composePolicy,
+  contentAddress,
+  DEFAULT_POLICY,
+  fail,
+  ok,
+  parsePolicyDocument,
+} from "@blast/core";
 
 /**
  * Finds the budgets a repository set for itself.
@@ -102,10 +109,23 @@ async function resolveChain(
   if (!parsed.ok) return fail(parsed.reason, parsed.detail);
 
   const declared = parsed.value.extends;
-  const parents = declared === undefined ? [] : Array.isArray(declared) ? declared : [declared];
+  const parents: ExtendsEntry[] =
+    declared === undefined ? [] : Array.isArray(declared) ? declared : [declared];
   const chain: PolicyDocument[] = [];
 
   for (const parent of parents) {
+    if (typeof parent === "object") {
+      const fetched = await fetchPolicy(parent, path);
+      if (!fetched.ok) return fail(fetched.reason, fetched.detail);
+      /**
+       * A remote baseline is a leaf. Following an `extends` inside a fetched document would
+       * let a URL somebody else controls pull in further documents nobody in this repository
+       * has ever seen, and a pinned digest only vouches for the bytes it names.
+       */
+      chain.push({ document: fetched.value, path: parent.url });
+      continue;
+    }
+
     const parentPath = isAbsolute(parent) ? parent : resolve(dirname(path), parent);
     const resolved = await resolveChain(parentPath, [...seen, path], depth + 1);
     if (!resolved.ok) return resolved;
@@ -114,6 +134,91 @@ async function resolveChain(
 
   chain.push({ document: document.value, path });
   return ok(chain, "current with the change");
+}
+
+/** How long a policy fetch may take before the run fails rather than hanging a pipeline. */
+const FETCH_TIMEOUT_MS = 10_000;
+
+/** Generous for a policy document, small enough that nothing interesting arrives. */
+const MAX_POLICY_BYTES = 256 * 1024;
+
+/**
+ * Fetches a remote baseline, and refuses it unless it is the one that was pinned.
+ *
+ * `https` only: a policy over plain http can be rewritten in transit, and budgets are exactly
+ * what somebody would rewrite. An unpinned document is allowed, because a team adopting this
+ * should not have to compute a digest before anything works, and it is reported as unpinned so
+ * the choice is visible rather than silent.
+ */
+async function fetchPolicy(
+  entry: { url: string; digest?: string },
+  from: string,
+): Promise<Result<unknown>> {
+  let url: URL;
+  try {
+    url = new URL(entry.url);
+  } catch {
+    return fail("unavailable", `${from} extends ${entry.url}, which is not a URL.`);
+  }
+
+  if (url.protocol !== "https:") {
+    return fail(
+      "unavailable",
+      `${from} extends ${entry.url} over ${url.protocol.replace(":", "")}. A policy must be fetched over https: budgets rewritten in transit produce verdicts nobody chose.`,
+    );
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: { accept: "application/json" },
+    });
+  } catch (error) {
+    return fail(
+      "unavailable",
+      `${entry.url} could not be fetched: ${error instanceof Error ? error.message : String(error)}. The defaults were not substituted.`,
+    );
+  }
+
+  if (!response.ok) {
+    return fail(
+      "unavailable",
+      `${entry.url} answered ${response.status}. The defaults were not substituted, because budgets nobody chose produce verdicts nobody chose.`,
+    );
+  }
+
+  const text = await response.text();
+  if (text.length > MAX_POLICY_BYTES) {
+    return fail("unavailable", `${entry.url} is larger than ${MAX_POLICY_BYTES} bytes.`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    return fail(
+      "unavailable",
+      `${entry.url} is not valid JSON: ${error instanceof Error ? error.message : String(error)}.`,
+    );
+  }
+
+  if (entry.digest !== undefined) {
+    /**
+     * Over the parsed document rather than the raw bytes, so reformatting the file upstream
+     * does not break every repository that pinned it while a changed budget still does. The
+     * digest is about what the policy says, not how it was whitespaced.
+     */
+    const actual = contentAddress(parsed);
+    if (actual !== entry.digest) {
+      return fail(
+        "unavailable",
+        `${entry.url} has changed: it was pinned to ${entry.digest} and now hashes to ${actual}. Review what moved and update the pin — an organization's budgets changing without a commit in this repository is the thing pinning exists to prevent.`,
+      );
+    }
+  }
+
+  return ok(parsed, entry.digest === undefined ? "fetched, unpinned" : "fetched, pinned");
 }
 
 /**
