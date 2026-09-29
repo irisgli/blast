@@ -33,6 +33,11 @@ jobs:
       - name: Run lint
         run: pnpm lint
 
+      # The architectural invariants, checked rather than asserted. In lint's job because it
+      # is the same kind of check and needs nothing built.
+      - name: Check module boundaries
+        run: pnpm check:boundaries
+
   typecheck:
     runs-on: ubuntu-latest
 
