@@ -163,6 +163,20 @@ without a scope there is nothing to stop one team's pipeline being answered agai
 team's policy. A malformed key configuration refuses every request rather than falling
 through to the unauthenticated path.
 
+**A backfill never writes to the decision log, and never auto-tunes anything.** It assesses
+history against a policy that did not exist at the time, so its output belongs nowhere near a
+record of what was actually decided about what was actually gated. The same rule governs
+reconciliation: it measures the cost model's error against real bills and reports it, and
+correcting the model is a change somebody makes on purpose, under review. A tool that quietly
+fitted its estimates to past observations would be one whose numbers nobody can reason about
+from its inputs, and every stated basis would stop meaning anything.
+
+**The demo assesses the storefront's budgets, never this repository's.** `getDemoBrief` pins
+`DEFAULT_POLICY` rather than searching upward. The sample pull request belongs to a fictional
+storefront, and the page exists to show what a held change looks like — a verdict that moved
+because blast softened its own enforcement would be demonstrating the wrong thing. Same
+category error `/api/brief` refuses by never reading a policy beside the server.
+
 **Every outward side effect requires approval on every call.** `post_comment` and
 `propose_fix` use `always()` from `eve/tools/approval`. Do not add a write path that
 defaults to allowed, and do not downgrade either to `once()`.
@@ -217,6 +231,7 @@ pnpm test:agent       # the pipeline end to end over the fixtures
 pnpm build && pnpm blast brief fixture --intent "…"    # the brief a human reads
 pnpm build && pnpm blast decide fixture --intent "…"   # the decision a pipeline acts on
 pnpm blast audit                                       # what the log says so far
+pnpm blast backfill --limit 50                         # what the policy would have done to history
 ```
 
 All of these run in CI, so running them locally before pushing saves a round trip.
