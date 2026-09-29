@@ -20,6 +20,7 @@ import type {
   Verdict,
 } from "@blast/core";
 import {
+  DEFAULT_POLICY,
   EXIT_BLOCKED,
   EXIT_OK,
   EXIT_UNAVAILABLE,
@@ -841,6 +842,18 @@ async function main(argv: readonly string[]): Promise<number> {
       return EXIT_UNAVAILABLE;
     }
     policy = loaded.value;
+  } else if (parsed.ref === "fixture") {
+    /**
+     * The sample pull request is a fictional storefront's, and its budgets are the defaults.
+     *
+     * Without this, running `blast brief fixture` inside a repository that has a `blast.json`
+     * assesses somebody else's change against that repository's budgets — which is the same
+     * category error `/api/brief` refuses by never reading a policy beside the server, and the
+     * one the demo page had to be pinned against. Asked for by name with `--policy`, a file
+     * still applies: that is a caller saying what they mean.
+     */
+    policy = DEFAULT_POLICY;
+    notes.push("Assessed against the default budgets: the sample change is not this repository's.");
   }
 
   const surfaces = profile.surfaces.map((surface) => surface.id);

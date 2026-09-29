@@ -14,8 +14,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # The whole history, because a decision is a diff between two refs and a shallow
-      # clone has neither.
+      # The whole history, because a decision is a diff between two refs and a shallow clone
+      # has neither. The checkout leaves a detached HEAD with the branches under `origin/`,
+      # which `readChange` now resolves against — a bare branch name exists locally on a
+      # developer's machine and does not here.
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

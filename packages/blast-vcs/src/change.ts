@@ -123,6 +123,28 @@ export interface ReadChangeBetweenOptions {
  * than a branch name — a merged pull request's branch is usually gone, so resolving one by
  * name would fail on exactly the changes a backfill is about.
  */
+/**
+ * A name git can actually resolve here, preferring the local ref and falling back to the remote.
+ *
+ * On a developer's machine `main` is a local branch. In CI it usually is not: `actions/checkout`
+ * leaves a detached HEAD with the branches under `origin/`, so a pull request's base and head —
+ * which `gh` reports as bare names — resolve to nothing and the diff fails with `bad revision`.
+ * That failure looked like a broken repository and was a broken assumption.
+ *
+ * Returns null when neither exists, so the caller can say which ref was missing instead of
+ * passing an unresolvable name to git and relaying whatever git says about it.
+ */
+async function resolvable(name: string, cwd: string | undefined): Promise<string | null> {
+  for (const candidate of [name, `origin/${name}`]) {
+    const verified = await runCommand("git", ["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`], {
+      timeoutMs: GIT_TIMEOUT_MS,
+      ...(cwd === undefined ? {} : { cwd }),
+    });
+    if (verified.ok && verified.stdout.trim() !== "") return candidate;
+  }
+  return null;
+}
+
 export async function readChangeBetween(
   options: ReadChangeBetweenOptions,
 ): Promise<Result<ChangeRead>> {
@@ -149,7 +171,26 @@ export async function readChangeBetween(
     }
   }
 
-  const range = `${refs.value.base}...${refs.value.head}`;
+  /**
+   * Resolved before the range is built, so a missing ref is reported as a missing ref rather
+   * than as a diff that could not be read.
+   */
+  const resolvedBase = await resolvable(refs.value.base, cwd);
+  const resolvedHead = await resolvable(refs.value.head, cwd);
+
+  for (const [field, name, resolved] of [
+    ["base", refs.value.base, resolvedBase],
+    ["head", refs.value.head, resolvedHead],
+  ] as const) {
+    if (resolved === null) {
+      return fail(
+        "no-data",
+        `Neither ${name} nor origin/${name} exists in this checkout, so the ${field} of the change cannot be resolved. In CI this usually means the branch was not fetched: check out with fetch-depth 0, and make sure the job fetches the base branch as well as the head.`,
+      );
+    }
+  }
+
+  const range = `${resolvedBase}...${resolvedHead}`;
   const git = (args: string[]) =>
     runCommand("git", args, {
       timeoutMs: GIT_TIMEOUT_MS,

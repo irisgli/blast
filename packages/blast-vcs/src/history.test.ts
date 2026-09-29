@@ -144,3 +144,69 @@ describe("refusals", () => {
     expect((await listMergedChanges({ limit: 5000 })).ok).toBe(false);
   });
 });
+
+describe("resolving a ref that is only on the remote", () => {
+  let root = "";
+
+  beforeAll(async () => {
+    // A bare "origin" and a clone of it, which is the shape CI checkouts actually have:
+    // detached HEAD, branches under origin/, nothing local but the commit.
+    const origin = await mkdtemp(join(tmpdir(), "blast-origin-"));
+    await git(origin, ["init", "--bare", "--initial-branch=main"]);
+
+    const work = await mkdtemp(join(tmpdir(), "blast-work-"));
+    await git(work, ["init", "--initial-branch=main"]);
+    await commit(work, "a.txt", "chore: initial");
+    await commit(work, "b.txt", "feat: a change");
+    await git(work, ["remote", "add", "origin", origin]);
+    await git(work, ["push", "origin", "main"]);
+
+    root = await mkdtemp(join(tmpdir(), "blast-clone-"));
+    await git(root, ["clone", origin, "."]);
+    const head = (await git(root, ["rev-parse", "HEAD"])).trim();
+    await git(root, ["checkout", "--detach", head]);
+    await git(root, ["branch", "-D", "main"]);
+  });
+
+  it("reads history from a detached checkout with no local branches", async () => {
+    const result = await listMergedChanges({ limit: 10, branch: "origin/main", cwd: root });
+    if (!result.ok) throw new Error(result.detail);
+    expect(result.value.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The failure this guards against looked like a broken repository and was a broken
+   * assumption: `gh` reports a pull request's branches as bare names, and in CI those resolve
+   * to nothing.
+   */
+  it("diffs a branch that exists only under origin", async () => {
+    const { readChangeBetween } = await import("./change.js");
+    const result = await readChangeBetween({
+      base: "main",
+      head: "main",
+      kind: "branch",
+      id: "main",
+      intent: "a change",
+      cwd: root,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("names the ref that is missing rather than relaying git's complaint", async () => {
+    const { readChangeBetween } = await import("./change.js");
+    const result = await readChangeBetween({
+      base: "no-such-branch",
+      head: "main",
+      kind: "branch",
+      id: "1",
+      intent: "a change",
+      cwd: root,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.detail).toContain("no-such-branch");
+      expect(result.detail).toContain("fetch-depth");
+    }
+  });
+});
