@@ -40,6 +40,15 @@ Style the tool name as `blast`, lowercase, in docs, prompts, comments, and headi
 These are the rules that make the output trustworthy. Breaking one is never a
 refactor; it changes what the tool means.
 
+Five of them are checked rather than asserted, by
+[`scripts/check-module-boundaries.mjs`](./scripts/check-module-boundaries.mjs) on every run of
+`pnpm test` and in CI: package layering, core reaching no filesystem, core reading no
+environment, processes starting only in `@blast/vcs`, and the engine being driven through
+`produceBrief`. A boundary nothing checks is one that has already been crossed somewhere, and
+the crossing looks exactly like ordinary code — which is the argument this repository makes
+about verdicts, applied to itself. The rest are below because they are not mechanically
+checkable, and knowing which list a rule is on is worth something.
+
 **The model never decides the verdict.** Rules are data in
 `packages/blast-core/src/rules.ts`, the defaults are declared in `builtin-rules.ts`,
 composition lives in `ruleset.ts`, and `verdict.ts` runs them. If you find yourself asking
@@ -219,12 +228,14 @@ pnpm --filter @blast/web dev   # run the web surface on :3100
 
 pnpm typecheck        # TypeScript across the workspace
 pnpm lint             # oxlint (auto-fixes)
+pnpm check:boundaries # the architectural invariants, enforced
 pnpm fmt              # oxfmt
 
 pnpm test             # unit + contract + agent
 pnpm schema           # regenerate blast.schema.json from policyFileSchema
 
 pnpm test:unit        # rules, policy composition, verdicts, auth, the audit model
+pnpm test:scripts     # the workspace tooling, including the boundary rules themselves
 pnpm test:contract    # adapter and ingest contract conformance
 pnpm test:agent       # the pipeline end to end over the fixtures
 
