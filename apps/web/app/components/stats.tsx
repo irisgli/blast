@@ -56,7 +56,7 @@ export async function Stats() {
     {
       label: "Digest",
       value: brief.digest,
-      basis: "same digest, same assessment",
+      basis: "same digest, same decision",
       tone: "mono",
     },
   ] as const;

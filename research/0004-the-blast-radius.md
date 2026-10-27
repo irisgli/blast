@@ -51,3 +51,17 @@ No loader, no page curtain, no type scatter on every heading: the reference site
 prompted this are hackathon pages and their motion was borrowed for its engineering, not
 its register. The page is still light, still five sections, and still prints nothing it
 did not compute.
+
+## Revised the same day: the night
+
+The light page was judged against the twelve project sites its reader admires (nami, bro,
+dialed, eve, flow, ione, kali, scalpal, skarl, tadaima, tapn, iris, with vima) and read as
+a template beside them. Their recipe is consistent: a dark world with one scene drawn in
+WebGL or ASCII, a preloader with a readout, SVG-turbulence grain, a serif wordmark with a
+trailing point over mono labels, Next or Vite with GSAP, Lenis and `motion`, and a
+DESIGN.md. The page now follows it with its own material: a blue-black night, the field
+as the one luminous scene, `blast.` in Besley, Azeret Mono for every line the page says
+itself, grain over everything, a curtain with a readout once per session. The product
+panels take the same tokens, so the brief and the playground sit in the night with the
+page. Five numbered stages under the hero, one line each, after the Plaid demo page's
+measure: a headline, a line, the thing itself.

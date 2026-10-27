@@ -142,8 +142,8 @@ export async function ChangeCard() {
     <div>
       <CodeBlock lines={diff} caption={change.file ?? change.surface} label="The change" />
       <p className="lede" style={{ marginTop: "1.25rem" }}>
-        One line, in a pull request about a recommendations carousel. It passed review, because a
-        cache header does not look like a spending decision.
+        One line in a pull request about a recommendations carousel. It passed review. Nobody
+        noticed it makes the server rebuild the page far more often.
       </p>
     </div>
   );

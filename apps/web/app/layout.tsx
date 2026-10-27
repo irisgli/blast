@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
-import { Azeret_Mono, Schibsted_Grotesk } from "next/font/google";
+import { Azeret_Mono, Besley, Schibsted_Grotesk } from "next/font/google";
+import { NO_SCRIPT_LOADER_CSS } from "./components/loader";
 import { NO_SCRIPT_MOTION_CSS } from "./components/motion";
 import { SITE_URL } from "./site";
 import "./globals.css";
 
 /**
- * Two families on a proportion axis: a sharp, slightly narrow newspaper grotesk for the
- * words and a wide display monospace for the readouts. A reader can tell a measurement
- * from a sentence at a glance, which is the one thing this page's type has to do.
+ * Three families, each with one job. A Clarendon for the words that are the page's own:
+ * the wordmark, the stage titles, the properties. A wide display monospace for every
+ * label, lede and readout, so the instrument's voice is told from the page's at a glance.
+ * A sharp newspaper grotesk for the product panels, which are the brief as it lands on a
+ * pull request and keep their own register.
  */
+const display = Besley({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 const sans = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const mono = Azeret_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
@@ -42,15 +46,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
      * never ran and every section below the hero stayed invisible. Rendering it means
      * server and client agree, and there is nothing to flash.
      */
-    <html lang="en" className={`${sans.variable} ${mono.variable}`} data-motion="">
+    <html
+      lang="en"
+      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+      data-motion=""
+    >
       <head>
         {/*
-          Without JavaScript nothing will ever reveal these, so they are unhidden here
-          rather than left at zero opacity forever. A page that renders blank without
+          Without JavaScript nothing will ever reveal these or lift the curtain, so both
+          are undone here rather than left forever. A page that renders blank without
           scripting is not a page with an animation; it is a broken one.
         */}
         <noscript>
-          <style>{NO_SCRIPT_MOTION_CSS}</style>
+          <style>{NO_SCRIPT_MOTION_CSS + NO_SCRIPT_LOADER_CSS}</style>
         </noscript>
       </head>
       <body>{children}</body>

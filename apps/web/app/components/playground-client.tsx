@@ -187,7 +187,7 @@ export function PlaygroundClient({
           </div>
           <p className="control__hint">
             This change: <b className="mono">{fixture.events}</b> attributable events. Severity says
-            how bad; enforcement says what it may do.
+            how bad it is; enforcement says whether it can block the merge.
           </p>
         </div>
 
@@ -259,8 +259,8 @@ export function PlaygroundClient({
           <span>Digest</span> <b className="mono">{result.digest}</b>
           <span className="play__digest-note">
             {atDefaults
-              ? ". The page's own. Move anything and it changes, because the policy did."
-              : ". Moved with the policy. Same budgets, same digest, anywhere this runs."}
+              ? ". This is the page's own digest. Change a budget and it changes with it."
+              : ". The budgets changed, so the digest did. Same budgets give the same digest anywhere."}
           </span>
         </p>
 
@@ -279,7 +279,7 @@ export function PlaygroundClient({
           </pre>
           {atDefaults && (
             <p className="snippet__foot">
-              Nothing set, so the defaults apply. Every brief names the budgets it used either way.
+              Nothing is set, so the defaults apply. Every brief names the budgets it used.
             </p>
           )}
         </figure>
