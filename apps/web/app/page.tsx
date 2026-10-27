@@ -102,9 +102,9 @@ export default function Page() {
                   Know what a pull request costs before you merge it
                 </h1>
                 <p className="hero__sub" data-intro="sub">
-                  blast prices every pull request, checks it against budgets your team set, and
-                  says whether anyone will be able to tell if it worked. Decided by code, on every
-                  pull request, before anyone merges.
+                  blast prices every pull request, checks it against budgets your team set, and says
+                  whether anyone will be able to tell if it worked. Decided by code, on every pull
+                  request, before anyone merges.
                 </p>
                 <div className="hero__actions" data-intro="actions">
                   <a className="btn btn--primary" href="#playground">
@@ -144,9 +144,9 @@ export default function Page() {
             <div className="section-head" data-reveal="head">
               <h2 className="title">Your budgets decide, not ours</h2>
               <p className="lede">
-                Every verdict is a function of <code>blast.json</code>. Move a ceiling or soften
-                a rule and the same engine decides the sample change again on the server, then
-                shows you the file that would produce that verdict.
+                Every verdict is a function of <code>blast.json</code>. Move a ceiling or soften a
+                rule and the same engine decides the sample change again on the server, then shows
+                you the file that would produce that verdict.
               </p>
             </div>
             <Suspense fallback={<LiveBriefSkeleton />}>
@@ -193,8 +193,8 @@ export default function Page() {
                 <span className="setup__index mono">01</span>
                 <h3 className="setup__title">Set your budgets in blast.json</h3>
                 <p className="setup__body">
-                  One file at the root, reviewed alongside the code it governs. A checkout flow
-                  and an admin screen get different allowances; anything you leave out keeps its
+                  One file at the root, reviewed alongside the code it governs. A checkout flow and
+                  an admin screen get different allowances; anything you leave out keeps its
                   default.
                 </p>
                 <Snippet name="blast.json">{`{
@@ -212,8 +212,8 @@ export default function Page() {
                 <span className="setup__index mono">02</span>
                 <h3 className="setup__title">Run it on every pull request</h3>
                 <p className="setup__body">
-                  The job this repository runs on itself. The command builds from source until
-                  the package is published, and the evidence it decided from is uploaded with the
+                  The job this repository runs on itself. The command builds from source until the
+                  package is published, and the evidence it decided from is uploaded with the
                   decision.
                 </p>
                 <Snippet name=".github/workflows/blast.yml">{`- uses: actions/checkout@v5
@@ -233,9 +233,9 @@ export default function Page() {
                 <span className="setup__index mono">03</span>
                 <h3 className="setup__title">Gate the merge on the exit code</h3>
                 <p className="setup__body">
-                  1 when the verdict does not clear your gate, 2 when no decision could be made.
-                  A held change and a broken tool are not the same thing. This transcript is
-                  computed by the engine, not recorded.
+                  1 when the verdict does not clear your gate, 2 when no decision could be made. A
+                  held change and a broken tool are not the same thing. This transcript is computed
+                  by the engine, not recorded.
                 </p>
                 <Suspense fallback={<TerminalSkeleton />}>
                   <CommandDemo />
@@ -252,8 +252,8 @@ export default function Page() {
               <h2 className="title">Decided by code you can check</h2>
               <p className="lede">
                 The model gathers evidence and writes the narrative. Code decides the numbers and
-                the verdict, and the boundaries that keep it that way are checked by a script
-                rather than remembered.
+                the verdict, and the boundaries that keep it that way are checked by a script rather
+                than remembered.
               </p>
             </div>
             <Pipeline />

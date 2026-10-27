@@ -57,16 +57,16 @@ Two families on a proportion axis: a sharp, slightly narrow newspaper grotesk fo
 a wide display monospace for the instrument's readouts. They are not similar, which is the
 point; a reader can tell a measurement from a sentence at a glance.
 
-| Role | Family | Weight | Size | Notes |
-|---|---|---|---|---|
-| Display (h1) | Schibsted Grotesk | 700 | `clamp(2.75rem, 2rem + 3.2vw, 4.25rem)` | line-height 1.02, letter-spacing -0.03em, `text-wrap: balance`, max 15ch |
-| Section title (h2) | Schibsted Grotesk | 650 | `clamp(1.85rem, 1.4rem + 1.6vw, 2.6rem)` | line-height 1.08, letter-spacing -0.025em, max 20ch |
-| Panel title (h3) | Schibsted Grotesk | 600 | 1.125rem / 1.25rem | letter-spacing -0.015em |
-| Lede | Schibsted Grotesk | 400 | 1.125rem | line-height 1.55, 58ch, `--text-secondary` |
-| Body | Schibsted Grotesk | 400 | 1rem | line-height 1.6, 65ch max, `text-wrap: pretty` |
-| UI, dense panels | Schibsted Grotesk | 400 / 500 | 0.875rem | the brief and the playground are product UI and keep product density |
-| Readouts | Azeret Mono | 500 | 0.8125rem to `clamp(1.35rem, 1rem + 1.2vw, 1.9rem)` | `tabular-nums`, letter-spacing -0.01em; stat values, the digest, prices on diff lines, slider values |
-| Code, terminal, commands | Azeret Mono | 400 | 0.75rem / 0.8125rem | `font-variant-ligatures: none`, line-height 1.7 |
+| Role                     | Family            | Weight    | Size                                                | Notes                                                                                                |
+| ------------------------ | ----------------- | --------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Display (h1)             | Schibsted Grotesk | 700       | `clamp(2.75rem, 2rem + 3.2vw, 4.25rem)`             | line-height 1.02, letter-spacing -0.03em, `text-wrap: balance`, max 15ch                             |
+| Section title (h2)       | Schibsted Grotesk | 650       | `clamp(1.85rem, 1.4rem + 1.6vw, 2.6rem)`            | line-height 1.08, letter-spacing -0.025em, max 20ch                                                  |
+| Panel title (h3)         | Schibsted Grotesk | 600       | 1.125rem / 1.25rem                                  | letter-spacing -0.015em                                                                              |
+| Lede                     | Schibsted Grotesk | 400       | 1.125rem                                            | line-height 1.55, 58ch, `--text-secondary`                                                           |
+| Body                     | Schibsted Grotesk | 400       | 1rem                                                | line-height 1.6, 65ch max, `text-wrap: pretty`                                                       |
+| UI, dense panels         | Schibsted Grotesk | 400 / 500 | 0.875rem                                            | the brief and the playground are product UI and keep product density                                 |
+| Readouts                 | Azeret Mono       | 500       | 0.8125rem to `clamp(1.35rem, 1rem + 1.2vw, 1.9rem)` | `tabular-nums`, letter-spacing -0.01em; stat values, the digest, prices on diff lines, slider values |
+| Code, terminal, commands | Azeret Mono       | 400       | 0.75rem / 0.8125rem                                 | `font-variant-ligatures: none`, line-height 1.7                                                      |
 
 Scale: 1.25 ratio from a 16px base: 12.8 / 16 / 20 / 25 / 31 / 39 / 49 / 61px. Fluid
 `clamp()` on the two heading levels only; body and UI sizes are fixed.
@@ -85,20 +85,20 @@ Restrained on the page, committed in two places: the field in the hero carries t
 blue across the fold, and the closing band is drenched in it. Colour otherwise appears
 only where it carries state.
 
-| Token | Value | Role |
-|---|---|---|
-| `--background-100` | `#ffffff` | page and panels |
-| `--gray-100` … `--gray-1000` | `#f4f5f7` → `#101828` | neutral scale; `--band-tint` sections sit on `#f8f9fb` |
-| `--text-primary` | `#101828` | 16.4:1 on white |
-| `--text-secondary` | `#475467` | 7.4:1 on white; body prose |
-| `--text-tertiary` | `#667085` | 5.2:1 on white; labels and bases, never body |
-| `--border` / `--border-strong` | `#e4e7ec` / `#cfd5df` | hairlines; every border is 1px |
-| `--brand` | `#2a5bd7` | links, the primary action, the mark, the rings |
-| `--brand-strong` | `#1e47b8` | hover, and the closing band's drench |
-| `--brand-soft` | `#eaf0ff` | a tint behind a selected control |
-| `--field-ring` | `rgba(42, 91, 215, 0.24)` | the rings' peak intensity on white |
-| `--amber-*`, `--green-*`, `--neutral-*` | see `globals.css` | verdict and budget state: attention, within budget, unknown |
-| `--ink`, `--ink-raised`, `--ink-border`, `--ink-text`, `--ink-muted` | `#0f1424` … `#8a93a6` | code panes and the terminal, dark so they read as what they stand for |
+| Token                                                                | Value                     | Role                                                                  |
+| -------------------------------------------------------------------- | ------------------------- | --------------------------------------------------------------------- |
+| `--background-100`                                                   | `#ffffff`                 | page and panels                                                       |
+| `--gray-100` … `--gray-1000`                                         | `#f4f5f7` → `#101828`     | neutral scale; `--band-tint` sections sit on `#f8f9fb`                |
+| `--text-primary`                                                     | `#101828`                 | 16.4:1 on white                                                       |
+| `--text-secondary`                                                   | `#475467`                 | 7.4:1 on white; body prose                                            |
+| `--text-tertiary`                                                    | `#667085`                 | 5.2:1 on white; labels and bases, never body                          |
+| `--border` / `--border-strong`                                       | `#e4e7ec` / `#cfd5df`     | hairlines; every border is 1px                                        |
+| `--brand`                                                            | `#2a5bd7`                 | links, the primary action, the mark, the rings                        |
+| `--brand-strong`                                                     | `#1e47b8`                 | hover, and the closing band's drench                                  |
+| `--brand-soft`                                                       | `#eaf0ff`                 | a tint behind a selected control                                      |
+| `--field-ring`                                                       | `rgba(42, 91, 215, 0.24)` | the rings' peak intensity on white                                    |
+| `--amber-*`, `--green-*`, `--neutral-*`                              | see `globals.css`         | verdict and budget state: attention, within budget, unknown           |
+| `--ink`, `--ink-raised`, `--ink-border`, `--ink-text`, `--ink-muted` | `#0f1424` … `#8a93a6`     | code panes and the terminal, dark so they read as what they stand for |
 
 Rules: one accent. Blue is for things a reader can act on and for the field; it never
 colours a verdict. Amber means attention, green means within budget, grey means unknown,

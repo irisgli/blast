@@ -2719,7 +2719,9 @@ html[data-motion] .hero .field {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .seg__btn--on {

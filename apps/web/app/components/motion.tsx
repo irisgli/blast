@@ -203,7 +203,11 @@ function reveals() {
       gsap.set(element, { autoAlpha: 1, clipPath: "inset(0 100% 0 0 round 14px)" });
       gsap
         .timeline({ scrollTrigger })
-        .to(element, { clipPath: "inset(0 0% 0 0 round 14px)", duration: 1, ease: "power3.inOut" }, 0)
+        .to(
+          element,
+          { clipPath: "inset(0 0% 0 0 round 14px)", duration: 1, ease: "power3.inOut" },
+          0,
+        )
         .to(items, { autoAlpha: 1, x: 0, duration: 0.5, stagger: 0.07, ease: EASE }, 0.15);
       continue;
     }
