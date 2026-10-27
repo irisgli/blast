@@ -57,6 +57,11 @@ it states a measurement, names its basis, and does not sell. Sentence case every
 No exclamation, no superlatives, no lowercase-headline affectation. Where a number can
 be shown it is shown rather than described.
 
+Plain sentences, the way an engineer explains a tool to a colleague. Two sentences per
+lede at most. No aphorisms, no "X, not Y" pairs, no colon-and-flourish endings, no
+"never" as a rhetorical beat; those are the cadence of generated text, and a reader who
+spots it stops trusting the numbers beside it.
+
 The emotional goal is earned confidence. The reader should feel that someone careful
 built this and that nothing on the page is asking to be taken on trust.
 

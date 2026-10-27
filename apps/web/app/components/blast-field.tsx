@@ -37,6 +37,7 @@ uniform float u_time;
 uniform vec2 u_origin;
 uniform vec3 u_color;
 uniform float u_peak;
+uniform float u_core;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 
@@ -61,8 +62,9 @@ void main() {
 
   float a = (ring * 0.9 + pulse) * reach;
 
-  // A clear floor right at the change, where the card sits.
+  // A clear floor right at the change, where the card sits; on the dark, a glow instead.
   a *= smoothstep(24.0, 90.0, d);
+  a += u_core * (exp(-d / 70.0) * 0.55 + exp(-d / 260.0) * 0.12);
 
   // Grain, re-rolled eight times a second so it reads as film rather than a texture.
   a += (hash(gl_FragCoord.xy + floor(u_time * 8.0)) - 0.5) * 0.035;
@@ -75,9 +77,13 @@ void main() {
 const COLOR = {
   hero: [42 / 255, 91 / 255, 215 / 255],
   ink: [1, 1, 1],
+  night: [124 / 255, 156 / 255, 255 / 255],
 } as const;
 
-const PEAK = { hero: 0.24, ink: 0.16 } as const;
+const PEAK = { hero: 0.24, ink: 0.16, night: 0.5 } as const;
+
+/** On the dark the change itself glows; on paper the card covers the origin and a glow would print through it. */
+const CORE = { hero: 0, ink: 0, night: 1 } as const;
 
 /** Device pixel ratio is capped: the shader is smooth at 1.5 and a 3x canvas buys nothing. */
 const MAX_DPR = 1.5;
@@ -144,10 +150,12 @@ export function BlastField({
     const uOrigin = uniform("u_origin");
     const uColor = uniform("u_color");
     const uPeak = uniform("u_peak");
+    const uCore = uniform("u_core");
 
     const [r, g, b] = COLOR[variant];
     gl.uniform3f(uColor, r, g, b);
     gl.uniform1f(uPeak, PEAK[variant]);
+    gl.uniform1f(uCore, CORE[variant]);
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let dpr = 1;

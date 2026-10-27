@@ -91,6 +91,7 @@ function entrance(context: gsap.Context) {
   const kicker = pick("kicker");
   const display = pick("display");
   const sub = pick("sub");
+  const sub2 = pick("sub2");
   const actions = pick("actions");
   const command = pick("command");
   const card = pick("card");
@@ -119,7 +120,9 @@ function entrance(context: gsap.Context) {
     timeline.to(split.lines, { yPercent: 0, duration: 0.9, stagger: 0.09 }, 0.2);
   }
 
-  const rest = [sub, actions, command].filter((node): node is HTMLElement => node !== null);
+  const rest = [sub, sub2, actions, command].filter(
+    (node): node is HTMLElement => node !== null,
+  );
   if (rest.length > 0) {
     timeline.fromTo(
       rest,
@@ -294,10 +297,23 @@ export function Motion() {
     // faces are self-hosted and preloaded, so the wait is short and capped shorter: a
     // hero that stays blank for a font is worse than one that re-wraps once.
     let cancelled = false;
-    const ready = Promise.race([
+    const fonts = Promise.race([
       document.fonts.ready,
       new Promise<void>((resolve) => window.setTimeout(resolve, 250)),
     ]);
+    // The curtain, when there is one, hands off as it lifts; the two overlap by design.
+    const curtain = new Promise<void>((resolve) => {
+      const loader = document.querySelector(".loader");
+      if (!loader || loader.hasAttribute("data-done")) {
+        resolve();
+        return;
+      }
+      const onLift = () => resolve();
+      window.addEventListener("blast:loader", onLift, { once: true });
+      cleanups.push(() => window.removeEventListener("blast:loader", onLift));
+      window.setTimeout(resolve, 2600);
+    });
+    const ready = Promise.all([fonts, curtain]);
     void ready.then(() => {
       if (cancelled || late) return;
       context.add(() => entrance(context));

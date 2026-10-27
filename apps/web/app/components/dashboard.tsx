@@ -146,6 +146,7 @@ function Overview({ data }: { data: DemoBrief }) {
   const touched = evidence.usage.filter((surface) =>
     data.profile.surfaces.some((entry) => entry.id === surface.id),
   );
+  const opens = remediations.filter((remediation) => remediation.patch !== null).length;
 
   return (
     <div className="stack">
@@ -203,7 +204,15 @@ function Overview({ data }: { data: DemoBrief }) {
         })}
       </div>
 
-      {remediations.length > 0 && <Fixes remediations={remediations} />}
+      {remediations.length > 0 && (
+        <p className="fixes-line">
+          <b>
+            {remediations.length} suggested {remediations.length === 1 ? "fix" : "fixes"}
+          </b>
+          {opens > 0 && <>, {opens} of which blast can open as a pull request</>}. They are under
+          the evidence below.
+        </p>
+      )}
     </div>
   );
 }
@@ -539,9 +548,8 @@ function Sources({ data }: { data: DemoBrief }) {
         ))}
       </ul>
       <p className="tile__note">
-        Freshness and latency for every source consulted, including any that had nothing. A
-        dimension no source could answer is <b>unmeasured</b>, which caps the verdict — missing data
-        never reads as an all-clear.
+        Every source consulted, with how fresh its data was and how long it took. If none could
+        answer for a dimension, that dimension is <b>unmeasured</b> and the verdict is capped.
       </p>
     </div>
   );
@@ -568,8 +576,8 @@ function Fixes({ remediations }: { remediations: DemoBrief["remediations"] }) {
         <span className="tile__count">{remediations.length}</span>
       </header>
       <p className="tile__note">
-        Derived from the same evidence as the findings, so what the agent offers cannot drift from
-        what it reported. It opens a pull request only where the fix is mechanical, and asks first.
+        Built from the same evidence as the findings. Where a fix is mechanical, blast can open a
+        pull request, and it asks first.
       </p>
       {remediations.map((remediation) => (
         <div className="fix" key={remediation.id}>
@@ -627,8 +635,13 @@ export async function Dashboard() {
   const data = result.value;
   const { brief } = data;
 
+  /*
+   * A brief is read twice: once for the verdict, and again by whoever disagrees with one
+   * dimension of it. The overview is the first read. The second read sits behind one
+   * disclosure, still in the markup for a reader without JavaScript and for anything
+   * that reads the page rather than views it, but not in the way of the first.
+   */
   const panels: TabPanel[] = [
-    { id: "overview", label: "Overview", content: <Overview data={data} /> },
     {
       id: "cost",
       label: "Cost",
@@ -647,6 +660,11 @@ export async function Dashboard() {
       badge: <StatusDot status={brief.dimensions.measurability.status} />,
       content: <Measurability data={data} />,
     },
+    {
+      id: "fixes",
+      label: "Fixes",
+      content: <Fixes remediations={data.remediations} />,
+    },
     { id: "budgets", label: "Budgets", content: <Budgets data={data} /> },
     { id: "sources", label: "Sources", content: <Sources data={data} /> },
   ];
@@ -655,7 +673,18 @@ export async function Dashboard() {
     <div className="panel">
       <Toolbar brief={brief} markdown={data.markdown} />
       <div className="panel__body">
-        <Tabs panels={panels} label="Impact brief" />
+        <Overview data={data} />
+        <details className="evidence">
+          <summary className="evidence__summary">
+            <span>Show the evidence</span>
+            <span className="evidence__hint">
+              Cost, performance, measurability, fixes, budgets and sources
+            </span>
+          </summary>
+          <div className="evidence__body">
+            <Tabs panels={panels} label="Evidence" />
+          </div>
+        </details>
       </div>
     </div>
   );
