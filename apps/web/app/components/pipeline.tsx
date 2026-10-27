@@ -46,7 +46,7 @@ const LAWS = [
 
 export function Pipeline() {
   return (
-    <ol className="pipe">
+    <ol className="pipe" data-reveal="pipe">
       {STAGES.map((stage, index) => (
         <li className="pipe__stage" key={stage.title}>
           <span className="pipe__index mono">{String(index + 1).padStart(2, "0")}</span>

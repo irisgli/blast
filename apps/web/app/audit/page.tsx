@@ -1,6 +1,11 @@
 import "server-only";
 import type { Metadata } from "next";
-import { FileDecisionStore, FileReconciliationStore, decisionLogPath, reconciliationLogPath } from "@blast/brief";
+import {
+  FileDecisionStore,
+  FileReconciliationStore,
+  decisionLogPath,
+  reconciliationLogPath,
+} from "@blast/brief";
 import { MINIMUM_RECONCILIATIONS, summarize } from "@blast/core";
 import type { AccuracyReport, AuditSummary } from "@blast/core";
 
@@ -43,7 +48,9 @@ async function read(): Promise<
   { ok: true; summary: AuditSummary; accuracy: AccuracyReport } | { ok: false; detail: string }
 > {
   try {
-    const decisions = await new FileDecisionStore({ path: decisionLogPath() }).list({ limit: 1000 });
+    const decisions = await new FileDecisionStore({ path: decisionLogPath() }).list({
+      limit: 1000,
+    });
     const accuracy = await new FileReconciliationStore({
       path: reconciliationLogPath(),
     }).accuracy();
@@ -84,12 +91,14 @@ export default async function AuditPage() {
             <h1 className="card__title">Decisions</h1>
           </div>
           <div className="card__body">
-            <p className="empty">
-              Nothing has been recorded yet. Every <code className="mono">blast decide</code> and{" "}
-              <code className="mono">blast brief</code> run appends to the log unless it is told
-              not to; a deployment records server-side through{" "}
-              <code className="mono">POST /api/v1/decision</code>.
-            </p>
+            <div className="empty">
+              <p>
+                Nothing has been recorded yet. Every <code className="mono">blast decide</code> and{" "}
+                <code className="mono">blast brief</code> run appends to the log unless it is told
+                not to; a deployment records server-side through{" "}
+                <code className="mono">POST /api/v1/decision</code>.
+              </p>
+            </div>
           </div>
         </section>
       </main>
@@ -139,7 +148,9 @@ export default async function AuditPage() {
             <article className="metric">
               <div className="metric__top">
                 <span className="metric__label">Blocked by a gate</span>
-                <span className={`badge ${summary.blocked > 0 ? "badge--risk" : "badge--unmeasured"}`}>
+                <span
+                  className={`badge ${summary.blocked > 0 ? "badge--risk" : "badge--unmeasured"}`}
+                >
                   <span className="badge__dot" />
                   {summary.blocked}
                 </span>
