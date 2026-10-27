@@ -1,10 +1,11 @@
 import { Suspense } from "react";
+import { BlastField } from "./components/blast-field";
 import { Dashboard } from "./components/dashboard";
 import { BlastMark, ExternalIcon } from "./components/icons";
+import { Motion } from "./components/motion";
 import { ChangeCard, CommandDemo } from "./components/panels";
 import { Invariants, Pipeline, Verify } from "./components/pipeline";
 import { Playground } from "./components/playground";
-import { Reveal } from "./components/reveal";
 import { ChangeCardSkeleton, LiveBriefSkeleton, TerminalSkeleton } from "./components/skeleton";
 import { Stats } from "./components/stats";
 import { Snippet } from "./components/steps";
@@ -23,6 +24,11 @@ import { DOCS_URL, REPO_URL } from "./site";
  * someone has to do on Friday; the engineering, because a reader deciding whether to trust
  * the output is deciding whether to trust the shape; and the properties the output has to
  * earn. Nothing on it is a figure written into the markup.
+ *
+ * The one ornament is the field: a point and the rings it reaches, leaving the changed
+ * line in the hero and answered in white on the closing band. `data-intro` marks what the
+ * entrance moves and `data-reveal` what settles in on scroll; both only ever sit on
+ * elements this file renders at once, never on anything that streams.
  */
 export const dynamic = "force-dynamic";
 
@@ -57,6 +63,7 @@ export default function Page() {
   return (
     <>
       <header className="topbar">
+        <span className="progress" data-progress aria-hidden="true" />
         <nav className="shell topbar__inner" aria-label="Primary">
           <a className="topbar__brand" href="#top">
             <BlastMark />
@@ -81,17 +88,25 @@ export default function Page() {
       <main id="top">
         {/* ── hero ─────────────────────────────────────────────────────── */}
         <section className="hero">
+          <div className="hero__backdrop" aria-hidden="true">
+            <BlastField variant="hero" origin=".hero__card .code" className="field" />
+            <div className="hero__grain" />
+          </div>
           <div className="shell">
             <div className="hero__grid">
               <div>
-                <p className="eyebrow">Pre-ship impact decisions</p>
-                <h1 className="display">Know what a pull request costs before you merge it</h1>
-                <p className="hero__sub">
+                <p className="eyebrow" data-intro="kicker">
+                  Pre-ship impact decisions
+                </p>
+                <h1 className="display" data-intro="display">
+                  Know what a pull request costs before you merge it
+                </h1>
+                <p className="hero__sub" data-intro="sub">
                   blast prices every pull request, checks it against budgets your team set, and
                   says whether anyone will be able to tell if it worked. Decided by code, on every
                   pull request, before anyone merges.
                 </p>
-                <div className="hero__actions">
+                <div className="hero__actions" data-intro="actions">
                   <a className="btn btn--primary" href="#playground">
                     Try the playground
                   </a>
@@ -100,28 +115,33 @@ export default function Page() {
                     <ExternalIcon />
                   </a>
                 </div>
-                <p className="hero__command chip">
+                <p className="hero__command chip" data-intro="command">
                   <span className="chip__prompt">$</span>
                   blast decide 1234 --fail-on hold
                 </p>
               </div>
 
-              <Suspense fallback={<ChangeCardSkeleton />}>
-                <ChangeCard />
-              </Suspense>
+              {/* The rings leave from here. The wrapper is static so the entrance can
+                  move it before the card itself has streamed in. */}
+              <div className="hero__card" data-intro="card">
+                <Suspense fallback={<ChangeCardSkeleton />}>
+                  <ChangeCard />
+                </Suspense>
+              </div>
             </div>
 
-            <Suspense fallback={null}>
-              <Stats />
-            </Suspense>
+            <div data-intro="stats">
+              <Suspense fallback={null}>
+                <Stats />
+              </Suspense>
+            </div>
           </div>
         </section>
 
         {/* ── the playground ───────────────────────────────────────────── */}
-        <section className="band" id="playground" data-reveal>
+        <section className="band" id="playground">
           <div className="shell">
-            <div className="section-head">
-              <p className="eyebrow">Policy as data</p>
+            <div className="section-head" data-reveal="head">
               <h2 className="title">Your budgets decide, not ours</h2>
               <p className="lede">
                 Every verdict is a function of <code>blast.json</code>. Move a ceiling or soften
@@ -136,10 +156,9 @@ export default function Page() {
         </section>
 
         {/* ── the brief ────────────────────────────────────────────────── */}
-        <section className="band band--tint" id="brief" data-reveal>
+        <section className="band band--tint" id="brief">
           <div className="shell">
-            <div className="section-head">
-              <p className="eyebrow">The brief</p>
+            <div className="section-head section-head--split" data-reveal="head">
               <h2 className="title">What lands on the pull request</h2>
               <p className="lede">
                 Computed when you loaded this page, for pull request <b>#1234</b> against the
@@ -157,10 +176,9 @@ export default function Page() {
         </section>
 
         {/* ── setup ────────────────────────────────────────────────────── */}
-        <section className="band" id="setup" data-reveal>
+        <section className="band" id="setup">
           <div className="shell">
-            <div className="section-head">
-              <p className="eyebrow">Setup</p>
+            <div className="section-head" data-reveal="head">
               <h2 className="title">One file and one job</h2>
               <p className="lede">
                 Budgets in a file you review, a job on every pull request, and the verdict on the
@@ -169,7 +187,8 @@ export default function Page() {
               </p>
             </div>
 
-            <ol className="setup">
+            {/* A real sequence, so the numbers are earned. */}
+            <ol className="setup" data-reveal="stagger" data-stagger="0.09">
               <li className="setup__step">
                 <span className="setup__index mono">01</span>
                 <h3 className="setup__title">Set your budgets in blast.json</h3>
@@ -227,10 +246,9 @@ export default function Page() {
         </section>
 
         {/* ── engineering ──────────────────────────────────────────────── */}
-        <section className="band band--tint" id="engineering" data-reveal>
+        <section className="band band--tint" id="engineering">
           <div className="shell">
-            <div className="section-head">
-              <p className="eyebrow">Engineering</p>
+            <div className="section-head section-head--split" data-reveal="head">
               <h2 className="title">Decided by code you can check</h2>
               <p className="lede">
                 The model gathers evidence and writes the narrative. Code decides the numbers and
@@ -247,17 +265,16 @@ export default function Page() {
         </section>
 
         {/* ── properties ───────────────────────────────────────────────── */}
-        <section className="band" id="properties" data-reveal>
+        <section className="band" id="properties">
           <div className="shell">
-            <div className="section-head">
-              <p className="eyebrow">Trust</p>
+            <div className="section-head" data-reveal="head">
               <h2 className="title">Built to be argued with</h2>
               <p className="lede">
                 A tool that reports spend has to be right often enough to be believed, and honest
                 about the rest. These are the properties that earn that.
               </p>
             </div>
-            <ul className="props">
+            <ul className="props" data-reveal="stagger" data-stagger="0.06">
               {PROPERTIES.map((property) => (
                 <li className="prop" key={property.name}>
                   <h3 className="prop__name">{property.name}</h3>
@@ -269,15 +286,18 @@ export default function Page() {
         </section>
 
         {/* ── closing ──────────────────────────────────────────────────── */}
-        <section className="band band--ink" data-reveal>
-          <div className="shell cta">
+        <section className="band band--brand">
+          <div className="band__backdrop" data-reveal="fade" aria-hidden="true">
+            <BlastField variant="ink" origin=".cta__title" className="field" />
+          </div>
+          <div className="shell cta" data-reveal="rise">
             <h2 className="cta__title">Put a price on your next pull request</h2>
             <div className="cta__actions">
-              <a className="btn btn--on-ink" href={`${DOCS_URL}/ci.md`}>
+              <a className="btn btn--on-brand" href={`${DOCS_URL}/ci.md`}>
                 Run it in CI
                 <ExternalIcon />
               </a>
-              <a className="btn btn--ghost-ink" href={REPO_URL}>
+              <a className="btn btn--ghost-brand" href={REPO_URL}>
                 Read the source
                 <ExternalIcon />
               </a>
@@ -364,12 +384,12 @@ export default function Page() {
       </footer>
 
       {/*
-        The reveal observer lives inside the page rather than the layout. The page sits
-        behind Next's route-level loading boundary, which hydrates after the layout; an
-        observer armed from the layout marked sections as revealed before React had
-        hydrated them, and React then found an attribute its markup did not have.
+        The motion layer lives inside the page rather than the layout. The page sits
+        behind Next's route-level loading boundary, which hydrates after the layout; a
+        script armed from the layout touched sections before React had hydrated them, and
+        React then found a tree its markup did not describe.
       */}
-      <Reveal />
+      <Motion />
     </>
   );
 }

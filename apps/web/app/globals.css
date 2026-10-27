@@ -66,9 +66,17 @@
 
   --shell: min(1120px, 100% - 3rem);
 
-  --display: clamp(2.5rem, 1.5rem + 3.4vw, 4rem);
-  --title: clamp(1.75rem, 1.2rem + 1.8vw, 2.5rem);
+  --display: clamp(2.75rem, 2rem + 3.2vw, 4.25rem);
+  --title: clamp(1.85rem, 1.4rem + 1.6vw, 2.6rem);
   --section-gap: clamp(3.5rem, 2.25rem + 4vw, 6rem);
+
+  --band-tint: #f8f9fb;
+  --field-ring: rgba(42, 91, 215, 0.42);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --z-field: -1;
+  --z-topbar: 20;
+  --z-progress: 21;
 }
 
 *,
@@ -100,6 +108,8 @@ body {
 .mono {
   font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
   font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
+  letter-spacing: -0.01em;
 }
 
 :where(a, button):focus-visible {
@@ -1697,33 +1707,61 @@ body {
   font-weight: 500;
 }
 
-/* ── reveal on scroll ────────────────────────────────────────────────────── */
+/* ── motion ──────────────────────────────────────────────────────────────── */
 /*
- * Armed by an inline script in the head, so the hidden state applies before the first
- * paint rather than after it — otherwise a section paints, vanishes, and eases back,
- * which is the flash this pattern is usually guilty of. Without JavaScript the attribute
- * is never set and none of this applies.
+ * The hidden state is rendered by the server, as `data-motion` on `<html>`, so it
+ * applies before the first paint rather than after it — otherwise the hero paints,
+ * vanishes, and eases back, which is the flash this pattern is usually guilty of.
+ * `components/motion.tsx` moves things from here and sets the attribute to `live` once
+ * it is running; nothing in this file animates.
+ *
+ * Only static elements carry `data-intro` or `data-reveal`. Anything that streams in
+ * behind a boundary is never hidden, so a slow source never leaves a blank.
+ *
+ * Two safeties. Without JavaScript the attribute is never cleared, but a `<noscript>`
+ * rule in the layout unhides everything. And while the script has not run, the animation
+ * below shows everything under two seconds in; a script that arrives after that skips
+ * the entrance rather than hiding what the reader is already looking at. A page that
+ * renders blank is not a page with an animation, it is a broken one.
  */
-html[data-reveal-armed] [data-reveal] {
+html[data-motion] [data-intro],
+html[data-motion] [data-reveal] {
   opacity: 0;
-  transform: translateY(14px);
 }
 
-html[data-reveal-armed] [data-reveal][data-revealed] {
-  opacity: 1;
-  transform: none;
-  transition:
-    opacity 600ms cubic-bezier(0.2, 0.7, 0.2, 1),
-    transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+html[data-motion=""] [data-intro],
+html[data-motion=""] [data-reveal] {
+  animation: motion-safety 1ms linear 1.8s forwards;
+}
+
+@keyframes motion-safety {
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* Someone who asked for less motion has not asked for faster motion. */
-  html[data-reveal-armed] [data-reveal] {
+  html[data-motion] [data-intro],
+  html[data-motion] [data-reveal] {
     opacity: 1;
-    transform: none;
-    transition: none;
+    animation: none;
   }
+}
+
+/* Lenis scrolls the window itself; these are the rules it ships. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* The line boxes a heading is split into while its lines rise through a mask. */
+.line {
+  display: block;
 }
 
 .section--tight {
@@ -2029,14 +2067,14 @@ main {
 }
 
 body {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* top bar */
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: var(--z-topbar);
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.84);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
@@ -2048,6 +2086,18 @@ body {
   align-items: center;
   gap: 2.25rem;
   height: 64px;
+}
+
+/* How far down the page the reader is: a hairline gauge, moved by the motion layer. */
+.progress {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: var(--z-progress);
+  height: 2px;
+  background: var(--brand);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  pointer-events: none;
 }
 
 .topbar__brand {
@@ -2099,35 +2149,38 @@ body {
 }
 
 /* type */
+/* The page's one kicker, above the headline. Sections carry none. */
 .eyebrow {
-  margin: 0 0 1rem;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  margin: 0 0 1.1rem;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--brand);
 }
 
 .display {
   font-size: var(--display);
-  font-weight: 600;
-  line-height: 1.06;
+  font-weight: 700;
+  line-height: 1.02;
   letter-spacing: -0.03em;
-  max-width: 14ch;
+  max-width: 15ch;
+  text-wrap: balance;
 }
 
 .title {
   font-size: var(--title);
-  font-weight: 600;
-  line-height: 1.12;
+  font-weight: 650;
+  line-height: 1.08;
   letter-spacing: -0.025em;
-  max-width: 22ch;
+  max-width: 20ch;
+  text-wrap: balance;
 }
 
 .lede {
   max-width: 58ch;
-  font-size: 17px;
-  line-height: 1.6;
+  font-size: 18px;
+  line-height: 1.55;
   color: var(--text-secondary);
+  text-wrap: pretty;
 }
 
 .lede code {
@@ -2141,11 +2194,40 @@ body {
 }
 
 .section-head {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2.75rem;
 }
 
 .section-head .title {
   margin-bottom: 1rem;
+}
+
+/*
+ * Section heads vary; that is the cadence that replaces a label above every heading.
+ * A split head puts the title on the left and the lede on the right, on a 5/7 grid.
+ */
+.section-head--split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 1rem 4rem;
+  align-items: end;
+}
+
+.section-head--split .title {
+  margin-bottom: 0;
+}
+
+.section-head--split .lede {
+  max-width: 52ch;
+}
+
+@media (max-width: 860px) {
+  .section-head--split {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head--split .title {
+    margin-bottom: 1rem;
+  }
 }
 
 /* buttons */
@@ -2194,24 +2276,26 @@ body {
   cursor: default;
 }
 
-.btn--on-ink {
+.btn--on-brand {
   background: #ffffff;
   border-color: #ffffff;
-  color: var(--ink);
+  color: var(--brand-strong);
 }
 
-.btn--on-ink:hover {
-  background: var(--gray-200);
+.btn--on-brand:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand-soft);
 }
 
-.btn--ghost-ink {
+.btn--ghost-brand {
   background: transparent;
-  border-color: var(--ink-border);
+  border-color: rgba(255, 255, 255, 0.45);
   color: #ffffff;
 }
 
-.btn--ghost-ink:hover {
-  background: var(--ink-raised);
+.btn--ghost-brand:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 /* sections */
@@ -2220,14 +2304,29 @@ body {
 }
 
 .band--tint {
-  background: #f8f9fb;
+  background: var(--band-tint);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
 
-.band--ink {
-  background: var(--ink);
+/*
+ * The closing band is the page's one drenched surface: the brand colour carrying a
+ * whole section, with the hero's rings answered in white, so the page opens and closes
+ * on the one idea and the only dark surfaces are the code panes.
+ */
+.band--brand {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  background: var(--brand-strong);
   color: #ffffff;
+}
+
+.band__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-field);
+  pointer-events: none;
 }
 
 .band--tint + .band--tint {
@@ -2238,19 +2337,52 @@ body {
 .hero {
   position: relative;
   isolation: isolate;
+  overflow: clip;
   padding-block: clamp(3.5rem, 2rem + 5vw, 6.5rem) var(--section-gap);
 }
 
-.hero::before {
+/*
+ * The field sits behind the whole section, its rings leaving the diff card. It fades to
+ * white along the bottom edge so the band below starts on a clean line, and a grain sits
+ * on it and nowhere else on the page.
+ */
+.hero__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-field);
+  pointer-events: none;
+}
+
+.field {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+html[data-motion] .hero .field {
+  opacity: 0;
+}
+
+.hero__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.hero__backdrop::after {
   content: "";
   position: absolute;
-  z-index: -1;
-  inset: 0 0 auto;
-  height: 100%;
-  pointer-events: none;
-  background:
-    radial-gradient(48% 60% at 78% 0%, var(--brand-soft), transparent 70%),
-    radial-gradient(30% 40% at 10% 100%, #fff6e5, transparent 70%);
+  inset: auto 0 0;
+  height: 28%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff);
+}
+
+.hero__card {
+  min-width: 0;
 }
 
 .hero__grid {
@@ -2322,10 +2454,11 @@ body {
 
 .stat__value {
   margin: 0;
-  font-size: clamp(1.35rem, 1rem + 1.2vw, 1.9rem);
-  font-weight: 600;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(1.2rem, 0.9rem + 1vw, 1.6rem);
+  font-weight: 500;
   line-height: 1.1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   text-transform: capitalize;
@@ -2811,7 +2944,7 @@ body {
 
 .setup__body {
   margin: 0 0 1.1rem;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--text-secondary);
 }
@@ -2960,20 +3093,21 @@ body {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2rem 2.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2.25rem 4rem;
 }
 
 .prop__name {
   margin: 0 0 0.45rem;
-  font-size: 15.5px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 
 .prop__body {
   margin: 0;
-  font-size: 14px;
+  max-width: 48ch;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--text-secondary);
 }
@@ -2993,24 +3127,28 @@ body {
 /* closing */
 .cta {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem 3rem;
+  justify-content: center;
+  gap: 2rem;
+  padding-block: clamp(1rem, 0.5rem + 2vw, 3rem);
+  text-align: center;
 }
 
 .cta__title {
   margin: 0;
-  max-width: 18ch;
-  font-size: clamp(1.75rem, 1.2rem + 1.8vw, 2.5rem);
-  font-weight: 600;
-  line-height: 1.12;
+  max-width: 16ch;
+  font-size: var(--title);
+  font-weight: 650;
+  line-height: 1.08;
   letter-spacing: -0.025em;
+  text-wrap: balance;
 }
 
 .cta__actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.75rem;
 }
 

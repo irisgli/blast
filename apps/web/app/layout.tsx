@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { NO_SCRIPT_REVEAL_CSS } from "./components/reveal";
+import { Azeret_Mono, Schibsted_Grotesk } from "next/font/google";
+import { NO_SCRIPT_MOTION_CSS } from "./components/motion";
 import { SITE_URL } from "./site";
 import "./globals.css";
 
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+/**
+ * Two families on a proportion axis: a sharp, slightly narrow newspaper grotesk for the
+ * words and a wide display monospace for the readouts. A reader can tell a measurement
+ * from a sentence at a glance, which is the one thing this page's type has to do.
+ */
+const sans = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = Azeret_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 const DESCRIPTION =
   "What a pull request costs to run, what it costs the user, and whether anyone will be able to tell if it worked — decided by code on every pull request, before anyone merges.";
@@ -30,18 +35,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     /*
-     * `data-reveal-armed` is rendered by the server rather than set by a script before
+     * `data-motion` is rendered by the server rather than set by a script before
      * hydration. Setting it from a script is the usual way to avoid a flash and it cost
      * an afternoon here: React saw an attribute on `<html>` that its own markup did not
-     * have, treated the tree as mismatched, and stopped hydrating — so the observer never
-     * ran and every section below the hero stayed invisible. Rendering it means server
-     * and client agree, and there is nothing to flash.
+     * have, treated the tree as mismatched, and stopped hydrating — so the motion layer
+     * never ran and every section below the hero stayed invisible. Rendering it means
+     * server and client agree, and there is nothing to flash.
      */
-    <html
-      lang="en"
-      className={`${sans.variable} ${mono.variable}`}
-      data-reveal-armed=""
-    >
+    <html lang="en" className={`${sans.variable} ${mono.variable}`} data-motion="">
       <head>
         {/*
           Without JavaScript nothing will ever reveal these, so they are unhidden here
@@ -49,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           scripting is not a page with an animation; it is a broken one.
         */}
         <noscript>
-          <style>{NO_SCRIPT_REVEAL_CSS}</style>
+          <style>{NO_SCRIPT_MOTION_CSS}</style>
         </noscript>
       </head>
       <body>{children}</body>

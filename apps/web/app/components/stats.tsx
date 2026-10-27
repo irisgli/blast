@@ -37,18 +37,21 @@ export async function Stats() {
       value: cost === null ? "unmeasured" : `+$${cost.totalUsd.toFixed(2)}`,
       basis: cost === null ? "no source answered" : "modeled",
       tone: "plain",
+      counts: true,
     },
     {
       label: "p75 LCP",
       value: formatMeasure(lcp?.delta ?? null, { signed: true }),
       basis: lcp?.basis ?? "no source answered",
       tone: "plain",
+      counts: true,
     },
     {
       label: "Attributable events",
       value: formatMeasure(events?.head ?? null),
       basis: events?.basis ?? "no source answered",
       tone: "plain",
+      counts: true,
     },
     {
       label: "Digest",
@@ -63,7 +66,10 @@ export async function Stats() {
       {tiles.map((tile) => (
         <div className={`stat stat--${tile.tone}`} key={tile.label}>
           <dt className="stat__label">{tile.label}</dt>
-          <dd className="stat__value">{tile.value}</dd>
+          {/* A readout the entrance counts up to; it ends on exactly this string. */}
+          <dd className="stat__value" {...("counts" in tile ? { "data-count": "" } : {})}>
+            {tile.value}
+          </dd>
           <dd className="stat__basis">{tile.basis}</dd>
         </div>
       ))}

@@ -84,12 +84,14 @@ export default async function AuditPage() {
             <h1 className="card__title">Decisions</h1>
           </div>
           <div className="card__body">
-            <p className="empty">
-              Nothing has been recorded yet. Every <code className="mono">blast decide</code> and{" "}
-              <code className="mono">blast brief</code> run appends to the log unless it is told
-              not to; a deployment records server-side through{" "}
-              <code className="mono">POST /api/v1/decision</code>.
-            </p>
+            <div className="empty">
+              <p>
+                Nothing has been recorded yet. Every <code className="mono">blast decide</code>{" "}
+                and <code className="mono">blast brief</code> run appends to the log unless it is
+                told not to; a deployment records server-side through{" "}
+                <code className="mono">POST /api/v1/decision</code>.
+              </p>
+            </div>
           </div>
         </section>
       </main>
