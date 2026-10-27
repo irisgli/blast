@@ -20,21 +20,21 @@ blast audit                                                                 # th
 for a job that is going to act on it: every rule that fired, both numbers, the basis of each,
 and the threshold's source. One engine underneath both, so they cannot disagree.
 
-| flag | |
-| --- | --- |
-| `--intent <text>` | Required. One line, user-facing. A diff says what moved and never what it is for, and the measurability dimension is the one that most needs the difference |
-| `--post` | `brief` only. Post the brief to the pull request, or update the one already there |
-| `--fail-on <verdict>` | Exit 1 when the verdict is this or worse: `hold`, or `ship-with-caveats` |
-| `--format <fmt>` | `brief` only. `markdown` (default) or `json` |
-| `--policy <path>` | A `blast.json` to apply, instead of searching upwards |
-| `--evidence <path>` | Evidence records to contribute, as JSON, or `-` for stdin |
-| `--ingest <id>=<path>` | Output from a tool that already ran: `infracost=cost.json` |
-| `--repo <owner/name>`, `--org <name>` | Recorded on the decision, for the audit log |
-| `--as-of <YYYY-MM-DD>` | The day exception expiry is judged against. Defaults to today |
-| `--log <path>`, `--no-log` | Where to append the decision, or not to |
-| `--write-snapshot <path>` | Write the evidence this decision was made from |
-| `--snapshot <path>` | Decide from a frozen snapshot instead of collecting |
-| `--sign <key-id>` | Sign the decision with a key from `BLAST_SIGNING_KEYS` |
+| flag                                  |                                                                                                                                                             |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--intent <text>`                     | Required. One line, user-facing. A diff says what moved and never what it is for, and the measurability dimension is the one that most needs the difference |
+| `--post`                              | `brief` only. Post the brief to the pull request, or update the one already there                                                                           |
+| `--fail-on <verdict>`                 | Exit 1 when the verdict is this or worse: `hold`, or `ship-with-caveats`                                                                                    |
+| `--format <fmt>`                      | `brief` only. `markdown` (default) or `json`                                                                                                                |
+| `--policy <path>`                     | A `blast.json` to apply, instead of searching upwards                                                                                                       |
+| `--evidence <path>`                   | Evidence records to contribute, as JSON, or `-` for stdin                                                                                                   |
+| `--ingest <id>=<path>`                | Output from a tool that already ran: `infracost=cost.json`                                                                                                  |
+| `--repo <owner/name>`, `--org <name>` | Recorded on the decision, for the audit log                                                                                                                 |
+| `--as-of <YYYY-MM-DD>`                | The day exception expiry is judged against. Defaults to today                                                                                               |
+| `--log <path>`, `--no-log`            | Where to append the decision, or not to                                                                                                                     |
+| `--write-snapshot <path>`             | Write the evidence this decision was made from                                                                                                              |
+| `--snapshot <path>`                   | Decide from a frozen snapshot instead of collecting                                                                                                         |
+| `--sign <key-id>`                     | Sign the decision with a key from `BLAST_SIGNING_KEYS`                                                                                                      |
 
 The brief goes to stdout and everything else to stderr, so `blast brief … > brief.md` is
 the brief and nothing else.
@@ -87,11 +87,11 @@ working. See [HTTP API](./api.md#get-apiv1decisions).
 
 ## Exit codes
 
-| code | |
-| --- | --- |
-| `0` | A decision was produced and the verdict cleared `--fail-on` |
-| `1` | The verdict did not clear `--fail-on` |
-| `2` | No decision could be produced at all: unreadable budgets, a broken evidence file, an unparseable change |
+| code |                                                                                                         |
+| ---- | ------------------------------------------------------------------------------------------------------- |
+| `0`  | A decision was produced and the verdict cleared `--fail-on`                                             |
+| `1`  | The verdict did not clear `--fail-on`                                                                   |
+| `2`  | No decision could be produced at all: unreadable budgets, a broken evidence file, an unparseable change |
 
 `1` and `2` are deliberately different. A held change and a broken tool both stop a
 pipeline, and a tool that reports them the same way teaches a team to ignore the failure —
@@ -123,13 +123,15 @@ jobs:
         with:
           node-version: 24
 
-      - run: npm install -g @blast/vcs
+      # `@blast/vcs` is not published to npm yet, so the command is built from source. This
+      # is the step this repository's own workflow runs; see .github/workflows/blast.yml.
+      - run: pnpm install --frozen-lockfile && pnpm build
 
       - name: Brief
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          blast brief "${{ github.event.pull_request.number }}" \
+          pnpm blast brief "${{ github.event.pull_request.number }}" \
             --intent "${{ github.event.pull_request.title }}" \
             --post \
             --fail-on hold

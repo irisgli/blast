@@ -12,6 +12,13 @@ in sync.
 
 ## Deploy
 
+Production deploys from `main` through the project's Git integration: every push to
+`main` builds and promotes, and every pull request gets a preview deployment. The CI
+workflow builds the same surface on every push, so a change that would fail the
+deployment fails the check first.
+
+For a manual deployment from a checkout:
+
 ```bash
 npx vercel link            # root directory: apps/web
 npx vercel --prod

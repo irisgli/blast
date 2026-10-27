@@ -184,7 +184,10 @@ from its inputs, and every stated basis would stop meaning anything.
 `DEFAULT_POLICY` rather than searching upward. The sample pull request belongs to a fictional
 storefront, and the page exists to show what a held change looks like — a verdict that moved
 because blast softened its own enforcement would be demonstrating the wrong thing. Same
-category error `/api/brief` refuses by never reading a policy beside the server.
+category error `/api/brief` refuses by never reading a policy beside the server. `/api/what-if`
+is the one surface that applies other budgets to the demo change, and it takes them from its
+query string and nowhere else, so a reader can move a ceiling and watch the verdict move; it
+records nothing, because a what-if is not a decision about a change anyone is shipping.
 
 **Every outward side effect requires approval on every call.** `post_comment` and
 `propose_fix` use `always()` from `eve/tools/approval`. Do not add a write path that

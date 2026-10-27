@@ -1,120 +1,39 @@
 import { Suspense } from "react";
 import { Dashboard } from "./components/dashboard";
-import { ExternalIcon, TriangleMark } from "./components/icons";
+import { BlastMark, ExternalIcon } from "./components/icons";
 import { ChangeCard, CommandDemo } from "./components/panels";
+import { Invariants, Pipeline, Verify } from "./components/pipeline";
+import { Playground } from "./components/playground";
+import { Reveal } from "./components/reveal";
 import { ChangeCardSkeleton, LiveBriefSkeleton, TerminalSkeleton } from "./components/skeleton";
-import { Snippet, Steps } from "./components/steps";
-import type { Step } from "./components/steps";
+import { Stats } from "./components/stats";
+import { Snippet } from "./components/steps";
+import { DOCS_URL, REPO_URL } from "./site";
 
 /**
  * The page is a shell around its boundaries.
  *
- * Nothing here awaits the engine. The headline, the steps, and the navigation are static
- * and paint on the first flush; the parts that need a cost model, a funnel, and a power
- * calculation stream in behind their own fallbacks, so a slow source delays only the
+ * Nothing here awaits the engine. The headline, the section copy and the navigation are
+ * static and paint on the first flush; the parts that need a cost model, a funnel and a
+ * power calculation stream in behind their own fallbacks, so a slow source delays only the
  * panel that needs it.
  *
- * The copy is written for someone deciding whether to try this on Friday, not for someone
- * auditing the design. Short sentences, the real file beside the claim about it, and the
- * reasoning left in the source where the next person to change it will be standing.
+ * Five sections, each one thing: the playground, because budgets deciding is the product;
+ * the brief, because it is what lands on the pull request; the setup, because it is what
+ * someone has to do on Friday; the engineering, because a reader deciding whether to trust
+ * the output is deciding whether to trust the shape; and the properties the output has to
+ * earn. Nothing on it is a figure written into the markup.
  */
 export const dynamic = "force-dynamic";
 
-const REPO = "https://github.com/irisgli/blast";
-const DOCS = `${REPO}/blob/main/docs`;
-
-const STEPS: Step[] = [
-  {
-    title: "Set your budgets in blast.json",
-    body: "One file at the root, reviewed alongside the code it governs. A checkout flow and an admin screen get different allowances. Anything you leave out keeps its default.",
-    code: (
-      <Snippet name="blast.json">{`{
-  "budgets": { "monthlyCostDeltaUsd": 150 },
-  "surfaces": [
-    { "match": "/checkout/*", "budgets": { "lcpDeltaMs": 60 } },
-    { "match": "/admin/*", "budgets": { "clientJsDeltaBytes": 204800 } }
-  ]
-}`}</Snippet>
-    ),
-  },
-  {
-    title: "Run it on every pull request",
-    body: "One job. No model, no credentials, no agent turn — the part that decides is deterministic code.",
-    leverages: "GitHub Actions",
-    code: (
-      <Snippet name=".github/workflows/blast.yml">{`- uses: actions/checkout@v5
-  with:
-    fetch-depth: 0
-
-- run: npm install -g @blast/vcs
-
-- run: |
-    blast brief "\${{ github.event.pull_request.number }}" \\
-      --intent "\${{ github.event.pull_request.title }}" \\
-      --post --fail-on hold`}</Snippet>
-    ),
-  },
-  {
-    title: "The brief lands on the pull request",
-    body: "One comment, updated in place on every push, keeping the verdicts it replaced. Every number says how it was arrived at: measured, modeled, or assumed.",
-    code: (
-      <Snippet name="#1234">{`**Verdict: hold** · confidence: high
-
-## Infrastructure cost  ○
-
-| metric        | delta       | basis   |
-| ------------- | ----------- | ------- |
-| monthly spend | +$340.40/mo | modeled |
-
-## Measurability  ⚠
-
-The change ships no events attributing a
-funnel movement to it on /products/[slug].`}</Snippet>
-    ),
-  },
-  {
-    title: "Gate the merge on the exit code",
-    body: "1 when the verdict doesn't clear your gate. 2 when no brief could be produced. A held change and a broken tool are not the same thing, and a check that reports them the same way gets ignored.",
-    code: (
-      <Snippet>{`$ blast brief 1234 --intent "…" --fail-on hold
-$ echo $?
-1
-
-# no gate, just the brief
-$ blast brief 1234 --intent "…" > brief.md
-$ echo $?
-0`}</Snippet>
-    ),
-  },
-  {
-    title: "Ask @blast when you want the reasoning",
-    body: "Mention it on the thread and an agent writes the narrative around the same numbers. The verdict is identical either way, and the digest on both proves it.",
-    leverages: "eve",
-    code: (
-      <Snippet name="agent/">{`agent.ts              model and runtime
-instructions.md       the always-on prompt
-tools/                read_change, render_brief,
-                      propose_fix, post_comment
-subagents/
-  performance/        what it costs the user
-  cost/               what it costs to run
-  measurability/      whether you can tell`}</Snippet>
-    ),
-  },
-];
-
-const FEATURES = [
+const PROPERTIES = [
   {
     name: "The same answer twice",
     body: "Thresholds are pure functions over findings. Every brief ends with a digest of its inputs and its verdict, so two briefs can be compared without re-running either.",
   },
   {
-    name: "Your budgets, not ours",
-    body: "Set them in blast.json. A brief names the rule that decided, and a policy file it can't read fails the run instead of quietly using defaults.",
-  },
-  {
     name: "A basis on every number",
-    body: "Measured, modeled, or assumed — decided in code, never by the model. A projection can't be promoted into a measurement.",
+    body: "Measured, modeled, inferred or assumed, decided in code and never by the model. A projection cannot be promoted into a measurement.",
   },
   {
     name: "Stated uncertainty",
@@ -122,154 +41,243 @@ const FEATURES = [
   },
   {
     name: "Missing data is never safe",
-    body: "A source that can't answer makes its dimension unmeasured and caps the verdict. Absence never reads as an all-clear.",
+    body: "A source that cannot answer makes its dimension unmeasured and caps the verdict. Absence never reads as an all-clear.",
   },
   {
-    name: "Its own track record",
-    body: "Every estimate is checked against the following month's bill. The brief reports how far the last six missed.",
+    name: "Evidence from anywhere",
+    body: "Infracost, Lighthouse, a Datadog query a job already ran, your own service. A submitter may lower confidence and never raise it.",
   },
   {
     name: "Nothing ships without approval",
     body: "Posting a comment and opening a pull request are the only outward effects, and both ask every time.",
-  },
-  {
-    name: "Nine sources, one contract",
-    body: "Every source implements one interface, and unavailability is a value. Moving a dimension to live telemetry is one file.",
   },
 ] as const;
 
 export default function Page() {
   return (
     <>
-      <header className="nav">
-        <div className="shell nav__inner">
-          <div className="crumbs">
-            <span className="crumbs__mark">
-              <TriangleMark />
-            </span>
-            <span className="crumbs__sep" aria-hidden="true">
-              /
-            </span>
-            <span className="crumbs__item crumbs__item--current">blast</span>
-          </div>
-          <a className="btn" href={REPO}>
-            GitHub
-            <ExternalIcon />
+      <header className="topbar">
+        <nav className="shell topbar__inner" aria-label="Primary">
+          <a className="topbar__brand" href="#top">
+            <BlastMark />
+            <span>blast</span>
           </a>
-        </div>
+          <div className="topbar__links">
+            <a href="#playground">Playground</a>
+            <a href="#brief">The brief</a>
+            <a href="#setup">Setup</a>
+            <a href="#engineering">Engineering</a>
+            <a href={`${DOCS_URL}/api.md`}>API</a>
+          </div>
+          <div className="topbar__actions">
+            <a className="btn btn--small" href={REPO_URL}>
+              GitHub
+              <ExternalIcon />
+            </a>
+          </div>
+        </nav>
       </header>
 
-      <main>
+      <main id="top">
         {/* ── hero ─────────────────────────────────────────────────────── */}
-        <section className="shell hero">
-          <div className="hero__grid">
-            <div>
-              <h1 className="display">
-                Know what a pull request
-                <br />
-                costs before you merge it
-              </h1>
-              <div className="hero__actions">
-                <span className="chip">
+        <section className="hero">
+          <div className="shell">
+            <div className="hero__grid">
+              <div>
+                <p className="eyebrow">Pre-ship impact decisions</p>
+                <h1 className="display">Know what a pull request costs before you merge it</h1>
+                <p className="hero__sub">
+                  blast prices every pull request, checks it against budgets your team set, and
+                  says whether anyone will be able to tell if it worked. Decided by code, on every
+                  pull request, before anyone merges.
+                </p>
+                <div className="hero__actions">
+                  <a className="btn btn--primary" href="#playground">
+                    Try the playground
+                  </a>
+                  <a className="btn" href={`${DOCS_URL}/ci.md`}>
+                    Run it in CI
+                    <ExternalIcon />
+                  </a>
+                </div>
+                <p className="hero__command chip">
                   <span className="chip__prompt">$</span>
-                  blast brief 1234 --fail-on hold
-                </span>
-                <a className="btn btn--primary" href="#brief">
-                  See a real brief
-                </a>
+                  blast decide 1234 --fail-on hold
+                </p>
               </div>
-              <p className="hero__sub">
-                A price, a budget check, and a straight answer about whether you&apos;ll be able to
-                tell if it worked. On every pull request, before anyone merges.
+
+              <Suspense fallback={<ChangeCardSkeleton />}>
+                <ChangeCard />
+              </Suspense>
+            </div>
+
+            <Suspense fallback={null}>
+              <Stats />
+            </Suspense>
+          </div>
+        </section>
+
+        {/* ── the playground ───────────────────────────────────────────── */}
+        <section className="band" id="playground" data-reveal>
+          <div className="shell">
+            <div className="section-head">
+              <p className="eyebrow">Policy as data</p>
+              <h2 className="title">Your budgets decide, not ours</h2>
+              <p className="lede">
+                Every verdict is a function of <code>blast.json</code>. Move a ceiling or soften
+                a rule and the same engine decides the sample change again on the server, then
+                shows you the file that would produce that verdict.
+              </p>
+            </div>
+            <Suspense fallback={<LiveBriefSkeleton />}>
+              <Playground />
+            </Suspense>
+          </div>
+        </section>
+
+        {/* ── the brief ────────────────────────────────────────────────── */}
+        <section className="band band--tint" id="brief" data-reveal>
+          <div className="shell">
+            <div className="section-head">
+              <p className="eyebrow">The brief</p>
+              <h2 className="title">What lands on the pull request</h2>
+              <p className="lede">
+                Computed when you loaded this page, for pull request <b>#1234</b> against the
+                storefront fixtures. The same call answers{" "}
+                <a href="/api/brief?format=markdown">
+                  <code>GET /api/brief</code>
+                </a>
+                , so the page and the comment cannot drift apart.
+              </p>
+            </div>
+            <Suspense fallback={<LiveBriefSkeleton />}>
+              <Dashboard />
+            </Suspense>
+          </div>
+        </section>
+
+        {/* ── setup ────────────────────────────────────────────────────── */}
+        <section className="band" id="setup" data-reveal>
+          <div className="shell">
+            <div className="section-head">
+              <p className="eyebrow">Setup</p>
+              <h2 className="title">One file and one job</h2>
+              <p className="lede">
+                Budgets in a file you review, a job on every pull request, and the verdict on the
+                exit code. No model, no credentials, no agent turn: the part that decides is
+                deterministic code.
               </p>
             </div>
 
-            <Suspense fallback={<ChangeCardSkeleton />}>
-              <ChangeCard />
+            <ol className="setup">
+              <li className="setup__step">
+                <span className="setup__index mono">01</span>
+                <h3 className="setup__title">Set your budgets in blast.json</h3>
+                <p className="setup__body">
+                  One file at the root, reviewed alongside the code it governs. A checkout flow
+                  and an admin screen get different allowances; anything you leave out keeps its
+                  default.
+                </p>
+                <Snippet name="blast.json">{`{
+  "budgets": { "monthlyCostDeltaUsd": 150 },
+  "surfaces": [
+    { "match": "/checkout/*",
+      "budgets": { "lcpDeltaMs": 60 } }
+  ],
+  "enforcement": {
+    "byDimension": { "measurability": "warn" }
+  }
+}`}</Snippet>
+              </li>
+              <li className="setup__step">
+                <span className="setup__index mono">02</span>
+                <h3 className="setup__title">Run it on every pull request</h3>
+                <p className="setup__body">
+                  The job this repository runs on itself. The command builds from source until
+                  the package is published, and the evidence it decided from is uploaded with the
+                  decision.
+                </p>
+                <Snippet name=".github/workflows/blast.yml">{`- uses: actions/checkout@v5
+  with:
+    fetch-depth: 0
+
+- run: pnpm install --frozen-lockfile && pnpm build
+
+- run: |
+    pnpm blast decide \\
+      "\${{ github.event.pull_request.number }}" \\
+      --intent "\${{ github.event.pull_request.title }}" \\
+      --write-snapshot blast-snapshot.json \\
+      > blast-decision.json`}</Snippet>
+              </li>
+              <li className="setup__step">
+                <span className="setup__index mono">03</span>
+                <h3 className="setup__title">Gate the merge on the exit code</h3>
+                <p className="setup__body">
+                  1 when the verdict does not clear your gate, 2 when no decision could be made.
+                  A held change and a broken tool are not the same thing. This transcript is
+                  computed by the engine, not recorded.
+                </p>
+                <Suspense fallback={<TerminalSkeleton />}>
+                  <CommandDemo />
+                </Suspense>
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        {/* ── engineering ──────────────────────────────────────────────── */}
+        <section className="band band--tint" id="engineering" data-reveal>
+          <div className="shell">
+            <div className="section-head">
+              <p className="eyebrow">Engineering</p>
+              <h2 className="title">Decided by code you can check</h2>
+              <p className="lede">
+                The model gathers evidence and writes the narrative. Code decides the numbers and
+                the verdict, and the boundaries that keep it that way are checked by a script
+                rather than remembered.
+              </p>
+            </div>
+            <Pipeline />
+            <Invariants />
+            <Suspense fallback={null}>
+              <Verify />
             </Suspense>
           </div>
         </section>
 
-        {/* ── the command ──────────────────────────────────────────────── */}
-        <section className="shell section section--tight" data-reveal>
-          <div className="split">
-            <h2 className="title">Every pull request gets a verdict</h2>
-            <p className="lede">
-              Not a recording. These lines are computed by the same engine that renders the rest of
-              this page, so the figures in the demo are the figures in the brief.
-            </p>
-          </div>
-          <div style={{ marginTop: "2.5rem" }}>
-            <Suspense fallback={<TerminalSkeleton />}>
-              <CommandDemo />
-            </Suspense>
-          </div>
-        </section>
-
-        {/* ── steps ────────────────────────────────────────────────────── */}
-        <section className="shell section" data-reveal>
-          <div className="split">
-            <h2 className="title">One file and one job</h2>
-            <p className="lede">
-              Budgets in a file you review. A job on every pull request. The verdict on the exit
-              code. An agent when you want the reasoning behind it.
-            </p>
-          </div>
-          <div style={{ marginTop: "4rem" }}>
-            <Steps steps={STEPS} />
-          </div>
-        </section>
-
-        {/* ── the live brief ───────────────────────────────────────────── */}
-        <section className="shell section" id="brief" data-reveal>
-          <div className="split">
-            <h2 className="title">This brief was computed when you loaded the page</h2>
-            <p className="lede">
-              Pull request <b>#1234</b> against the storefront fixtures. Every figure comes from the
-              same call the agent&apos;s tools make, so the page and the comment can&apos;t drift
-              apart. The same call answers{" "}
-              <a href="/api/brief?format=markdown">
-                <code>GET /api/brief</code>
-              </a>
-              .
-            </p>
-          </div>
-
-          <Suspense fallback={<LiveBriefSkeleton />}>
-            <Dashboard />
-          </Suspense>
-        </section>
-
-        {/* ── trust ────────────────────────────────────────────────────── */}
-        <section className="shell section" data-reveal>
-          <div className="split">
-            <h2 className="title">Built to be argued with</h2>
-            <p className="lede">
-              A tool that reports spend has to be right often enough to be believed, and honest
-              about the rest. These are the properties that earn that.
-            </p>
-          </div>
-
-          <div className="features">
-            {FEATURES.map((feature) => (
-              <div className="feature" key={feature.name}>
-                <h3 className="feature__name">{feature.name}</h3>
-                <p className="feature__body">{feature.body}</p>
-              </div>
-            ))}
+        {/* ── properties ───────────────────────────────────────────────── */}
+        <section className="band" id="properties" data-reveal>
+          <div className="shell">
+            <div className="section-head">
+              <p className="eyebrow">Trust</p>
+              <h2 className="title">Built to be argued with</h2>
+              <p className="lede">
+                A tool that reports spend has to be right often enough to be believed, and honest
+                about the rest. These are the properties that earn that.
+              </p>
+            </div>
+            <ul className="props">
+              {PROPERTIES.map((property) => (
+                <li className="prop" key={property.name}>
+                  <h3 className="prop__name">{property.name}</h3>
+                  <p className="prop__body">{property.body}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
         {/* ── closing ──────────────────────────────────────────────────── */}
-        <section className="shell section" data-reveal>
-          <div className="cta">
-            <h2 className="display">Put a price on your next pull request</h2>
+        <section className="band band--ink" data-reveal>
+          <div className="shell cta">
+            <h2 className="cta__title">Put a price on your next pull request</h2>
             <div className="cta__actions">
-              <a className="btn btn--primary" href={`${DOCS}/ci.md`}>
+              <a className="btn btn--on-ink" href={`${DOCS_URL}/ci.md`}>
                 Run it in CI
                 <ExternalIcon />
               </a>
-              <a className="btn" href={REPO}>
+              <a className="btn btn--ghost-ink" href={REPO_URL}>
                 Read the source
                 <ExternalIcon />
               </a>
@@ -290,10 +298,13 @@ export default function Page() {
                 <a href="/api/brief?format=markdown">The API</a>
               </li>
               <li>
-                <a href={`${DOCS}/ci.md`}>Running in CI</a>
+                <a href="/audit">The audit log</a>
               </li>
               <li>
-                <a href={`${DOCS}/verdict.md`}>Verdict model</a>
+                <a href={`${DOCS_URL}/ci.md`}>Running in CI</a>
+              </li>
+              <li>
+                <a href={`${DOCS_URL}/verdict.md`}>Verdict model</a>
               </li>
             </ul>
           </div>
@@ -301,16 +312,19 @@ export default function Page() {
             <h2 className="site-foot__head">Build</h2>
             <ul className="site-foot__list">
               <li>
-                <a href={`${DOCS}/architecture.md`}>Architecture</a>
+                <a href={`${DOCS_URL}/architecture.md`}>Architecture</a>
               </li>
               <li>
-                <a href={`${DOCS}/adapters.md`}>Adapters</a>
+                <a href={`${DOCS_URL}/policy.md`}>Policy</a>
               </li>
               <li>
-                <a href={`${DOCS}/deploying.md`}>Deploying</a>
+                <a href={`${DOCS_URL}/adapters.md`}>Adapters</a>
               </li>
               <li>
-                <a href={`${REPO}/blob/main/CONTRIBUTING.md`}>Contributing</a>
+                <a href={`${DOCS_URL}/deploying.md`}>Deploying</a>
+              </li>
+              <li>
+                <a href={`${REPO_URL}/blob/main/CONTRIBUTING.md`}>Contributing</a>
               </li>
             </ul>
           </div>
@@ -318,30 +332,44 @@ export default function Page() {
             <h2 className="site-foot__head">Decisions</h2>
             <ul className="site-foot__list">
               <li>
-                <a href={`${REPO}/tree/main/research`}>Research plans</a>
+                <a href={`${REPO_URL}/tree/main/research`}>Research plans</a>
               </li>
               <li>
-                <a href={`${REPO}/blob/main/AGENTS.md`}>Invariants</a>
+                <a href={`${REPO_URL}/blob/main/AGENTS.md`}>Invariants</a>
+              </li>
+              <li>
+                <a href={`${DOCS_URL}/reproducibility.md`}>Reproducibility</a>
               </li>
             </ul>
           </div>
           <div>
-            <h2 className="site-foot__head">Built on</h2>
+            <h2 className="site-foot__head">Built with</h2>
             <ul className="site-foot__list">
               <li>
                 <a href="https://vercel.com/eve">eve</a>
               </li>
               <li>
-                <a href="https://vercel.com/geist/introduction">Geist</a>
+                <a href="https://nextjs.org">Next.js</a>
               </li>
             </ul>
           </div>
         </div>
         <div className="site-foot__base">
-          <span>Apache-2.0</span>
-          <span>Fixture telemetry. One adapter file swaps in a live source.</span>
+          <span className="site-foot__brand">
+            <BlastMark size={16} />
+            blast
+          </span>
+          <span>Apache-2.0 · Fixture telemetry. One adapter file swaps in a live source.</span>
         </div>
       </footer>
+
+      {/*
+        The reveal observer lives inside the page rather than the layout. The page sits
+        behind Next's route-level loading boundary, which hydrates after the layout; an
+        observer armed from the layout marked sections as revealed before React had
+        hydrated them, and React then found an attribute its markup did not have.
+      */}
+      <Reveal />
     </>
   );
 }

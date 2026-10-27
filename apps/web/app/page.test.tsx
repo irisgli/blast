@@ -82,6 +82,53 @@ describe("the page", () => {
     expect(NO_SCRIPT_REVEAL_CSS).toContain("[data-reveal]");
   });
 
+  it("renders the playground with the engine's own first answer, before any script", async () => {
+    const html = await render();
+
+    // The result panel is in the markup: the first interaction is a change, not a load.
+    expect(html).toContain("Rules that fired");
+    expect(html).toContain("measurability.feature-events");
+    expect(html).toContain("Back to defaults");
+    expect(html).toContain("Monthly spend ceiling");
+  });
+
+  it("prints a verification a reader can run from their own machine", async () => {
+    const html = await render();
+
+    expect(html).toContain("x-blast-verdict: hold");
+    expect(html).toMatch(/x-blast-digest: [0-9a-f]{16}/);
+    expect(html).toContain("pnpm blast decide fixture");
+  });
+
+  it("shows the workflow this repository runs, not a package that is not published", async () => {
+    const html = await render();
+
+    expect(html).not.toContain("npm install -g");
+    expect(html).toContain("pnpm install --frozen-lockfile &amp;&amp; pnpm build");
+  });
+
+  it("is five sections, each one thing", async () => {
+    const html = await render();
+
+    for (const heading of [
+      "Your budgets decide, not ours",
+      "What lands on the pull request",
+      "One file and one job",
+      "Decided by code you can check",
+      "Built to be argued with",
+    ]) {
+      expect(html).toContain(heading);
+    }
+  });
+
+  it("carries its own mark, not a borrowed one", async () => {
+    const html = await render();
+
+    // The point and the rings it reaches. A triangle would be somebody else's logo.
+    expect(html).toContain('d="M17 4a11 11 0 0 1 0 16"');
+    expect(html).not.toContain("M9 0L18 16H0L9 0Z");
+  });
+
   it("holds no dollar figure that the engine did not produce", async () => {
     const html = await render();
     const estimate = "$340.40";
