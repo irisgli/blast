@@ -1,15 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { NO_SCRIPT_REVEAL_CSS, Reveal } from "./components/reveal";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import { NO_SCRIPT_REVEAL_CSS } from "./components/reveal";
+import { SITE_URL } from "./site";
 import "./globals.css";
 
-const sans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+
+const DESCRIPTION =
+  "What a pull request costs to run, what it costs the user, and whether anyone will be able to tell if it worked — decided by code on every pull request, before anyone merges.";
 
 export const metadata: Metadata = {
-  title: "Impact · blast",
-  description:
-    "What a pull request costs to run, what it costs the user, and whether anyone will be able to tell if it worked.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "blast — a pre-ship impact decision for every pull request",
+    template: "%s · blast",
+  },
+  description: DESCRIPTION,
+  openGraph: {
+    title: "blast — a pre-ship impact decision for every pull request",
+    description: DESCRIPTION,
+    url: "/",
+    siteName: "blast",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
      * ran and every section below the hero stayed invisible. Rendering it means server
      * and client agree, and there is nothing to flash.
      */
-    <html lang="en" className={`${sans.variable} ${mono.variable}`} data-reveal-armed="">
+    <html
+      lang="en"
+      className={`${sans.variable} ${mono.variable}`}
+      data-reveal-armed=""
+    >
       <head>
         {/*
           Without JavaScript nothing will ever reveal these, so they are unhidden here
@@ -33,10 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <style>{NO_SCRIPT_REVEAL_CSS}</style>
         </noscript>
       </head>
-      <body>
-        {children}
-        <Reveal />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

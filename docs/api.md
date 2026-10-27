@@ -15,6 +15,7 @@ disagree.
 | [`GET /api/v1/decisions`](#get-apiv1decisions) | the audit trail, and what it adds up to        |
 | [`GET /api/brief`](#get-apibrief)              | the sample brief, for reading the shape        |
 | [`POST /api/brief`](#post-apibrief)            | a brief as markdown or JSON                    |
+| [`GET /api/what-if`](#get-apiwhat-if)          | the sample change under budgets you name       |
 
 `/api/v1/decision` is the one to integrate against. `/api/brief` predates it, renders the
 same engine, and does not accept contributed evidence or record anything.
@@ -181,6 +182,33 @@ curl -sS 'https://blast.example/api/brief?format=markdown'
 Cacheable at the edge (`s-maxage=300, stale-while-revalidate=3600`) because it is
 deterministic over checked-in fixtures: the same request produces the same bytes until a
 commit changes them.
+
+## `GET /api/what-if`
+
+The sample change, decided under budgets named in the query string. It is what the
+page's playground calls when a reader moves a ceiling.
+
+```sh
+curl -sS 'https://blast.example/api/what-if?budget.monthlyCostDeltaUsd=300' | jq '.verdict, .digest'
+curl -sS 'https://blast.example/api/what-if?enforce.measurability.feature-events=warn' | jq '.exitCode'
+```
+
+`budget.<name>` sets a budget, `enforce.<rule-id>` the enforcement of one rule and
+`enforce.<dimension>` a whole dimension's. Budgets are validated by the same schema as
+`blast.json`, so a ceiling the file would reject is rejected here; a parameter the endpoint
+does not know is refused rather than ignored, because a misspelled knob that silently did
+nothing would show the default verdict as if it were yours.
+
+The response is the decision's own fields — verdict, confidence, digest, exit code under
+`--fail-on hold`, each dimension's status and rationale, every rule that fired with its
+enforcement and severity, the budgets applied, and the `blast.json` document the query
+amounts to. With no parameters it is exactly [`GET /api/brief`](#get-apibrief)'s brief,
+digest included, which is the test that it is the same engine.
+
+The policy comes from the query and from nowhere else: never a `blast.json` beside the
+deployment, and never this repository's own. Nothing it computes is recorded; a what-if is
+not a decision about a change anyone is shipping. Cacheable at the edge, like
+`GET /api/brief`, because it is deterministic over the fixtures and the URL.
 
 ## `POST /api/brief`
 

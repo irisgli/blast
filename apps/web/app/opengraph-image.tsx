@@ -29,42 +29,52 @@ export default async function Image() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#000000",
-          color: "#ededed",
+          background: "#ffffff",
+          color: "#101828",
           padding: "72px 80px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 24, color: "#a1a1a1" }}>
-          <svg width="26" height="23" viewBox="0 0 18 16" fill="none">
-            <path d="M9 0L18 16H0L9 0Z" fill="#ededed" />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 26, fontWeight: 600 }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <circle cx="8" cy="12" r="3.25" fill="#2a5bd7" />
+            <path d="M13.5 7.5a6.4 6.4 0 0 1 0 9" stroke="#2a5bd7" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M17 4a11 11 0 0 1 0 16" stroke="#2a5bd7" strokeWidth="2.2" strokeLinecap="round" />
           </svg>
           <span>blast</span>
-          <span style={{ color: "#454545" }}>/</span>
-          <span>Impact</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ display: "flex", fontSize: 22, color: "#7d7d7d" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 18,
+            padding: "36px 40px",
+            borderRadius: 18,
+            border: "1px solid #e4e7ec",
+            background: "#f8f9fb",
+          }}
+        >
+          <div style={{ display: "flex", fontSize: 22, color: "#7a8599" }}>
             {directive?.file ?? "app/products/[slug]/page.tsx"}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 40 }}>
-            <span style={{ color: "#ff6369" }}>−</span>
-            <span style={{ color: "#a1a1a1" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 38 }}>
+            <span style={{ color: "#d92d20" }}>−</span>
+            <span style={{ color: "#667085" }}>
               &quot;Cache-Control&quot;: &quot;{directive?.from ?? "s-maxage=3600"}&quot;
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 40 }}>
-            <span style={{ color: "#62c073" }}>+</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 38 }}>
+            <span style={{ color: "#067647" }}>+</span>
             <span>&quot;Cache-Control&quot;: &quot;{directive?.to ?? "s-maxage=300"}&quot;</span>
             <span
               style={{
                 display: "flex",
                 marginLeft: 12,
                 padding: "8px 18px",
-                borderRadius: 999,
-                border: "1px solid #4a3410",
-                background: "#251e11",
-                color: "#f1a10d",
+                borderRadius: 10,
+                border: "1px solid #fcd9a6",
+                background: "#fff6e5",
+                color: "#b45309",
                 fontSize: 28,
               }}
             >
@@ -73,8 +83,8 @@ export default async function Image() {
           </div>
         </div>
 
-        <div style={{ display: "flex", fontSize: 26, color: "#a1a1a1" }}>
-          What a pull request costs, and whether you&apos;ll know if it worked.
+        <div style={{ display: "flex", fontSize: 28, color: "#475467" }}>
+          Know what a pull request costs before you merge it.
         </div>
       </div>
     ),

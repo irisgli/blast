@@ -11,6 +11,10 @@ the user, and whether anyone will be able to evaluate it afterward. It is built 
 A one-line cache directive change costs $298 a month and passes review because it does
 not look like a spending decision. That is the class of change this exists to catch.
 
+It is live at [blast-ruby.vercel.app](https://blast-ruby.vercel.app). The page runs the
+engine on the sample pull request when it loads, lets you move a budget and watch the
+verdict move, and prints the command that reproduces its digest from a clone.
+
 It is not trying to out-measure the tools you already run. Infracost prices your Terraform
 plan, Lighthouse measures your preview, Datadog holds your p95 — blast puts their numbers in
 one decision, compares them to budgets you set once, and holds the merge on the result.
@@ -53,11 +57,10 @@ pnpm install
 pnpm --filter @blast/web dev
 ```
 
-The surface on `localhost:3100` renders a brief for the sample pull request, in
-[Geist](https://vercel.com/geist/introduction) and built the way the product would ship:
-a tab on a deployment, not a landing page. It needs no credentials — the verdict, the
-bill, and the fixes are deterministic code over the fixtures, computed when the page
-loads.
+The surface on `localhost:3100` renders a brief for the sample pull request
+and lets you decide it again under budgets of your own. It needs no credentials — the
+verdict, the bill, and the fixes are deterministic code over the fixtures, computed when
+the page loads.
 
 For the agent itself:
 

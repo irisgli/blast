@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { loadFixtureChangeProfile } from "@blast/adapters";
-import type { ChangeProfile } from "@blast/core";
+import type { ChangeProfile, Policy, Verdict } from "@blast/core";
 import { DEFAULT_POLICY } from "@blast/core";
 import { produceBrief } from "@blast/brief";
 import type { ProducedBrief } from "@blast/brief";
@@ -46,7 +46,30 @@ const WATCH_AFTER_SHIP = {
   measurability: ["PDP to cart rate", "carousel click-through", "PDP bounce rate"],
 } as const;
 
-async function build(): Promise<DemoBriefResult> {
+/**
+ * The gate the demo is read against.
+ *
+ * The transcript ends on `--fail-on hold` and an exit code, so the decision carries the
+ * same gate. A page that printed an exit code the decision did not record would be two
+ * answers in one place, which is the thing this surface exists to rule out.
+ */
+export const DEMO_GATE: Verdict = "hold";
+
+/**
+ * The sample change, assessed under a policy the caller names.
+ *
+ * The page pins `DEFAULT_POLICY` — the sample storefront's budgets are the defaults,
+ * stated rather than searched for. Without that, the demo would assess a fictional
+ * storefront's pull request against whatever `blast.json` happens to sit above this
+ * deployment, which is blast's own and has nothing to do with the storefront. It is the
+ * same category error `/api/brief` refuses by never reading a policy file beside the
+ * server: the policy that governs a change belongs to the repository the change is in.
+ *
+ * The what-if endpoint passes a policy built from its query string, and nothing else,
+ * through this same function. A budget a reader moves on the page is applied to the
+ * storefront's change by the same engine, and the page shows them the file it would be.
+ */
+export async function produceDemoBrief(policy: Policy): Promise<DemoBriefResult> {
   const change = loadFixtureChangeProfile();
   if (!change.ok) {
     return { ok: false, detail: `The sample change could not be read: ${change.detail}` };
@@ -56,27 +79,15 @@ async function build(): Promise<DemoBriefResult> {
     profile: change.value,
     headline: HEADLINE,
     watchAfterShip: { measurability: [...WATCH_AFTER_SHIP.measurability] },
-    /**
-     * The sample storefront's budgets are the defaults, stated rather than searched for.
-     *
-     * Without this, the demo assesses a fictional storefront's pull request against whatever
-     * `blast.json` happens to sit above this deployment — which is blast's own, once this
-     * repository has one, and which has nothing to do with the storefront. It is the same
-     * category error `/api/brief` already refuses to make by never reading a policy file beside
-     * the server: the policy that governs a change belongs to the repository the change is in.
-     *
-     * It is also what keeps the page a demonstration. A visitor is here to see what a held
-     * change looks like, and a verdict that moved because this repository softened its own
-     * enforcement would be showing them the wrong thing entirely.
-     */
-    policy: DEFAULT_POLICY,
+    policy,
+    gate: DEMO_GATE,
   });
   if (!produced.ok) return { ok: false, detail: produced.detail };
 
   return { ok: true, value: { profile: change.value, ...produced.value } };
 }
 
-export const getDemoBrief = cache(build);
+export const getDemoBrief = cache(() => produceDemoBrief(DEFAULT_POLICY));
 
 /** For callers that have already handled the failure path once. */
 export async function buildDemoBrief(): Promise<DemoBrief> {
