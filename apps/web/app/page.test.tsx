@@ -24,6 +24,7 @@ describe("the page", () => {
 
     // The shell, which must not wait on a cost model.
     expect(html).toContain("costs before you merge it");
+    expect(html).toContain("What lands on the pull request");
     expect(html).toContain("Set your budgets in blast.json");
 
     // The panels, each behind its own boundary.
@@ -110,15 +111,14 @@ describe("the page", () => {
     expect(html).toContain("pnpm install --frozen-lockfile &amp;&amp; pnpm build");
   });
 
-  it("is five sections, each one thing", async () => {
+  it("is four sections, each one thing", async () => {
     const html = await render();
 
     for (const heading of [
-      "Your budgets decide, not ours",
       "What lands on the pull request",
-      "One file and one job",
-      "Decided by code you can check",
-      "Built to be argued with",
+      "Move the budgets",
+      "Add it to CI",
+      "How a diff becomes a decision",
     ]) {
       expect(html).toContain(heading);
     }

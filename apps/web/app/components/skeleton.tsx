@@ -1,14 +1,10 @@
 /**
  * What the page shows while the engine runs.
  *
- * Each skeleton is the shape of the thing it stands in for, at the height that thing
- * will be, so nothing below it moves when the real content arrives. A spinner would say
- * only that something is happening; this says what is coming, and it keeps the page from
- * reflowing under someone already reading it.
- *
- * They are deliberately mute — no numbers, no placeholder figures. A greyed-out plausible
- * dollar amount would be a number without a basis, which is the one thing this surface
- * cannot print.
+ * Each skeleton is the shape of the thing it stands in for, at the height that thing will
+ * be, so nothing below it moves when the real content arrives. They are deliberately mute:
+ * no numbers, no placeholder figures. A greyed-out plausible dollar amount would be a number
+ * without a basis, which is the one thing this surface cannot print.
  */
 
 function Bar({ width, height = 12 }: { width: string; height?: number }) {
@@ -26,23 +22,21 @@ export function ChangeCardSkeleton() {
   );
 }
 
-export function LiveBriefSkeleton() {
+export function PanelSkeleton() {
   return (
-    <div
-      className="stack"
-      style={{ marginTop: "3rem" }}
-      role="status"
-      aria-label="Assessing the change"
-    >
-      <div className="skeleton-card skeleton-card--note">
-        <Bar width="30%" height={14} />
+    <div className="skeleton-panel" role="status" aria-label="Assessing the change">
+      <div className="skeleton-card skeleton-card--bar">
+        <Bar width="30%" height={10} />
+        <Bar width="18%" height={10} />
+      </div>
+      <div className="skeleton-card">
         <Bar width="92%" />
         <Bar width="76%" />
       </div>
-      <div className="metrics">
+      <div className="skeleton-columns">
         {["performance", "cost", "measurability"].map((dimension) => (
           <div className="skeleton-card" key={dimension}>
-            <Bar width="45%" height={12} />
+            <Bar width="45%" height={10} />
             <Bar width="90%" />
             <Bar width="80%" />
             <Bar width="60%" />
@@ -69,18 +63,5 @@ export function TerminalSkeleton() {
         ))}
       </div>
     </div>
-  );
-}
-
-export function SourceListSkeleton() {
-  return (
-    <ul className="sources" style={{ marginTop: "2.5rem" }} aria-label="Reading sources">
-      {[0, 1, 2, 3, 4, 5, 6, 7].map((row) => (
-        <li className="sources__row" key={row}>
-          <Bar width="52%" />
-          <Bar width="72px" height={10} />
-        </li>
-      ))}
-    </ul>
   );
 }
