@@ -12,27 +12,27 @@ import { REPO_URL, SITE_URL } from "../site";
 const STAGES = [
   {
     title: "Change",
-    body: "A diff becomes a profile: surfaces, endpoints, cache directives, dependencies.",
+    body: "A diff becomes a profile of what it touches.",
   },
   {
     title: "Evidence",
-    body: "Nine sources and two ingest adapters return records. Every number carries a basis.",
+    body: "Sources answer; every number carries a basis.",
   },
   {
     title: "Snapshot",
-    body: "Evidence is frozen and content-addressed before anything decides.",
+    body: "Frozen and content-addressed before anything decides.",
   },
   {
     title: "Rules",
-    body: "Built-ins are declared in the shape blast.json uses. The model never picks a verdict.",
+    body: "Declared like blast.json. The model never picks.",
   },
   {
     title: "Decision",
-    body: "Verdict, confidence, every rule that fired, a digest, and a signature when there is a key.",
+    body: "Verdict, rules that fired, digest, signature.",
   },
   {
     title: "Surfaces",
-    body: "A comment, an exit code, POST /api/v1/decision, this page, and an append-only audit log.",
+    body: "A comment, an exit code, the API, this page.",
   },
 ] as const;
 
@@ -64,7 +64,7 @@ export function Invariants() {
       <span className="laws__lead">
         Five boundaries,{" "}
         <a href={`${REPO_URL}/blob/main/scripts/check-module-boundaries.mjs`}>one script</a>, every
-        test run and every commit in CI:
+        test run:
       </span>
       {LAWS.map((law) => (
         <code className="laws__chip" key={law}>
@@ -115,9 +115,7 @@ export async function Verify() {
         </pre>
       </div>
       <p className="verify__note">
-        Both expected outputs were computed by the call that rendered this page. The digest is a
-        content address over the change, the evidence, the budgets and the verdict; two runs that
-        agree on it are the same decision, wherever they ran.
+        Both come from the call that rendered this page. Same digest, same decision.
       </p>
     </div>
   );

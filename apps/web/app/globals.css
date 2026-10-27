@@ -2149,7 +2149,6 @@ body {
 }
 
 /* type */
-/* The page's one kicker, above the headline. Sections carry none. */
 .eyebrow {
   margin: 0 0 1.1rem;
   font-size: 14px;
@@ -3126,6 +3125,73 @@ html[data-motion] .hero .field {
   }
 }
 
+/* the brief at a glance, and its evidence on request */
+.fixes-line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.fixes-line b {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.evidence {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.evidence__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  padding: 1rem 0 0.25rem;
+  list-style: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.evidence__summary::-webkit-details-marker {
+  display: none;
+}
+
+.evidence__summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1em;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.evidence[open] .evidence__summary::before {
+  content: "−";
+}
+
+.evidence__summary:hover {
+  color: var(--brand-strong);
+}
+
+.evidence__summary:focus-visible {
+  outline: 2px solid var(--blue-fg);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.evidence__hint {
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.evidence__body {
+  padding-top: 0.75rem;
+}
+
 /* closing */
 .cta {
   display: flex;
@@ -3177,4 +3243,604 @@ html[data-motion] .hero .field {
 
 .site-foot__brand svg {
   color: var(--brand);
+}
+
+/* ── night ───────────────────────────────────────────────────────────────── */
+/*
+ * The page, at night.
+ *
+ * One room, one set of tokens. The shared tokens the product panels were built on are
+ * remapped here to the night, so the brief, the playground and the terminal sit in the
+ * same dark as the page without a rule of their own changing. The two rules below the
+ * tokens are the only ones that had a light value written in rather than a token.
+ */
+:root {
+  color-scheme: dark;
+
+  --night: #070a14;
+  --night-raised: #0d1222;
+  --night-line: rgba(255, 255, 255, 0.1);
+  --night-line-strong: rgba(255, 255, 255, 0.22);
+  --ghost-80: rgba(255, 255, 255, 0.82);
+  --ghost-60: rgba(255, 255, 255, 0.64);
+  --ghost-40: rgba(255, 255, 255, 0.44);
+  --signal: #7c9cff;
+
+  --background-100: var(--night-raised);
+  --background-200: var(--night);
+
+  --gray-100: #111730;
+  --gray-200: #161d38;
+  --gray-300: #1c2442;
+  --gray-400: #28315a;
+  --gray-500: #4a5580;
+  --gray-600: #8891b8;
+  --gray-1000: #ffffff;
+
+  --text-primary: #ffffff;
+  --text-secondary: var(--ghost-60);
+  --text-tertiary: var(--ghost-40);
+
+  --border: var(--night-line);
+  --border-strong: var(--night-line-strong);
+
+  --amber-bg: rgba(245, 177, 74, 0.12);
+  --amber-border: rgba(245, 177, 74, 0.38);
+  --amber-fg: #f5b14a;
+  --amber-solid: #f5b14a;
+
+  --green-bg: rgba(95, 211, 154, 0.12);
+  --green-border: rgba(95, 211, 154, 0.38);
+  --green-fg: #5fd39a;
+  --green-solid: #5fd39a;
+
+  --neutral-bg: rgba(255, 255, 255, 0.06);
+  --neutral-border: rgba(255, 255, 255, 0.16);
+  --neutral-fg: var(--ghost-60);
+
+  --red-fg: #ff7a6e;
+  --blue-fg: var(--signal);
+
+  --brand: var(--signal);
+  --brand-strong: #a3b8ff;
+  --brand-soft: rgba(124, 156, 255, 0.14);
+
+  --ink: #0b1020;
+  --ink-raised: #121a30;
+  --ink-border: rgba(255, 255, 255, 0.12);
+  --ink-text: #dbe1f0;
+  --ink-muted: #8a93b0;
+
+  --band-tint: var(--night-raised);
+  --field-ring: rgba(124, 156, 255, 0.55);
+
+  --z-grain: 30;
+  --z-loader: 50;
+}
+
+body {
+  background: var(--night);
+  color: #ffffff;
+}
+
+.play__controls {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.seg__btn--on {
+  background: #ffffff;
+  color: #0b0f1d;
+}
+
+.stage__paper .panel,
+.stage__paper .play {
+  background: var(--night-raised);
+}
+
+/* grain: the whole page feels printed rather than rendered. texture, never UI. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.22;
+}
+
+.grain svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* loader: the curtain the page opens with */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loader);
+  display: grid;
+  place-items: center;
+  background: var(--night);
+  color: #ffffff;
+}
+
+.loader[data-done] {
+  pointer-events: none;
+}
+
+.loader__mark {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  color: #ffffff;
+}
+
+.loader__mark svg {
+  color: var(--signal);
+}
+
+.loader__name {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 2.25rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.loader__readout {
+  position: absolute;
+  right: clamp(1.25rem, 3vw, 2.5rem);
+  bottom: clamp(1.25rem, 3vw, 2.5rem);
+  display: flex;
+  gap: 1rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ghost-60);
+  font-variant-numeric: tabular-nums;
+}
+
+/* If the script never lifts it, the curtain goes on its own. */
+html[data-motion=""] .loader {
+  animation: loader-safety 1ms linear 2.6s forwards;
+}
+
+@keyframes loader-safety {
+  to {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader {
+    display: none;
+  }
+}
+
+/* top bar, over the dark */
+.topbar {
+  border-bottom-color: var(--night-line);
+  background: rgba(7, 10, 20, 0.55);
+}
+
+.topbar__brand {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.topbar__brand svg {
+  color: var(--signal);
+}
+
+.topbar__links a {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ghost-60);
+}
+
+.topbar__links a:hover {
+  color: #ffffff;
+}
+
+.progress {
+  background: var(--signal);
+}
+
+/* buttons: pills, white on the dark, as the product panels' are not */
+.btn {
+  height: 44px;
+  padding-inline: 1.35rem;
+  border-radius: var(--radius-full);
+  border-color: var(--night-line-strong);
+  background: transparent;
+  color: #ffffff;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn--primary {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0b0f1d;
+}
+
+.btn--primary:hover {
+  background: #dfe6ff;
+  border-color: #dfe6ff;
+}
+
+.btn--small {
+  height: 36px;
+  padding-inline: 1rem;
+  font-size: 12px;
+}
+
+/* type on the dark: a Clarendon for the words that are the page's, mono for its labels */
+.display {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(4.5rem, 2rem + 11vw, 11rem);
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  max-width: none;
+  margin: 0;
+}
+
+.display__point {
+  color: var(--signal);
+}
+
+.hero__sub {
+  max-width: 44ch;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ghost-80);
+}
+
+.hero__sub + .hero__sub {
+  margin-top: 0.85rem;
+  color: var(--ghost-60);
+}
+
+.hero__meta {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ghost-40);
+}
+
+.chip {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--night-line);
+  color: var(--ghost-80);
+}
+
+/* hero: one world. the field, the wordmark, one line, one button. */
+.hero {
+  min-height: 100svh;
+  display: grid;
+  align-items: end;
+  padding-block: 0 clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.hero__backdrop::after {
+  background: linear-gradient(to bottom, rgba(7, 10, 20, 0), var(--night));
+}
+
+html[data-motion] .hero .field {
+  opacity: 0;
+}
+
+.hero__grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  align-items: end;
+  gap: 3rem 4rem;
+}
+
+.hero__card {
+  margin-left: auto;
+  width: min(100%, 520px);
+}
+
+.hero__card .lede {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ghost-60);
+}
+
+.hero__actions {
+  margin-top: 2rem;
+}
+
+/* stages: a numbered sequence, each with one panel and a caption row, like a plate */
+.stage {
+  padding-block: clamp(5rem, 9vw, 8.5rem);
+  border-top: 1px solid var(--night-line);
+}
+
+.stage__head {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+
+.stage__index {
+  margin: 0.55rem 0 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--ghost-40);
+}
+
+.stage__title {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(2.5rem, 1.6rem + 3.4vw, 4.5rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  max-width: 16ch;
+  text-wrap: balance;
+}
+
+.stage__lede {
+  grid-column: 2;
+  margin: 1.1rem 0 0;
+  max-width: 58ch;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--ghost-60);
+}
+
+.stage__lede code,
+.stage__lede a {
+  color: #ffffff;
+}
+
+.stage__body {
+  margin-top: clamp(2.25rem, 4vw, 3.5rem);
+}
+
+.stage__paper {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 40px 100px rgba(0, 0, 0, 0.6);
+}
+
+.stage__caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  margin: 1rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--night-line);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--ghost-40);
+}
+
+.stage__caption a,
+.stage__caption code {
+  color: var(--ghost-60);
+  text-decoration: none;
+}
+
+.stage__caption a:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .stage__head {
+    grid-template-columns: 1fr;
+  }
+
+  .stage__lede {
+    grid-column: 1;
+  }
+}
+
+/* readouts, on the dark: luminous mono */
+.stats {
+  background: var(--night-line);
+  border-color: var(--night-line);
+}
+
+.stat {
+  background: var(--night-raised);
+}
+
+.stat__value {
+  color: #ffffff;
+}
+
+.stat--risk .stat__value {
+  color: var(--amber-fg);
+}
+
+.stat--ok .stat__value {
+  color: var(--green-fg);
+}
+
+/* the setup, the pipeline, the properties: serif titles, mono bodies */
+.setup__index,
+.pipe__index {
+  color: var(--signal);
+}
+
+.setup__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.setup__body,
+.prop__body,
+.pipe__body,
+.laws,
+.verify__note {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  color: var(--ghost-60);
+}
+
+.setup__body {
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.prop__name {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.prop__body {
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.pipe {
+  background: var(--night-line);
+  border-color: var(--night-line);
+}
+
+.pipe__stage {
+  background: var(--night-raised);
+}
+
+.pipe__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.pipe__body {
+  font-size: 12px;
+}
+
+.laws__chip {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--night-line);
+  color: var(--green-fg);
+}
+
+.verify__note {
+  font-size: 12.5px;
+}
+
+.snippet,
+.term,
+.verify__block {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* closing: the field again, and the wordmark's one sentence */
+.band--brand {
+  background: var(--night);
+  color: #ffffff;
+  border-top: 1px solid var(--night-line);
+}
+
+.cta {
+  padding-block: clamp(4rem, 10vw, 8rem);
+}
+
+.cta__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(2.5rem, 1.6rem + 4vw, 5rem);
+  font-weight: 500;
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  max-width: 14ch;
+}
+
+.btn--on-brand {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0b0f1d;
+}
+
+.btn--on-brand:hover {
+  background: #dfe6ff;
+  border-color: #dfe6ff;
+}
+
+.btn--ghost-brand {
+  background: transparent;
+  border-color: var(--night-line-strong);
+  color: #ffffff;
+}
+
+.btn--ghost-brand:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* footer, in the dark */
+.site-foot {
+  border-top: 1px solid var(--night-line);
+}
+
+.site-foot__head {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  color: var(--ghost-40);
+}
+
+.site-foot__list a {
+  color: var(--ghost-60);
+}
+
+.site-foot__list a:hover {
+  color: #ffffff;
+}
+
+.site-foot__base {
+  border-top-color: var(--night-line);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ghost-40);
+}
+
+.site-foot__brand {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.site-foot__brand svg {
+  color: var(--signal);
+}
+
+:where(a, button):focus-visible {
+  outline-color: var(--signal);
+}
+
+@media (max-width: 1000px) {
+  .hero__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero__card {
+    margin-left: 0;
+  }
 }

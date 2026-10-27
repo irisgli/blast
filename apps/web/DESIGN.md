@@ -1,7 +1,8 @@
 # Design — blast
 
-> Blast radius. A light, exact instrument page whose one memorable thing is the field of
-> rings that a single changed line sends across the hero.
+> Blast radius, at night. A dark room, one luminous field of rings leaving a changed line,
+> the product's own panels in the same dark, and a Clarendon wordmark with a trailing
+> point. Five stages under it, one line each.
 
 ## Product context
 
@@ -21,9 +22,11 @@
   once it is merged. The page draws that: a point, and the rings it reaches, propagating
   outward from the priced diff across the hero. Everything else on the page is the quiet,
   exact chrome of a measuring instrument.
-- Scene: an engineer at a desk in daylight, pull request open in the next tab, deciding
-  whether to trust a number. That forces a light surface. Dark is the register of the tools
-  this page must not resemble, and daylight is where a careful reader checks a figure.
+- Scene: a seismograph room at night. The instrument glows; the panels it prints to are
+  the same dark as the room; the field is the trace, and it is the only thing that glows. The reference set that fixed this (vima, iris,
+  scalpal, nami, kali, tapn, bro, dialed, ione, flow, eve, tadaima, skarl) is uniformly a
+  dark world with one scene, a serif wordmark, mono labels and grain; a light Stripe-grade
+  page read as a template beside them, whatever its type.
 - Decoration level: one. The field is the only ornament. Section composition, type and
   spacing do the rest. Grain sits on the field and nowhere else.
 - Mood: calibrated. Calm, consequential, slightly severe. The page should feel like the
@@ -37,8 +40,9 @@
 
 ### Anti-patterns, never shipped
 
-- Black-on-black, tinted near-black page backgrounds, a borrowed mark or typeface. The page
-  is not Vercel, Linear or Cursor.
+- Pure black with a neon accent, Geist, a triangle: the Vercel look. The night here is
+  blue-black with grain and a scene in it, the product panels share it, and the mark is
+  blast's own.
 - Gradient text, glass cards, gradient CTA buttons, decorative gradient washes behind the
   hero. The field replaces all of them.
 - A tracked uppercase eyebrow above every section. Numbered section markers unless the
@@ -53,13 +57,17 @@
 
 ## Typography
 
-Two families on a proportion axis: a sharp, slightly narrow newspaper grotesk for words and
-a wide display monospace for the instrument's readouts. They are not similar, which is the
-point; a reader can tell a measurement from a sentence at a glance.
+Three families, each with one job. Besley, a Clarendon, for the words that are the page's
+own: the wordmark `blast.`, the stage titles, the property names, the closing line. Azeret
+Mono for everything the page says in its own voice below a title: ledes, captions,
+navigation, readouts, code. Schibsted Grotesk inside the product panels, which keep the
+product's register.
 
 | Role                     | Family            | Weight    | Size                                                | Notes                                                                                                |
 | ------------------------ | ----------------- | --------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Display (h1)             | Schibsted Grotesk | 700       | `clamp(2.75rem, 2rem + 3.2vw, 4.25rem)`             | line-height 1.02, letter-spacing -0.03em, `text-wrap: balance`, max 15ch                             |
+| Wordmark (h1) | Besley | 500 | `clamp(4.5rem, 2rem + 11vw, 11rem)` | `blast.`, line-height 0.9, letter-spacing -0.035em; the point in `--signal` |
+| Stage title (h2) | Besley | 500 | `clamp(2.5rem, 1.6rem + 3.4vw, 4.5rem)` | line-height 0.98, letter-spacing -0.025em, max 16ch |
+| Hero lines, stage ledes, captions | Azeret Mono | 400 | 15px / 14.5px / 12px | `--ghost-80` / `--ghost-60` / `--ghost-40`; captions letter-spacing 0.03em |
 | Section title (h2)       | Schibsted Grotesk | 650       | `clamp(1.85rem, 1.4rem + 1.6vw, 2.6rem)`            | line-height 1.08, letter-spacing -0.025em, max 20ch                                                  |
 | Panel title (h3)         | Schibsted Grotesk | 600       | 1.125rem / 1.25rem                                  | letter-spacing -0.015em                                                                              |
 | Lede                     | Schibsted Grotesk | 400       | 1.125rem                                            | line-height 1.55, 58ch, `--text-secondary`                                                           |
@@ -182,3 +190,18 @@ reveal. Nothing moves twice.
 - 2026-10-27: the closing band moved from near-black ink to the brand blue, with the rings
   in white, so the page opens and closes on the same idea and the only dark surfaces are
   the code panes.
+- 2026-10-27: the copy rewritten in plain sentences and the hero kicker removed; the page
+  had the cadence of generated text (aphorisms, "X, not Y" pairs, a colon in every lede).
+  The brief section now shows the overview and opens the evidence on request, after the
+  reader found the full dashboard too much for a page.
+- 2026-10-27, later: the page moved to the night. After the first dark redesign was
+  rejected for being Vercel's, the light page was built to Stripe's standard, and then
+  judged against the reference set the team actually admires: twelve hackathon sites that
+  are all a dark world with one scene, a serif wordmark, mono labels, grain and a loader.
+  The light page read as a template beside them. The night layer at the end of
+  `globals.css` remaps the tokens, and the product panels take the night with the page.
+  Besley replaces Schibsted for the page's own words; a loader with a readout opens the
+  page once per session; grain sits over everything. Then, on the reader's note that the
+  stages still said too much: one line under each title, no captions, no readout strip,
+  four one-line properties, the pipeline's cards cut to a phrase. The Plaid demo page
+  was the measure: a headline, a line, the thing itself.
