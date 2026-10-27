@@ -6,29 +6,27 @@ import { SITE_URL } from "./site";
 import "./globals.css";
 
 /**
- * Three families, each with one job. A Clarendon for the words that are the page's own:
- * the wordmark, the stage titles, the properties. A narrow technical monospace for every
- * label, lede, readout and line of code, so the instrument's voice is told from the
- * page's at a glance and a dense panel stays dense.
- * A sharp newspaper grotesk for the product panels, which are the brief as it lands on a
- * pull request and keep their own register.
+ * Three families, one job each. A Clarendon for the words that are the page's own: the
+ * wordmark, the section titles, the closing line. A newspaper grotesk for every sentence,
+ * on the night and on the paper panels alike. A monospace for what is data: navigation
+ * labels, readouts, digests, commands and code.
  */
 const display = Besley({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 const sans = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 const DESCRIPTION =
-  "What a pull request costs to run, what it costs the user, and whether anyone will be able to tell if it worked — decided by code on every pull request, before anyone merges.";
+  "What a pull request costs to run, what it costs the user, and whether anyone will be able to tell if it worked. Decided by rules your team wrote down, on every pull request, before anyone merges.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "blast — a pre-ship impact decision for every pull request",
+    default: "blast — what a pull request costs, before you merge it",
     template: "%s · blast",
   },
   description: DESCRIPTION,
   openGraph: {
-    title: "blast — a pre-ship impact decision for every pull request",
+    title: "blast — what a pull request costs, before you merge it",
     description: DESCRIPTION,
     url: "/",
     siteName: "blast",

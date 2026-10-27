@@ -14,11 +14,10 @@ gsap.registerPlugin(ScrollTrigger, SplitText, DrawSVGPlugin);
  *
  * One orchestrated entrance, a smooth scroll, and reveals that fit what they reveal. The
  * entrance is the only thing that moves without being asked: the field fades up as the
- * first ring leaves the card, the mark draws its rings, the headline rises line by line
- * through masks, the rest of the hero follows, the diff card settles in from the right,
- * and the readouts count up to the engine's values and end on the exact strings the
- * server rendered. Below the fold, section heads rise through line masks, lists stagger,
- * and the pipeline strip draws itself. A revealed element stays revealed.
+ * first ring leaves the card, the mark draws its rings, the wordmark rises through a mask,
+ * the lede and the actions follow, and the priced line settles in from the right. Below
+ * the fold, section heads rise through line masks, paper panels rise, lists stagger, and
+ * the pipeline strip draws itself. A revealed element stays revealed.
  *
  * Three rules keep this from costing anybody anything, and they are the same three the
  * previous reveal observer learned the hard way.
@@ -30,8 +29,8 @@ gsap.registerPlugin(ScrollTrigger, SplitText, DrawSVGPlugin);
  *
  * Only static elements are ever hidden. The playground, the brief, the terminal and the
  * verification block stream in behind their own boundaries and are never animated, so a
- * slow source never leaves a blank. The diff card and the readouts stream in too, but
- * inside wrappers the page renders at once; the wrappers are what the entrance moves.
+ * slow source never leaves a blank. The diff card streams in too, but inside a wrapper the
+ * page renders at once; the wrapper is what the entrance moves.
  *
  * `prefers-reduced-motion` disarms all of it rather than shortening it, and without
  * JavaScript a `<noscript>` rule unhides everything. A stylesheet safety also shows
@@ -51,51 +50,14 @@ function lines(target: Element): SplitText {
   return SplitText.create(target, { type: "lines", mask: "lines", linesClass: "line" });
 }
 
-/** Counts every readout in `scope` up from zero to the string the server rendered. */
-function countUp(scope: HTMLElement): boolean {
-  const nodes = scope.querySelectorAll<HTMLElement>("[data-count]");
-  if (nodes.length === 0) return false;
-
-  for (const node of nodes) {
-    const text = node.textContent ?? "";
-    const match = /^([^\d]*)(\d[\d,]*(?:\.(\d+))?)(.*)$/.exec(text);
-    if (!match) continue;
-    const [, prefix = "", figure = "", decimals = "", suffix = ""] = match;
-    const target = Number(figure.replace(/,/g, ""));
-    if (!Number.isFinite(target) || target === 0) continue;
-
-    const places = decimals.length;
-    const grouped = figure.includes(",");
-    const counter = { value: 0 };
-    gsap.to(counter, {
-      value: target,
-      duration: 1.1,
-      ease: "power3.out",
-      onUpdate() {
-        const value = counter.value.toFixed(places);
-        node.textContent = `${prefix}${grouped ? Number(value).toLocaleString("en-US", { minimumFractionDigits: places }) : value}${suffix}`;
-      },
-      onComplete() {
-        // The engine's string, exactly: a readout is never left on a rounded value.
-        node.textContent = text;
-      },
-    });
-  }
-  return true;
-}
-
-function entrance(context: gsap.Context) {
+function entrance() {
   const pick = (name: string) => document.querySelector<HTMLElement>(`[data-intro="${name}"]`);
   const field = document.querySelector<HTMLElement>(".hero .field");
   const rings = gsap.utils.toArray<SVGPathElement>(".topbar__brand path");
-  const kicker = pick("kicker");
   const display = pick("display");
   const sub = pick("sub");
-  const sub2 = pick("sub2");
   const actions = pick("actions");
-  const command = pick("command");
   const card = pick("card");
-  const stats = pick("stats");
 
   const timeline = gsap.timeline({ paused: true, defaults: { ease: EASE } });
 
@@ -108,27 +70,22 @@ function entrance(context: gsap.Context) {
       0.05,
     );
   }
-  if (kicker) {
-    timeline.fromTo(kicker, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 0.12);
-  }
 
   let split: SplitText | undefined;
   if (display) {
     split = lines(display);
     gsap.set(split.lines, { yPercent: 110 });
     gsap.set(display, { autoAlpha: 1 });
-    timeline.to(split.lines, { yPercent: 0, duration: 0.9, stagger: 0.09 }, 0.2);
+    timeline.to(split.lines, { yPercent: 0, duration: 0.9, stagger: 0.09 }, 0.15);
   }
 
-  const rest = [sub, sub2, actions, command].filter(
-    (node): node is HTMLElement => node !== null,
-  );
+  const rest = [sub, actions].filter((node): node is HTMLElement => node !== null);
   if (rest.length > 0) {
     timeline.fromTo(
       rest,
       { autoAlpha: 0, y: 14 },
-      { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.08 },
-      0.55,
+      { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.1 },
+      0.5,
     );
   }
 
@@ -137,21 +94,8 @@ function entrance(context: gsap.Context) {
       card,
       { autoAlpha: 0, x: 40, rotationY: -7, transformPerspective: 1000, transformOrigin: "0% 50%" },
       { autoAlpha: 1, x: 0, rotationY: 0, duration: 0.95 },
-      0.45,
+      0.4,
     );
-  }
-
-  if (stats) {
-    timeline.fromTo(stats, { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: 0.55 }, 0.85);
-    timeline.add(() => {
-      if (countUp(stats)) return;
-      // The strip streams in behind its own boundary; count once it lands.
-      const landed = new MutationObserver(() => {
-        if (context.add(() => countUp(stats))) landed.disconnect();
-      });
-      landed.observe(stats, { childList: true, subtree: true });
-      window.setTimeout(() => landed.disconnect(), 4000);
-    }, 0.9);
   }
 
   // The masks come off once the lines have landed, so a resize reflows the heading
@@ -203,12 +147,12 @@ function reveals() {
       // The strip draws itself left to right, and each stage lands as the edge passes it.
       const items = Array.from(element.children);
       gsap.set(items, { autoAlpha: 0, x: -10 });
-      gsap.set(element, { autoAlpha: 1, clipPath: "inset(0 100% 0 0 round 14px)" });
+      gsap.set(element, { autoAlpha: 1, clipPath: "inset(0 100% 0 0 round 4px)" });
       gsap
         .timeline({ scrollTrigger })
         .to(
           element,
-          { clipPath: "inset(0 0% 0 0 round 14px)", duration: 1, ease: "power3.inOut" },
+          { clipPath: "inset(0 0% 0 0 round 4px)", duration: 1, ease: "power3.inOut" },
           0,
         )
         .to(items, { autoAlpha: 1, x: 0, duration: 0.5, stagger: 0.07, ease: EASE }, 0.15);
@@ -316,7 +260,7 @@ export function Motion() {
     const ready = Promise.all([fonts, curtain]);
     void ready.then(() => {
       if (cancelled || late) return;
-      context.add(() => entrance(context));
+      context.add(() => entrance());
     });
     cleanups.push(() => {
       cancelled = true;

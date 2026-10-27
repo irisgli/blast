@@ -70,10 +70,12 @@ built this and that nothing on the page is asking to be taken on trust.
 - Anything that reads as Vercel, Linear or Cursor: black-on-black, a triangle or other
   borrowed mark, Geist, gradient text, glass cards. A first redesign went there and was
   rejected for it.
-- The hackathon register: a loader, an all-lowercase display headline, an ASCII intro,
-  type scattering on every heading, a dark palette for its own sake.
-- The SaaS kit: three identical cards with icons, a tracked uppercase eyebrow above
-  every section, a big number with a gradient accent, a logo wall.
+- The hackathon register: an all-lowercase display headline, an ASCII intro, type
+  scattering on every heading, a dark palette for its own sake. The page keeps one loader,
+  under two seconds and once per session, because the field needs a beat to appear.
+- The SaaS kit: three identical cards with icons, a tracked uppercase eyebrow or a number
+  above every section, a big number with a gradient accent, a logo wall, a four-column
+  footer.
 - Cost-tool marketing that promises savings. A modeled number is never a saving.
 
 ## Design Principles
@@ -86,8 +88,8 @@ built this and that nothing on the page is asking to be taken on trust.
   craft around it.
 - A basis beside every number. The page keeps the engine's discipline: measured,
   modeled, inferred or assumed, never promoted.
-- Short. Five sections, each one thing, in the register of a first-rate developer
-  product rather than a launch video.
+- Short. Four sections and a close, each one thing and each with its own composition,
+  in the register of a first-rate developer product rather than a launch video.
 
 ## Accessibility & Inclusion
 

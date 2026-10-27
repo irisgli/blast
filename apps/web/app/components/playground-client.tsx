@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import type { Enforcement } from "@blast/core";
 import { CopyButton } from "./copy";
+import { Snippet } from "./snippet";
 import { StatusBadge } from "./status";
 import type { WhatIf } from "../what-if-shape";
 
@@ -115,7 +116,7 @@ export function PlaygroundClient({
             <label className="control__label" htmlFor={`${ids}-cost`}>
               Monthly spend ceiling
             </label>
-            <output className="control__value mono" htmlFor={`${ids}-cost`}>
+            <output className="control__value" htmlFor={`${ids}-cost`}>
               ${knobs.cost}
             </output>
           </div>
@@ -132,16 +133,16 @@ export function PlaygroundClient({
             }}
           />
           <p className="control__hint">
-            This change: <b className="mono">{fixture.cost}</b> a month, modeled
+            This change: <b>{fixture.cost}</b> a month, modeled
           </p>
         </div>
 
         <div className="control">
           <div className="control__head">
             <label className="control__label" htmlFor={`${ids}-lcp`}>
-              p75 LCP regression allowance
+              p75 LCP allowance
             </label>
-            <output className="control__value mono" htmlFor={`${ids}-lcp`}>
+            <output className="control__value" htmlFor={`${ids}-lcp`}>
               {knobs.lcp}ms
             </output>
           </div>
@@ -158,7 +159,7 @@ export function PlaygroundClient({
             }}
           />
           <p className="control__hint">
-            This change: <b className="mono">{fixture.lcp}</b>, measured
+            This change: <b>{fixture.lcp}</b>, measured
           </p>
         </div>
 
@@ -167,7 +168,6 @@ export function PlaygroundClient({
             <span className="control__label" id={`${ids}-attribution`}>
               Attributable events rule
             </span>
-            <span className="control__value mono">{knobs.attribution}</span>
           </div>
           <div className="seg" role="radiogroup" aria-labelledby={`${ids}-attribution`}>
             {LEVELS.map((level) => (
@@ -186,103 +186,112 @@ export function PlaygroundClient({
             ))}
           </div>
           <p className="control__hint">
-            This change: <b className="mono">{fixture.events}</b> attributable events. Severity says
-            how bad it is; enforcement says whether it can block the merge.
+            This change: <b>{fixture.events}</b> attributable events. Enforcement decides whether a
+            breach can stop the merge.
           </p>
         </div>
-
-        <button
-          type="button"
-          className="btn btn--ghost"
-          disabled={atDefaults}
-          onClick={() => {
-            setKnobs(INITIAL);
-          }}
-        >
-          Back to defaults
-        </button>
       </div>
 
       <div className="play__result" aria-live="polite" aria-busy={state === "deciding"}>
-        <div className="play__top">
+        <div className="play__verdict">
           <span className={`pill pill--${result.verdict}`}>
             <span className="pill__dot" aria-hidden="true" />
             {VERDICT_WORD[result.verdict]}
           </span>
           <span className="play__meta">
-            Confidence {result.confidence} · exit code <b className="mono">{result.exitCode}</b>{" "}
-            under <code>--fail-on hold</code>
+            confidence {result.confidence} · exit code <b>{result.exitCode}</b> under{" "}
+            <code>--fail-on hold</code>
           </span>
-          <span className="play__state mono">
-            {state === "deciding" ? "Deciding…" : state === "failed" ? failure : ""}
+          <span className="play__state" role="status">
+            {state === "deciding" ? "deciding…" : state === "failed" ? failure : ""}
           </span>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={atDefaults}
+            onClick={() => {
+              setKnobs(INITIAL);
+            }}
+          >
+            Back to defaults
+          </button>
         </div>
 
-        <ul className="dims">
-          {(Object.keys(DIMENSION_LABEL) as (keyof typeof DIMENSION_LABEL)[]).map((dimension) => {
-            const report = result.dimensions[dimension];
-            return (
-              <li className="dims__row" key={dimension}>
-                <div className="dims__head">
-                  <span className="dims__name">{DIMENSION_LABEL[dimension]}</span>
-                  <StatusBadge status={report.status} />
-                </div>
-                <p className="dims__why">{report.rationale}</p>
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="fired">
-          <p className="fired__label">Rules that fired</p>
-          {result.rules.length === 0 ? (
-            <p className="fired__none">None. Nothing crossed a threshold under these budgets.</p>
-          ) : (
-            <ul className="fired__list">
-              {result.rules.map((rule) => (
-                <li className="fired__row" key={`${rule.id}-${rule.outcome}`}>
-                  <span className="fired__id mono">{rule.id}</span>
-                  <span className={`fired__tag fired__tag--${rule.enforcement}`}>
-                    {rule.enforcement}
-                  </span>
-                  <span className="fired__tag">{rule.severity}</span>
-                  {rule.outcome !== "triggered" && (
-                    <span className="fired__tag">{rule.outcome}</span>
-                  )}
-                </li>
-              ))}
+        <div className="play__grid">
+          <div className="play__column">
+            <ul className="dims">
+              {(Object.keys(DIMENSION_LABEL) as (keyof typeof DIMENSION_LABEL)[]).map(
+                (dimension) => {
+                  const report = result.dimensions[dimension];
+                  return (
+                    <li className="dims__row" key={dimension}>
+                      <div className="dims__head">
+                        <span className="dims__name">{DIMENSION_LABEL[dimension]}</span>
+                        <StatusBadge status={report.status} />
+                      </div>
+                      <p className="dims__why">{report.rationale}</p>
+                    </li>
+                  );
+                },
+              )}
             </ul>
-          )}
-        </div>
 
-        <p className="play__digest">
-          <span>Digest</span> <b className="mono">{result.digest}</b>
-          <span className="play__digest-note">
-            {atDefaults
-              ? ". This is the page's own digest. Change a budget and it changes with it."
-              : ". The budgets changed, so the digest did. Same budgets give the same digest anywhere."}
-          </span>
-        </p>
+            <div className="fired">
+              <p className="fired__label">Rules that fired</p>
+              {result.rules.length === 0 ? (
+                <p className="fired__none">
+                  None. Nothing crossed a threshold under these budgets.
+                </p>
+              ) : (
+                <ul className="fired__list">
+                  {result.rules.map((rule) => (
+                    <li className="fired__row" key={`${rule.id}-${rule.outcome}`}>
+                      <span className="fired__id">{rule.id}</span>
+                      <span className={`fired__tag fired__tag--${rule.enforcement}`}>
+                        {rule.enforcement}
+                      </span>
+                      <span className="fired__tag">{rule.severity}</span>
+                      {rule.outcome !== "triggered" && (
+                        <span className="fired__tag">{rule.outcome}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-        <figure className="snippet snippet--file">
-          <figcaption className="snippet__name mono">
-            <span>blast.json</span>
-            <CopyButton
-              value={document}
-              label="Copy"
-              copiedLabel="Copied"
-              className="snippet__copy"
-            />
-          </figcaption>
-          <pre className="snippet__body">
-            <code>{document}</code>
-          </pre>
-          {atDefaults && (
-            <p className="snippet__foot">
-              Nothing is set, so the defaults apply. Every brief names the budgets it used.
+            <p className="play__digest">
+              <span className="play__digest-label">Digest</span>
+              <b>{result.digest}</b>
+              <span className="play__digest-note">
+                {atDefaults
+                  ? "The page's own. Change a budget and it changes."
+                  : "The budgets changed, so the digest did. Same budgets, same digest, anywhere."}
+              </span>
             </p>
-          )}
-        </figure>
+          </div>
+
+          <div className="play__column">
+            <Snippet
+              name="blast.json"
+              action={
+                <CopyButton
+                  value={document}
+                  label="Copy"
+                  copiedLabel="Copied"
+                  className="snippet__copy"
+                />
+              }
+              foot={
+                atDefaults
+                  ? "Nothing is set, so the defaults apply. Every brief names the budgets it used."
+                  : undefined
+              }
+            >
+              {document}
+            </Snippet>
+          </div>
+        </div>
       </div>
     </div>
   );

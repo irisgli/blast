@@ -61,7 +61,7 @@ export function Loader() {
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce || seen()) {
-      root.remove();
+      root.setAttribute("hidden", "");
       done();
       return;
     }
@@ -72,11 +72,16 @@ export function Loader() {
     const counter = { value: 0 };
     const timeline = gsap.timeline({
       defaults: { ease: "power3.out" },
-      onComplete: () => root.remove(),
+      onComplete: () => root.setAttribute("hidden", ""),
     });
 
     timeline
-      .fromTo(rings, { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.7, stagger: 0.14, ease: "power2.inOut" }, 0.1)
+      .fromTo(
+        rings,
+        { drawSVG: "0%" },
+        { drawSVG: "100%", duration: 0.7, stagger: 0.14, ease: "power2.inOut" },
+        0.1,
+      )
       .to(
         counter,
         {
@@ -104,8 +109,18 @@ export function Loader() {
       <div className="loader__mark">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
           <circle cx="8" cy="12" r="3.25" fill="currentColor" />
-          <path d="M13.5 7.5a6.4 6.4 0 0 1 0 9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-          <path d="M17 4a11 11 0 0 1 0 16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          <path
+            d="M13.5 7.5a6.4 6.4 0 0 1 0 9"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+          <path
+            d="M17 4a11 11 0 0 1 0 16"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
         </svg>
         <span className="loader__name">blast.</span>
       </div>
