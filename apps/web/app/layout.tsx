@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Azeret_Mono, Besley, Schibsted_Grotesk } from "next/font/google";
+import { Besley, JetBrains_Mono, Schibsted_Grotesk } from "next/font/google";
 import { NO_SCRIPT_LOADER_CSS } from "./components/loader";
 import { NO_SCRIPT_MOTION_CSS } from "./components/motion";
 import { SITE_URL } from "./site";
@@ -7,14 +7,15 @@ import "./globals.css";
 
 /**
  * Three families, each with one job. A Clarendon for the words that are the page's own:
- * the wordmark, the stage titles, the properties. A wide display monospace for every
- * label, lede and readout, so the instrument's voice is told from the page's at a glance.
+ * the wordmark, the stage titles, the properties. A narrow technical monospace for every
+ * label, lede, readout and line of code, so the instrument's voice is told from the
+ * page's at a glance and a dense panel stays dense.
  * A sharp newspaper grotesk for the product panels, which are the brief as it lands on a
  * pull request and keep their own register.
  */
 const display = Besley({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 const sans = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const mono = Azeret_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 const DESCRIPTION =
   "What a pull request costs to run, what it costs the user, and whether anyone will be able to tell if it worked — decided by code on every pull request, before anyone merges.";

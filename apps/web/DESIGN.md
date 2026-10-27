@@ -58,8 +58,8 @@
 ## Typography
 
 Three families, each with one job. Besley, a Clarendon, for the words that are the page's
-own: the wordmark `blast.`, the stage titles, the property names, the closing line. Azeret
-Mono for everything the page says in its own voice below a title: ledes, captions,
+own: the wordmark `blast.`, the stage titles, the property names, the closing line.
+JetBrains Mono for everything the page says in its own voice below a title: ledes, captions,
 navigation, readouts, code. Schibsted Grotesk inside the product panels, which keep the
 product's register.
 
@@ -67,7 +67,7 @@ product's register.
 | ------------------------ | ----------------- | --------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Wordmark (h1) | Besley | 500 | `clamp(4.5rem, 2rem + 11vw, 11rem)` | `blast.`, line-height 0.9, letter-spacing -0.035em; the point in `--signal` |
 | Stage title (h2) | Besley | 500 | `clamp(2.5rem, 1.6rem + 3.4vw, 4.5rem)` | line-height 0.98, letter-spacing -0.025em, max 16ch |
-| Hero lines, stage ledes, captions | Azeret Mono | 400 | 15px / 14.5px / 12px | `--ghost-80` / `--ghost-60` / `--ghost-40`; captions letter-spacing 0.03em |
+| Hero lines, stage ledes, captions | JetBrains Mono | 400 | 15px / 14.5px / 12px | `--ghost-80` / `--ghost-60` / `--ghost-40`; captions letter-spacing 0.03em |
 | Section title (h2)       | Schibsted Grotesk | 650       | `clamp(1.85rem, 1.4rem + 1.6vw, 2.6rem)`            | line-height 1.08, letter-spacing -0.025em, max 20ch                                                  |
 | Panel title (h3)         | Schibsted Grotesk | 600       | 1.125rem / 1.25rem                                  | letter-spacing -0.015em                                                                              |
 | Lede                     | Schibsted Grotesk | 400       | 1.125rem                                            | line-height 1.55, 58ch, `--text-secondary`                                                           |

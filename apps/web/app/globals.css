@@ -3844,3 +3844,536 @@ html[data-motion] .hero .field {
     margin-left: 0;
   }
 }
+
+/* ── instrument ──────────────────────────────────────────────────────────── */
+/*
+ * The product panels as a console: hairlines, square corners, small lowercase mono
+ * labels, opacity for hierarchy, a dot and a word for a state. No cards inside cards,
+ * no pills, no callout boxes, nothing shouting. Bloomberg, not a SaaS kit.
+ */
+:root {
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+}
+
+.stage__paper {
+  border-radius: 2px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+.panel,
+.play,
+.stage__paper .panel,
+.stage__paper .play {
+  margin-top: 0;
+  border: 1px solid var(--night-line);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: none;
+}
+
+/* a label: small, lowercase, spaced */
+.metric__label,
+.tile__title,
+.control__label,
+.fired__label,
+.tabs__tab,
+.evidence__summary,
+.card__title,
+.sources__tag,
+.budgets__tag,
+.chip-basis,
+.badge,
+.pill,
+.fired__tag,
+.verdict,
+.seg__btn,
+.stat__label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+}
+
+/* a state: a dot and a word */
+.badge,
+.pill,
+.fired__tag,
+.sources__tag,
+.budgets__tag,
+.chip-basis {
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.pill {
+  gap: 0.4rem;
+}
+
+.fired__tag {
+  color: var(--ghost-40);
+}
+
+.fired__tag--block {
+  color: var(--amber-fg);
+}
+
+.sources__tag,
+.budgets__tag,
+.chip-basis {
+  color: var(--ghost-40);
+}
+
+/* the toolbar */
+.panel__bar {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--night-line);
+}
+
+.panel__pr {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.panel__branch {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 11.5px;
+  color: var(--ghost-60);
+}
+
+.panel__arrow {
+  color: var(--ghost-40);
+}
+
+.panel__meta,
+.panel__digest {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ghost-40);
+}
+
+.panel__status .btn,
+.play .btn--ghost,
+.snippet__copy {
+  height: 26px;
+  padding-inline: 0.6rem;
+  border-radius: 2px;
+  border: 1px solid var(--night-line-strong);
+  background: transparent;
+  color: var(--ghost-80);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.panel__status .btn:hover,
+.play .btn--ghost:hover,
+.snippet__copy:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.play .btn--ghost {
+  align-self: flex-start;
+}
+
+.play .btn--ghost:disabled {
+  opacity: 0.4;
+}
+
+/* the headline: a ruled paragraph, not a box */
+.note,
+.note--ok {
+  padding: 1rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--night-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.note__text {
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ghost-80);
+}
+
+.note__meta {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  color: var(--ghost-40);
+}
+
+/* the three dimensions: ruled columns */
+.panel__body {
+  padding: 0 1rem 1.25rem;
+}
+
+.stack {
+  gap: 1.25rem;
+  padding-bottom: 0;
+}
+
+.metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.metric {
+  gap: 0.75rem;
+  padding: 0.25rem 1.25rem 0 1.25rem;
+  border: 0;
+  border-left: 1px solid var(--night-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.metric:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.metric:last-child {
+  padding-right: 0;
+}
+
+.metric__label {
+  color: var(--ghost-60);
+}
+
+.metric__note {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ghost-60);
+}
+
+.metric__rows,
+.metric__watch {
+  border-top-color: var(--night-line);
+}
+
+.metric__row {
+  font-size: 12.5px;
+  color: var(--ghost-60);
+}
+
+.metric__value {
+  font-size: 12.5px;
+  color: #ffffff;
+}
+
+.metric__watch {
+  font-size: 11.5px;
+  color: var(--ghost-40);
+}
+
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .metric,
+  .metric:first-child {
+    padding: 1rem 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--night-line);
+  }
+}
+
+.fixes-line {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ghost-60);
+}
+
+/* the evidence */
+.evidence {
+  margin-top: 0.25rem;
+  border-top-color: var(--night-line);
+}
+
+.evidence__summary {
+  color: var(--signal);
+}
+
+.evidence__hint {
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--ghost-40);
+}
+
+.tabs__strip {
+  gap: 1.25rem;
+  padding: 0;
+  border-bottom-color: var(--night-line);
+}
+
+.tabs__tab {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid transparent;
+  color: var(--ghost-40);
+}
+
+.tabs__tab--active {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+.tabs__tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.tabs__panel {
+  padding: 1.25rem 0 0;
+}
+
+.tile,
+.card {
+  padding: 1rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--night-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.tile:first-child,
+.card:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.tile__title,
+.card__title {
+  color: var(--ghost-60);
+}
+
+.tile__figure {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.tile__note,
+.tile__count {
+  font-size: 12px;
+  color: var(--ghost-40);
+}
+
+.sources__row,
+.budgets__row,
+.measure,
+.dims__row,
+.fix,
+.accuracy__row {
+  border-color: var(--night-line);
+}
+
+.sources__name,
+.budgets__row,
+.measure__name,
+.dims__name,
+.fix__title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.measure__numbers,
+.measure__note,
+.fix__why,
+.fix__steps,
+.dims__why,
+.accuracy__note,
+.breakdown__detail {
+  font-size: 12.5px;
+  color: var(--ghost-60);
+}
+
+/* the playground: thin tracks, square thumbs, words for the levels */
+.play__controls {
+  gap: 1.5rem;
+  padding: 1.25rem 1rem;
+  border-right-color: var(--night-line);
+  background: transparent;
+}
+
+.play__result {
+  gap: 1.1rem;
+  padding: 1.25rem 1rem;
+}
+
+.control {
+  gap: 0.45rem;
+}
+
+.control__label {
+  color: var(--ghost-60);
+}
+
+.control__value {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+  color: #ffffff;
+}
+
+.control__hint {
+  font-size: 12px;
+  color: var(--ghost-40);
+}
+
+.control__hint b {
+  color: var(--ghost-80);
+}
+
+.range {
+  height: 18px;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 0;
+  background: var(--night-line-strong);
+}
+
+.range::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.range::-moz-range-track {
+  height: 2px;
+  border-radius: 0;
+  background: var(--night-line-strong);
+}
+
+.range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.range:focus-visible {
+  outline-offset: 6px;
+  border-radius: 0;
+}
+
+.seg {
+  gap: 1rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.seg__btn {
+  padding: 0.2rem 0;
+  border-radius: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--ghost-40);
+}
+
+.seg__btn--on {
+  background: transparent;
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+.play__meta {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ghost-60);
+}
+
+.play__meta b {
+  color: #ffffff;
+}
+
+.play__meta code {
+  font-size: 11px;
+}
+
+.play__state {
+  font-size: 11px;
+  color: var(--ghost-40);
+}
+
+.dims {
+  border-top-color: var(--night-line);
+}
+
+.fired__label {
+  color: var(--ghost-40);
+}
+
+.fired__id {
+  font-size: 12.5px;
+  color: #ffffff;
+}
+
+.play__digest {
+  font-size: 12.5px;
+  color: var(--ghost-60);
+}
+
+.play__digest b {
+  color: #ffffff;
+}
+
+/* code, terminal, the diff: the same quiet surface */
+.snippet,
+.term,
+.code,
+.verify__block {
+  border-color: var(--night-line);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: none;
+}
+
+.snippet__name,
+.term__bar,
+.verify__label {
+  border-bottom-color: var(--night-line);
+  background: transparent;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ghost-40);
+}
+
+.snippet__foot {
+  border-top-color: var(--night-line);
+  font-size: 11.5px;
+  color: var(--ghost-40);
+}
+
+.term__replay {
+  border-color: var(--night-line-strong);
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+.pipe {
+  border-radius: 2px;
+}
+
+.pipe__index,
+.setup__index {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
