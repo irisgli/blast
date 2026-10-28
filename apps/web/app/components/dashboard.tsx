@@ -3,21 +3,24 @@ import type { Dimension, Finding, ImpactBrief, SourceStatus } from "@blast/core"
 import { formatMeasure, metricLabel } from "@blast/brief";
 import { getDemoBrief } from "../brief";
 import type { DemoBrief } from "../brief";
-import { Accuracy, Allowance, Breakdown, Trend } from "./charts";
+import { Allowance, Columns, Composition, Deviation } from "./charts";
 import { CopyButton } from "./copy";
 import { CodeBlock } from "./code-block";
 import type { CodeLine } from "./code-block";
-import { StatusBadge, StatusIcon } from "./status";
+import { Ledger } from "./ledger";
+import type { LedgerRow } from "./ledger";
+import { StatusIcon } from "./status";
 import { Tabs } from "./tabs";
 import type { TabPanel } from "./tabs";
 
 /**
- * The brief as a surface rather than a page section.
+ * The brief, typeset.
  *
- * A brief is read twice: once for the verdict, and again by whoever disagrees with one
- * dimension of it. Stacked down a page those two readings fight — the first reader
- * scrolls past the second reader's evidence, and the second reader hunts for the three
- * rows that matter to them. Tabs give each of them the whole thing without the other's.
+ * It is a document, not a dashboard: one verdict in a word, the sentence behind it, the
+ * three dimensions as ruled rows with their figures in a column, and the evidence under
+ * tabs for whoever disagrees with one of them. A fixed left column runs down the panel —
+ * the verdict word sits in it, then each dimension's name — so the eye has one line to
+ * read down and the figures one edge to read against.
  *
  * Every figure here comes from the engine. The panels read the same `Evidence` that
  * produced the brief's tables, so a number shown as a bar and the same number shown in a
@@ -30,9 +33,9 @@ const DIMENSION_LABEL: Record<Dimension, string> = {
   measurability: "Measurability",
 };
 
-const VERDICT_LABEL = {
-  ship: "Ready to merge",
-  "ship-with-caveats": "Merge with caveats",
+export const VERDICT_WORD = {
+  ship: "Ship",
+  "ship-with-caveats": "Ship with caveats",
   hold: "Hold",
 } as const;
 
@@ -58,47 +61,78 @@ function monthLabel(month: string): string {
   );
 }
 
-/* ── the bar across the top ──────────────────────────────────────────────── */
+/* ── the masthead and the verdict ────────────────────────────────────────── */
 
-function Toolbar({ brief, markdown }: { brief: ImpactBrief; markdown: string }) {
+function Masthead({ brief, markdown }: { brief: ImpactBrief; markdown: string }) {
   return (
-    <div className="panel__bar">
-      <div className="panel__ref">
-        <span className="panel__pr mono">#{brief.ref.id}</span>
-        <span className="panel__branch mono">{brief.ref.head}</span>
-        <span className="panel__arrow" aria-hidden="true">
-          →
+    <header className="masthead">
+      <p className="masthead__ref mono">
+        <span className="masthead__pr">#{brief.ref.id}</span>
+        <span className="masthead__branch">
+          {brief.ref.head}
+          <span className="masthead__arrow" aria-hidden="true">
+            {" → "}
+          </span>
+          {brief.ref.base}
         </span>
-        <span className="panel__branch mono">{brief.ref.base}</span>
-      </div>
-      <div className="panel__status">
-        <span className={`verdict verdict--${brief.verdict}`}>
-          <StatusIcon status={brief.verdict === "hold" ? "risk" : "acceptable"} />
-          {VERDICT_LABEL[brief.verdict]}
-        </span>
-        <span className="panel__meta">confidence {brief.confidence}</span>
+      </p>
+      {/*
+        The brief as markdown, one keystroke from the pull request it describes. For a
+        team not ready to install anything, pasting this into a comment is the whole
+        product — and it is the same bytes the agent would have posted.
+      */}
+      <CopyButton value={markdown} label="Copy brief" copiedLabel="Copied markdown" />
+    </header>
+  );
+}
+
+function Verdict({ data }: { data: DemoBrief }) {
+  const { brief, evidence } = data;
+  const touched = evidence.usage.filter((surface) =>
+    data.profile.surfaces.some((entry) => entry.id === surface.id),
+  );
+
+  return (
+    <div className="verdict-head">
+      <div className="verdict-head__word">
+        <p className={`verdict-word verdict-word--${brief.verdict}`}>
+          {VERDICT_WORD[brief.verdict]}
+          <span className="verdict-word__point">.</span>
+        </p>
         {/*
           The digest, where someone can quote it. Two briefs carrying the same one are the
           same assessment, which is how the determinism claimed here is checked rather
           than taken on trust.
         */}
-        <span className="panel__digest mono" title="Same digest, same assessment">
-          {brief.digest}
-        </span>
-        {/*
-          The brief as markdown, one keystroke from the pull request it describes. For a
-          team not ready to install anything, pasting this into a comment is the whole
-          product — and it is the same bytes the agent would have posted.
-        */}
-        <CopyButton value={markdown} label="Copy brief" copiedLabel="Copied markdown" />
+        <p className="verdict-head__meta mono">
+          confidence {brief.confidence}
+          <span className="verdict-head__digest" title="Same digest, same assessment">
+            {brief.digest}
+          </span>
+        </p>
+      </div>
+      <div className="verdict-head__text">
+        <p className="verdict-head__headline">{brief.headline}</p>
+        <p className="verdict-head__basis">
+          {brief.policy.origin === "defaults"
+            ? "Default budgets"
+            : `Budgets from ${brief.policy.path ?? "blast.json"}`}
+          {touched.map((surface) => (
+            <span key={surface.id}>
+              {" · "}
+              <span className="mono">{surface.id}</span> at{" "}
+              {(surface.requestsPerMonth / 1_000_000).toFixed(1)}M requests a month
+            </span>
+          ))}
+        </p>
       </div>
     </div>
   );
 }
 
-/* ── overview ────────────────────────────────────────────────────────────── */
+/* ── the ledger ──────────────────────────────────────────────────────────── */
 
-function rowsFor(dimension: Dimension, findings: readonly Finding[]) {
+function figuresFor(dimension: Dimension, findings: readonly Finding[]) {
   if (dimension === "performance") {
     return [
       {
@@ -141,80 +175,21 @@ function rowsFor(dimension: Dimension, findings: readonly Finding[]) {
   ];
 }
 
-function Overview({ data }: { data: DemoBrief }) {
-  const { brief, evidence, remediations } = data;
-  const touched = evidence.usage.filter((surface) =>
-    data.profile.surfaces.some((entry) => entry.id === surface.id),
-  );
-  const opens = remediations.filter((remediation) => remediation.patch !== null).length;
-
-  return (
-    <div className="stack">
-      <div className={`note${brief.verdict === "hold" ? "" : " note--ok"}`}>
-        <span className="note__icon">
-          <StatusIcon status={brief.verdict === "hold" ? "risk" : "acceptable"} />
-        </span>
-        <div className="note__body">
-          <p className="note__text">{brief.headline}</p>
-          <p className="note__meta">
-            Measured against{" "}
-            {brief.policy.origin === "defaults"
-              ? "the default budgets"
-              : `${brief.policy.path ?? "blast.json"}`}
-            {touched.length > 0 && (
-              <>
-                {" · "}
-                {touched
-                  .map(
-                    (surface) =>
-                      `${surface.id} at ${(surface.requestsPerMonth / 1_000_000).toFixed(1)}M requests a month`,
-                  )
-                  .join(", ")}
-              </>
-            )}
-          </p>
-        </div>
-      </div>
-
-      <div className="metrics">
-        {(Object.keys(DIMENSION_LABEL) as Dimension[]).map((dimension) => {
-          const report = brief.dimensions[dimension];
-          return (
-            <article className="metric" key={dimension}>
-              <div className="metric__top">
-                <span className="metric__label">{DIMENSION_LABEL[dimension]}</span>
-                <StatusBadge status={report.status} />
-              </div>
-              <p className="metric__note">{report.rationale}</p>
-              <ul className="metric__rows">
-                {rowsFor(dimension, report.findings).map((row) => (
-                  <li className="metric__row" key={row.label}>
-                    <span>{row.label}</span>
-                    <span className="metric__value">{row.value}</span>
-                  </li>
-                ))}
-              </ul>
-              {report.watchAfterShip.length > 0 && (
-                <p className="metric__watch">
-                  Watch after ship: {report.watchAfterShip.join(", ")}.
-                </p>
-              )}
-            </article>
-          );
-        })}
-      </div>
-
-      {remediations.length > 0 && (
-        <p className="fixes-line">
-          <b>
-            {remediations.length} suggested {remediations.length === 1 ? "fix" : "fixes"}
-          </b>
-          {opens > 0 && <>, {opens} of which blast can open as a pull request</>}. They are under
-          the evidence below.
-        </p>
-      )}
-    </div>
-  );
+function ledgerRows(brief: ImpactBrief): LedgerRow[] {
+  return (Object.keys(DIMENSION_LABEL) as Dimension[]).map((dimension) => {
+    const report = brief.dimensions[dimension];
+    return {
+      id: dimension,
+      name: DIMENSION_LABEL[dimension],
+      status: report.status,
+      rationale: report.rationale,
+      figures: figuresFor(dimension, report.findings),
+      foot:
+        report.watchAfterShip.length > 0
+          ? `Watch after ship: ${report.watchAfterShip.join(", ")}.`
+          : undefined,
+    };
+  });
 }
 
 /* ── cost ────────────────────────────────────────────────────────────────── */
@@ -239,13 +214,13 @@ function Cost({ data }: { data: DemoBrief }) {
   const latest = trailing[trailing.length - 1]?.value ?? 0;
 
   return (
-    <div className="grid grid--split">
-      <section className="tile">
-        <header className="tile__head">
-          <h4 className="tile__title">Where the money goes</h4>
-          <span className="tile__figure mono">+{money(estimate.totalUsd)}/mo</span>
+    <div className="cost">
+      <section className="block">
+        <header className="block__head">
+          <h4 className="block__title">Where the money goes</h4>
+          <span className="block__figure mono">+{money(estimate.totalUsd)} a month</span>
         </header>
-        <Breakdown
+        <Composition
           items={estimate.items.map((item) => ({
             label: item.label,
             value: item.usd,
@@ -253,60 +228,54 @@ function Cost({ data }: { data: DemoBrief }) {
           }))}
           format={money}
         />
-        <footer className="tile__foot">
-          <Allowance
-            value={estimate.totalUsd}
-            threshold={ceiling}
-            format={money}
-            label="Monthly spend"
-          />
-          <p className="tile__note">
-            Credibly {money(estimate.lowUsd)} to {money(estimate.highUsd)}, at list prices over a
-            30-day month. The range is the estimate&apos;s own uncertainty, not a rounding.
-          </p>
-        </footer>
+        <Allowance
+          value={estimate.totalUsd}
+          threshold={ceiling}
+          format={money}
+          label="Monthly spend"
+        />
+        <p className="block__note">
+          Range {money(estimate.lowUsd)} to {money(estimate.highUsd)}, at list prices over a 30-day
+          month.
+        </p>
       </section>
 
-      <div className="stack">
+      <div className="cost__side">
         {trailing.length > 0 && (
-          <section className="tile">
-            <header className="tile__head">
-              <h4 className="tile__title">Spend on the services this touches</h4>
-              <span className="tile__figure mono">{compactMoney(latest)}/mo</span>
+          <section className="block">
+            <header className="block__head">
+              <h4 className="block__title">The bill for the services this touches</h4>
+              <span className="block__figure mono">{compactMoney(latest)} a month</span>
             </header>
-            <Trend
+            <Columns
               points={trailing}
               projected={{ label: "next", value: latest + estimate.totalUsd }}
               format={compactMoney}
             />
-            <p className="tile__note">
-              Billed, month by month. The last point is dashed because it has not happened — it is
-              this change&apos;s modeled delta on top of the most recent bill.
+            <p className="block__note">
+              The last column is modeled: the most recent bill plus this change.
             </p>
           </section>
         )}
 
         {evidence.estimateRecords.length > 0 && (
-          <section className="tile">
-            <header className="tile__head">
-              <h4 className="tile__title">What this model said, and what was billed</h4>
+          <section className="block">
+            <header className="block__head">
+              <h4 className="block__title">How far past estimates were from the bill</h4>
               {evidence.estimateAccuracy !== null && (
-                <span className="tile__figure mono">
-                  ±{evidence.estimateAccuracy.medianPct.toFixed(1)}%
+                <span className="block__figure mono">
+                  median ±{evidence.estimateAccuracy.medianPct.toFixed(1)}%
                 </span>
               )}
             </header>
-            <Accuracy
+            <Deviation
               rows={evidence.estimateRecords.map((record) => ({
                 label: record.description,
                 estimated: record.estimatedUsd,
                 observed: record.observedUsd,
               }))}
             />
-            <p className="tile__note">
-              Every other figure here describes the change. This one describes the tool, and it is
-              the question a reader asks second.
-            </p>
+            <p className="block__note">Right of the line, the bill came in above the estimate.</p>
           </section>
         )}
       </div>
@@ -330,55 +299,68 @@ function Performance({ data }: { data: DemoBrief }) {
   }
 
   return (
-    <div className="stack">
-      <ul className="measures">
-        {report.findings.map((finding) => {
-          const budgetKey = ALLOWANCE_FOR[finding.metric];
-          const thresholds = thresholdsFor(data.brief.policy, finding.surface);
-
-          return (
-            <li className="measure" key={`${finding.metric}-${finding.surface ?? "all"}`}>
-              <div className="measure__head">
-                <span className="measure__name">
-                  {metricLabel(finding.metric)}
-                  {finding.surface !== null && (
-                    <span className="measure__surface mono">{finding.surface}</span>
-                  )}
-                </span>
-                <span className={`chip-basis chip-basis--${finding.basis}`}>{finding.basis}</span>
-              </div>
-              <div className="measure__numbers">
-                <span className="mono">{formatMeasure(finding.base)}</span>
-                <span className="measure__arrow" aria-hidden="true">
-                  →
-                </span>
-                <span className="mono measure__head-value">{formatMeasure(finding.head)}</span>
-                {finding.delta !== null && (
-                  <span
-                    className={`measure__delta mono${finding.delta.value > 0 ? " measure__delta--up" : ""}`}
-                  >
-                    {formatMeasure(finding.delta, { signed: true })}
-                  </span>
-                )}
-              </div>
-              {budgetKey !== undefined && finding.delta !== null && (
-                <Allowance
-                  value={finding.delta.value}
-                  threshold={thresholds[budgetKey]}
-                  format={(value) =>
-                    finding.delta?.unit === "bytes"
-                      ? `${(value / 1024).toFixed(0)} KB`
-                      : `${Math.round(value)}ms`
-                  }
-                  label={finding.metric}
-                />
-              )}
-              {finding.note !== null && <p className="measure__note">{finding.note}</p>}
-            </li>
-          );
-        })}
-      </ul>
-      <p className="tile__note">{report.rationale}</p>
+    <div className="block">
+      <div className="table-scroll">
+        <table className="measures">
+          <thead>
+            <tr>
+              <th scope="col">Metric</th>
+              <th scope="col">Surface</th>
+              <th scope="col">Basis</th>
+              <th scope="col" className="measures__num">
+                Before
+              </th>
+              <th scope="col" className="measures__num">
+                After
+              </th>
+              <th scope="col" className="measures__num">
+                Change
+              </th>
+              <th scope="col">Allowance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {report.findings.map((finding) => {
+              const budgetKey = ALLOWANCE_FOR[finding.metric];
+              const thresholds = thresholdsFor(data.brief.policy, finding.surface);
+              const up = finding.delta !== null && finding.delta.value > 0;
+              return (
+                <tr key={`${finding.metric}-${finding.surface ?? "all"}`}>
+                  <th scope="row">
+                    {metricLabel(finding.metric)}
+                    {finding.note !== null && (
+                      <span className="measures__note">{finding.note}</span>
+                    )}
+                  </th>
+                  <td className="mono measures__surface">{finding.surface ?? "—"}</td>
+                  <td className="measures__basis">{finding.basis}</td>
+                  <td className="mono measures__num">{formatMeasure(finding.base)}</td>
+                  <td className="mono measures__num">{formatMeasure(finding.head)}</td>
+                  <td className={`mono measures__num${up ? " measures__up" : " measures__down"}`}>
+                    {finding.delta === null ? "—" : formatMeasure(finding.delta, { signed: true })}
+                  </td>
+                  <td className="measures__allow">
+                    {budgetKey !== undefined && finding.delta !== null && (
+                      <Allowance
+                        compact
+                        value={finding.delta.value}
+                        threshold={thresholds[budgetKey]}
+                        format={(value) =>
+                          finding.delta?.unit === "bytes"
+                            ? `${(value / 1024).toFixed(0)} KB`
+                            : `${Math.round(value)}ms`
+                        }
+                        label={finding.metric}
+                      />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="block__note">{report.rationale}</p>
     </div>
   );
 }
@@ -394,28 +376,26 @@ function Measurability({ data }: { data: DemoBrief }) {
   }
 
   return (
-    <div className="stack">
+    <div className="blocks">
       {evidence.coverage.map((entry) => (
-        <section className="tile" key={`coverage-${entry.surface}`}>
-          <header className="tile__head">
-            <h4 className="tile__title">
+        <section className="block" key={`coverage-${entry.surface}`}>
+          <header className="block__head">
+            <h4 className="block__title">
               Can a movement on <span className="mono">{entry.surface}</span> be traced to this?
             </h4>
             <span
-              className={`badge ${entry.attributable.length > 0 ? "badge--ok" : "badge--risk"}`}
+              className={`state ${entry.attributable.length > 0 ? "state--ok" : "state--warn"}`}
             >
-              <span className="badge__dot" aria-hidden="true" />
-              {entry.attributable.length > 0 ? "Attributable" : "No attributable events"}
+              {entry.attributable.length > 0 ? "Yes" : "No"}
             </span>
           </header>
           {entry.attributable.length > 0 ? (
-            <p className="tile__note">Through {entry.attributable.join(", ")}.</p>
+            <p className="block__note">Through {entry.attributable.join(", ")}.</p>
           ) : (
             <>
-              <p className="tile__note">
-                Nothing this change ships separates its effect from everything else released the
-                same week. The surface&apos;s other features follow a convention, so the names are
-                already decided:
+              <p className="block__note">
+                Nothing this change ships separates its effect from the rest of the release. The
+                surface already follows a naming convention, so the events are decided:
               </p>
               <ul className="events">
                 {entry.expected.map((event) => (
@@ -434,48 +414,43 @@ function Measurability({ data }: { data: DemoBrief }) {
         const resolves = entry.power.absolutePp;
         const scale = Math.max(historical ?? 0, resolves) * 1.2;
         return (
-          <section className="tile" key={`power-${entry.surface}`}>
-            <header className="tile__head">
-              <h4 className="tile__title">
+          <section className="block" key={`power-${entry.surface}`}>
+            <header className="block__head">
+              <h4 className="block__title">
                 Could an experiment on <span className="mono">{entry.surface}</span> conclude?
               </h4>
-              <span className={`badge ${entry.underpowered ? "badge--risk" : "badge--ok"}`}>
-                <span className="badge__dot" aria-hidden="true" />
-                {entry.underpowered ? "Underpowered" : "Adequately powered"}
+              <span className={`state ${entry.underpowered ? "state--warn" : "state--ok"}`}>
+                {entry.underpowered ? "Underpowered" : "Yes"}
               </span>
             </header>
             <ul className="versus">
-              <li>
-                <div className="versus__head">
-                  <span>Smallest effect this surface can resolve</span>
-                  <span className="mono">{resolves.toFixed(2)}pp</span>
-                </div>
-                <div className="versus__track">
+              <li className="versus__row">
+                <span className="versus__label">Smallest effect this surface can resolve</span>
+                <span className="versus__track">
                   <span
                     className="versus__fill"
                     style={{ width: `${(resolves / scale) * 100}%` }}
                   />
-                </div>
+                </span>
+                <span className="mono versus__value">{resolves.toFixed(2)}pp</span>
               </li>
               {historical !== null && (
-                <li>
-                  <div className="versus__head">
-                    <span>Median effect features here have produced</span>
-                    <span className="mono">{historical.toFixed(2)}pp</span>
-                  </div>
-                  <div className="versus__track">
+                <li className="versus__row">
+                  <span className="versus__label">Median effect features here have produced</span>
+                  <span className="versus__track">
                     <span
                       className="versus__fill versus__fill--muted"
                       style={{ width: `${(historical / scale) * 100}%` }}
                     />
-                  </div>
+                  </span>
+                  <span className="mono versus__value">{historical.toFixed(2)}pp</span>
                 </li>
               )}
             </ul>
-            <p className="tile__note">
+            <p className="block__note">
               {entry.underpowered
-                ? "The test would return non-significant whether or not the change worked."
-                : `The surface resolves an effect ${historical === null ? "well below" : `${(historical / resolves).toFixed(0)}× smaller than`} what features have moved it before, so a null result here would be real rather than an artifact of sample size.`}
+                ? "A test would come back non-significant whether or not the change worked."
+                : `The surface resolves an effect ${historical === null ? "well below" : `${(historical / resolves).toFixed(0)}× smaller than`} what features have moved it before, so a null result here would be real.`}
             </p>
           </section>
         );
@@ -491,33 +466,33 @@ function Budgets({ data }: { data: DemoBrief }) {
   const budgets = describePolicy(policy);
 
   return (
-    <div className="stack">
-      <p className="tile__note">
+    <div className="block">
+      <table className="rows">
+        <tbody>
+          {budgets.map((budget) => (
+            <tr key={budget.label}>
+              <th scope="row">{budget.label}</th>
+              <td className="mono">
+                {budget.value}
+                {budget.overridden && <span className="rows__tag">set here</span>}
+              </td>
+            </tr>
+          ))}
+          {policy.surfaces.map((rule) => (
+            <tr key={rule.match}>
+              <th scope="row" className="mono">
+                {rule.match}
+              </th>
+              <td className="mono">{rule.overrides.join(", ")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="block__note">
         {policy.origin === "defaults"
-          ? "These are the defaults. A repository sets its own in blast.json, reviewed alongside the code it governs — and a policy file that cannot be read fails the run rather than falling back to budgets nobody chose."
+          ? "The defaults. A repository sets its own in blast.json, reviewed with the code it governs. A policy file that cannot be read fails the run rather than falling back to these."
           : `From ${policy.path ?? "blast.json"}, overriding ${policy.overrides.length} default${policy.overrides.length === 1 ? "" : "s"}.`}
       </p>
-      <ul className="budgets">
-        {budgets.map((budget) => (
-          <li className="budgets__row" key={budget.label}>
-            <span>{budget.label}</span>
-            <span className="budgets__value mono">
-              {budget.value}
-              {budget.overridden && <span className="budgets__tag">set here</span>}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {policy.surfaces.length > 0 && (
-        <ul className="budgets">
-          {policy.surfaces.map((rule) => (
-            <li className="budgets__row" key={rule.match}>
-              <span className="mono">{rule.match}</span>
-              <span className="budgets__value mono">{rule.overrides.join(", ")}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -531,25 +506,27 @@ function sourceState(source: SourceStatus): string {
 
 function Sources({ data }: { data: DemoBrief }) {
   return (
-    <div className="stack">
-      <ul className="sources sources--wide">
-        {data.brief.sources.map((source) => (
-          <li className="sources__row" key={source.id}>
-            <span className="sources__name">
-              <span
-                className={`dot${source.state === "ok" ? " dot--ok" : " dot--warn"}`}
-                aria-hidden="true"
-              />
-              {source.displayName}
-              {source.fixture && <span className="sources__tag">fixture</span>}
-            </span>
-            <span className="sources__state mono">{sourceState(source)}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="tile__note">
-        Every source consulted, with how fresh its data was and how long it took. If none could
-        answer for a dimension, that dimension is <b>unmeasured</b> and the verdict is capped.
+    <div className="block">
+      <table className="rows">
+        <tbody>
+          {data.brief.sources.map((source) => (
+            <tr key={source.id}>
+              <th scope="row">
+                <span
+                  className={`dot${source.state === "ok" ? " dot--ok" : " dot--warn"}`}
+                  aria-hidden="true"
+                />
+                {source.displayName}
+                {source.fixture && <span className="rows__tag">fixture</span>}
+              </th>
+              <td className="mono">{sourceState(source)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="block__note">
+        Every source consulted, how fresh its data was and how long it took. A dimension no source
+        could answer for is <b>unmeasured</b>, and the verdict is capped.
       </p>
     </div>
   );
@@ -570,24 +547,19 @@ function patchLines(patch: string): CodeLine[] {
 
 function Fixes({ remediations }: { remediations: DemoBrief["remediations"] }) {
   return (
-    <section className="tile">
-      <header className="tile__head">
-        <h4 className="tile__title">Suggested fixes</h4>
-        <span className="tile__count">{remediations.length}</span>
-      </header>
-      <p className="tile__note">
-        Built from the same evidence as the findings. Where a fix is mechanical, blast can open a
-        pull request, and it asks first.
+    <div className="blocks">
+      <p className="block__note">
+        Suggested fixes, derived from the same evidence as the findings. Where one is mechanical,
+        blast can open the pull request, and asks first.
       </p>
       {remediations.map((remediation) => (
-        <div className="fix" key={remediation.id}>
-          <div className="fix__head">
-            <h5 className="fix__title">{remediation.title}</h5>
-            <span className={`badge${remediation.patch === null ? "" : " badge--ok"}`}>
-              <span className="badge__dot" aria-hidden="true" />
+        <section className="block fix" key={remediation.id}>
+          <header className="block__head">
+            <h4 className="block__title">{remediation.title}</h4>
+            <span className={`state${remediation.patch === null ? "" : " state--ok"}`}>
               {remediation.patch === null ? "Manual" : "Opens a pull request"}
             </span>
-          </div>
+          </header>
           <p className="fix__why">{remediation.rationale}</p>
           <ol className="fix__steps">
             {remediation.steps.map((step) => (
@@ -595,13 +567,11 @@ function Fixes({ remediations }: { remediations: DemoBrief["remediations"] }) {
             ))}
           </ol>
           {remediation.patch !== null && (
-            <div className="fix__patch">
-              <CodeBlock lines={patchLines(remediation.patch)} label={remediation.title} />
-            </div>
+            <CodeBlock lines={patchLines(remediation.patch)} label={remediation.title} />
           )}
-        </div>
+        </section>
       ))}
-    </section>
+    </div>
   );
 }
 
@@ -622,9 +592,9 @@ export async function Dashboard() {
   if (!result.ok) {
     return (
       <div className="panel">
-        <div className="panel__bar">
-          <span className="panel__pr mono">impact unavailable</span>
-        </div>
+        <header className="masthead">
+          <p className="masthead__ref mono">impact unavailable</p>
+        </header>
         <div className="panel__body">
           <Empty>{result.detail}</Empty>
         </div>
@@ -637,9 +607,9 @@ export async function Dashboard() {
 
   /*
    * A brief is read twice: once for the verdict, and again by whoever disagrees with one
-   * dimension of it. The overview is the first read. The second read sits behind one
-   * disclosure, still in the markup for a reader without JavaScript and for anything
-   * that reads the page rather than views it, but not in the way of the first.
+   * dimension of it. The ledger is the first read. The tabs are the second, all in the
+   * markup for a reader without JavaScript and for anything that reads the page rather
+   * than views it.
    */
   const panels: TabPanel[] = [
     {
@@ -663,6 +633,10 @@ export async function Dashboard() {
     {
       id: "fixes",
       label: "Fixes",
+      badge:
+        data.remediations.length > 0 ? (
+          <span className="tabs__count mono">{data.remediations.length}</span>
+        ) : undefined,
       content: <Fixes remediations={data.remediations} />,
     },
     { id: "budgets", label: "Budgets", content: <Budgets data={data} /> },
@@ -671,20 +645,11 @@ export async function Dashboard() {
 
   return (
     <div className="panel">
-      <Toolbar brief={brief} markdown={data.markdown} />
+      <Masthead brief={brief} markdown={data.markdown} />
       <div className="panel__body">
-        <Overview data={data} />
-        <details className="evidence">
-          <summary className="evidence__summary">
-            <span>Show the evidence</span>
-            <span className="evidence__hint">
-              Cost, performance, measurability, fixes, budgets and sources
-            </span>
-          </summary>
-          <div className="evidence__body">
-            <Tabs panels={panels} label="Evidence" />
-          </div>
-        </details>
+        <Verdict data={data} />
+        <Ledger rows={ledgerRows(brief)} />
+        <Tabs panels={panels} label="Evidence" />
       </div>
     </div>
   );

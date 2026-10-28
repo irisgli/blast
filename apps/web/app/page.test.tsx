@@ -94,6 +94,17 @@ describe("the page", () => {
     expect(html).toContain("measurability.feature-events");
     expect(html).toContain("Back to defaults");
     expect(html).toContain("Monthly spend ceiling");
+    // Each budget slider marks where this change sits on its scale.
+    expect(html).toContain("this change");
+  });
+
+  it("typesets the brief as a report: one verdict word, then a ledger", async () => {
+    const html = await render();
+
+    expect(html).toContain('class="verdict-word verdict-word--hold"');
+    expect(html).toContain('class="ledger"');
+    // The evidence is in the markup under its tabs, never behind a disclosure.
+    expect(html).not.toContain("Show the evidence");
   });
 
   it("prints a verification a reader can run from their own machine", async () => {
