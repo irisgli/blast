@@ -22,7 +22,11 @@ function profile() {
 
 const HEADLINE = "Produced without a model.";
 
-async function decide(overrides: Parameters<typeof produceBrief>[0] extends never ? never : Record<string, unknown> = {}) {
+async function decide(
+  overrides: Parameters<typeof produceBrief>[0] extends never
+    ? never
+    : Record<string, unknown> = {},
+) {
   const produced = await produceBrief({
     profile: profile(),
     headline: HEADLINE,
@@ -62,6 +66,17 @@ describe("replaying it", () => {
     );
   });
 
+  it("reports no collection time, because nothing was collected", async () => {
+    const first = await decide();
+    expect(first.timing.collectMs).not.toBeNull();
+    expect(first.timing.totalMs).toBeGreaterThanOrEqual(first.timing.assessMs);
+
+    const replayed = await decide({ snapshot: first.snapshot });
+    // Null rather than zero: a stage that did not run is not a stage that took no time.
+    expect(replayed.timing.collectMs).toBeNull();
+    expect(replayed.timing.totalMs).toBeGreaterThan(0);
+  });
+
   it("says it was a replay rather than a fresh reading of the world", async () => {
     const first = await decide();
     const replayed = await decide({ snapshot: first.snapshot });
@@ -89,7 +104,11 @@ describe("replaying it", () => {
       ref: { ...first.snapshot.ref, head: "feat/something-else" },
     };
 
-    const produced = await produceBrief({ profile: profile(), headline: HEADLINE, snapshot: wrong });
+    const produced = await produceBrief({
+      profile: profile(),
+      headline: HEADLINE,
+      snapshot: wrong,
+    });
     expect(produced.ok).toBe(false);
     if (!produced.ok) expect(produced.detail).toContain("feat/something-else");
   });

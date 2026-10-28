@@ -96,6 +96,24 @@ describe("POST /api/v1/decision", () => {
     expect(response.headers.get("x-blast-digest")).toMatch(/^[0-9a-f]{16}$/);
   });
 
+  it("reports how long each stage and each source took, on the response line", async () => {
+    const response = await POST(post({ profile: profile() }));
+    const timing = response.headers.get("server-timing") ?? "";
+    expect(timing).toMatch(/total;dur=\d/);
+    expect(timing).toMatch(/collect;dur=\d/);
+    expect(timing).toMatch(/assess;dur=\d/);
+    expect(timing).toContain("fixture-funnel");
+
+    const body = (await response.json()) as {
+      timing: { totalMs: number; collectMs: number | null };
+      decision: Record<string, unknown>;
+    };
+    expect(body.timing.totalMs).toBeGreaterThan(0);
+    expect(body.timing.collectMs).not.toBeNull();
+    // Wall time is beside the decision, never on it: the decision is digested and signed.
+    expect(body.decision).not.toHaveProperty("timing");
+  });
+
   it("blocks when the caller set a gate the verdict does not clear", async () => {
     const response = await POST(post({ profile: profile(), gate: "hold" }));
     expect(response.headers.get("x-blast-outcome")).toBe("blocked");

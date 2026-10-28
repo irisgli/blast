@@ -1,9 +1,10 @@
 import { changeProfileSchema, DEFAULT_POLICY, policyFrom } from "@blast/core";
-import type { Policy, SourceStatus } from "@blast/core";
+import type { Policy } from "@blast/core";
 import { produceBrief } from "@blast/brief";
 import type { ProducedBrief } from "@blast/brief";
 import { z } from "zod";
 import { getDemoBrief } from "../../brief";
+import { serverTiming } from "../timing";
 
 /**
  * The verdict engine over HTTP.
@@ -62,20 +63,6 @@ function errorResponse(status: number, code: ErrorCode, message: string): Respon
   );
 }
 
-/**
- * One entry per source, in the format proxies and browser devtools already parse. This
- * is the first question anyone asks about a slow or empty brief — which source was slow,
- * which one had nothing — and it should not require a log nobody kept.
- */
-function serverTiming(sources: readonly SourceStatus[]): string {
-  return sources
-    .map((source) => {
-      const duration = source.durationMs === null ? 0 : Math.round(source.durationMs * 100) / 100;
-      return `${source.id.replace(/[^\w-]/g, "_")};desc="${source.state}";dur=${duration}`;
-    })
-    .join(", ");
-}
-
 function briefResponse(
   produced: ProducedBrief,
   format: "json" | "markdown",
@@ -83,7 +70,7 @@ function briefResponse(
 ): Response {
   const headers: Record<string, string> = {
     "Cache-Control": cacheControl,
-    "Server-Timing": serverTiming(produced.brief.sources),
+    "Server-Timing": serverTiming(produced.brief.sources, produced.timing),
     // On the response line, so a pipeline can gate on them without parsing a body.
     "X-Blast-Verdict": produced.brief.verdict,
     "X-Blast-Confidence": produced.brief.confidence,

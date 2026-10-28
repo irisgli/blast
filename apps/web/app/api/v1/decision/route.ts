@@ -1,10 +1,12 @@
 import { describeIngestAdapters, ingestWith } from "@blast/adapters";
 import { produceBrief } from "@blast/brief";
+import type { ProducedBrief } from "@blast/brief";
 import { FileDecisionStore, decisionLogPath } from "@blast/brief";
 import type { Decision, EvidenceRecord, Policy } from "@blast/core";
 import { changeProfileSchema, DEFAULT_POLICY, evidenceRecordSchema, policyFrom } from "@blast/core";
 import { z } from "zod";
 import { callerFor, isOpen } from "../auth";
+import { serverTiming } from "../../timing";
 
 /**
  * `POST /api/v1/decision` — the engine, for a caller that is not a pull request.
@@ -88,11 +90,17 @@ function errorResponse(status: number, code: ErrorCode, message: string): Respon
 
 /**
  * The verdict on the response line, so a pipeline can gate without parsing a body, and the
- * digest beside it so two runs can be compared without re-running either.
+ * digest beside it so two runs can be compared without re-running either. `Server-Timing`
+ * carries how long each stage and each source took, which is the first thing to look at
+ * when a pipeline step is slow and the thing a log on an ephemeral runner never keeps.
  */
-function decisionHeaders(decision: Decision): Record<string, string> {
+function decisionHeaders(
+  decision: Decision,
+  timing: ProducedBrief["timing"],
+): Record<string, string> {
   return {
     "Cache-Control": "no-store",
+    "Server-Timing": serverTiming(decision.sources, timing),
     "X-Blast-Verdict": decision.verdict,
     "X-Blast-Outcome": decision.outcome,
     "X-Blast-Confidence": decision.confidence,
@@ -213,7 +221,7 @@ export async function POST(request: Request): Promise<Response> {
 
   if (!produced.ok) return errorResponse(503, "source-unavailable", produced.detail);
 
-  const { decision, markdown, remediations } = produced.value;
+  const { decision, markdown, remediations, timing } = produced.value;
 
   if (body.record) {
     try {
@@ -231,10 +239,10 @@ export async function POST(request: Request): Promise<Response> {
        * nobody knows about.
        */
       return Response.json(
-        { decision, markdown, remediations, ingest: ingestNotes },
+        { decision, markdown, remediations, ingest: ingestNotes, timing },
         {
           headers: {
-            ...decisionHeaders(decision),
+            ...decisionHeaders(decision, timing),
             "X-Blast-Record": `failed: ${error instanceof Error ? error.message : String(error)}`,
           },
         },
@@ -256,10 +264,12 @@ export async function POST(request: Request): Promise<Response> {
        */
       telemetry: decision.sources.every((source) => source.fixture) ? "fixture" : "mixed",
       caller: { keyId: caller.value.keyId, org: caller.value.org, authenticated: !isOpen() },
+      /** Wall time per stage, in ms. Not part of the decision, which is digested and signed. */
+      timing,
     },
     {
       headers: {
-        ...decisionHeaders(decision),
+        ...decisionHeaders(decision, timing),
         "X-Blast-Record": body.record ? "written" : "skipped",
       },
     },

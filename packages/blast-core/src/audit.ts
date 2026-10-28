@@ -1,5 +1,6 @@
 import type { Decision } from "./decision.js";
-import type { Verdict } from "./schema.js";
+import type { Dimension, Verdict } from "./schema.js";
+import { DIMENSIONS } from "./schema.js";
 
 /**
  * The record of what blast decided, and what that was worth.
@@ -118,6 +119,32 @@ export interface RuleActivity {
   owner: string | null;
 }
 
+/**
+ * What one source did across the log: how often it was asked, how often it answered, and
+ * how long it took when it did.
+ *
+ * `failed` is the source being unreachable, refusing the credentials, or a specialist
+ * falling over — the outcomes a platform team pages on. `noData` is the source answering
+ * that it has nothing for this query, which is an ordinary outcome and not a failure; the
+ * two are kept apart because a dashboard that summed them would make a healthy source
+ * with sparse coverage look like a broken one.
+ */
+export interface SourceActivity {
+  id: string;
+  displayName: string;
+  /** Decisions that consulted this source. */
+  calls: number;
+  ok: number;
+  noData: number;
+  failed: number;
+  /** `failed / calls`, in [0, 1]. */
+  failureRate: number;
+  /** Median wall time of the calls that reported one, in ms, or null when none did. */
+  medianDurationMs: number | null;
+  /** True when every answer came from a checked-in fixture. */
+  fixture: boolean;
+}
+
 export interface AuditSummary {
   decisions: number;
   /**
@@ -154,6 +181,17 @@ export interface AuditSummary {
   lapsedExceptions: { ruleId: string; count: number }[];
   /** Repositories with the most blocked decisions, worst first. */
   repos: { repo: string; decisions: number; blocked: number }[];
+  /**
+   * Decisions in which a dimension could not be measured, by dimension.
+   *
+   * This is where missing data is preventing decisions. An unmeasured dimension caps the
+   * verdict at `ship-with-caveats` and never produces a `ship`, so a dimension that is
+   * unmeasured on most decisions is a gate that cannot say yes — which is usually a source
+   * that was never wired up, and is the first thing to look at before tuning any threshold.
+   */
+  unmeasured: Record<Dimension, number>;
+  /** Every source consulted across the log, most failures first. */
+  sources: SourceActivity[];
 }
 
 const EMPTY_VERDICTS: Record<Verdict, number> = { ship: 0, "ship-with-caveats": 0, hold: 0 };
@@ -170,6 +208,11 @@ export function summarize(records: readonly DecisionRecord[]): AuditSummary {
   const activity = new Map<string, RuleActivity>();
   const lapsed = new Map<string, number>();
   const repos = new Map<string, { repo: string; decisions: number; blocked: number }>();
+  const unmeasured: Record<Dimension, number> = { performance: 0, cost: 0, measurability: 0 };
+  const sources = new Map<
+    string,
+    { activity: Omit<SourceActivity, "failureRate" | "medianDurationMs">; durations: number[] }
+  >();
 
   let blocked = 0;
   let held = 0;
@@ -230,6 +273,37 @@ export function summarize(records: readonly DecisionRecord[]): AuditSummary {
     for (const entry of decision.lapsedExceptions) {
       lapsed.set(entry.ruleId, (lapsed.get(entry.ruleId) ?? 0) + 1);
     }
+
+    /**
+     * Read defensively. These rows come off a file, and a row written by an earlier engine
+     * or trimmed by a warehouse may carry a verdict and no dimensions; a summary that threw
+     * on one such row would make the whole log unreadable over a field it only reports on.
+     */
+    for (const dimension of DIMENSIONS) {
+      if (decision.dimensions?.[dimension]?.status === "unmeasured") unmeasured[dimension] += 1;
+    }
+
+    for (const source of decision.sources ?? []) {
+      const entry = sources.get(source.id) ?? {
+        activity: {
+          id: source.id,
+          displayName: source.displayName,
+          calls: 0,
+          ok: 0,
+          noData: 0,
+          failed: 0,
+          fixture: true,
+        },
+        durations: [],
+      };
+      entry.activity.calls += 1;
+      if (source.state === "ok") entry.activity.ok += 1;
+      else if (source.state === "no-data") entry.activity.noData += 1;
+      else entry.activity.failed += 1;
+      if (!source.fixture) entry.activity.fixture = false;
+      if (source.durationMs !== null) entry.durations.push(source.durationMs);
+      sources.set(source.id, entry);
+    }
   }
 
   const rules = [...activity.values()]
@@ -253,5 +327,25 @@ export function summarize(records: readonly DecisionRecord[]): AuditSummary {
       .map(([ruleId, count]) => ({ ruleId, count }))
       .sort((left, right) => right.count - left.count),
     repos: [...repos.values()].sort((left, right) => right.blocked - left.blocked),
+    unmeasured,
+    sources: [...sources.values()]
+      .map(({ activity, durations }) => ({
+        ...activity,
+        failureRate: activity.calls === 0 ? 0 : activity.failed / activity.calls,
+        medianDurationMs: median(durations),
+      }))
+      .sort((left, right) => right.failed - left.failed || right.calls - left.calls),
   };
+}
+
+/** The median of a series, rounded to a hundredth of a millisecond, or null when empty. */
+function median(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  const value =
+    sorted.length % 2 === 1
+      ? (sorted[middle] as number)
+      : ((sorted[middle - 1] as number) + (sorted[middle] as number)) / 2;
+  return Math.round(value * 100) / 100;
 }

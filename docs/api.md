@@ -73,10 +73,16 @@ x-blast-outcome: blocked
 x-blast-confidence: high
 x-blast-digest: 5f3c1a9e7d20b481
 x-blast-record: written
+server-timing: total;dur=412.5, collect;dur=380.1, assess;dur=2.3, render;dur=1.8, fixture-funnel;desc="ok";dur=0.24
 ```
 
 The body carries the `decision`, the rendered `markdown`, the derived `remediations`, a note
-per `ingest` entry, `telemetry`, and the `caller`. The decision is the integration surface:
+per `ingest` entry, `telemetry`, the `caller`, and `timing`. `Server-Timing` and `timing`
+say how long the decision took and where: one entry per stage — collecting evidence,
+assessing it, rendering — and one per source with its state, so a slow pipeline step can be
+read off the response line. Wall time is beside the decision and never on it, because the
+decision is digested and signed over what decided and a timing is allowed to vary between
+runs of an unchanged change. The decision is the integration surface:
 
 ```json
 {
@@ -147,9 +153,19 @@ gate, which are the questions that decide whether it stays:
 | `rules[].waiveRate`  | Share of a rule's firings that an exception suppressed.                        |
 | `lapsedExceptions`   | Exceptions that expired while still being relied on.                           |
 | `repos`              | Repositories ranked by how often they are blocked.                             |
+| `unmeasured`         | Decisions a dimension could not be measured on, by dimension.                  |
+| `sources`            | Every source consulted: calls, failures, failure rate, median duration.        |
 
 The gap between `held` and `blocked` is its own finding: a team with many holds and no blocks
 has installed a gate and not turned it on. `blast audit` says so out loud.
+
+`unmeasured` is where missing data is preventing decisions. An unmeasured dimension caps the
+verdict at `ship-with-caveats` and never produces a `ship`, so a dimension unmeasured on most
+decisions is a gate that cannot say yes — usually a source that was never wired up, and the
+thing to fix before tuning any threshold. `sources` says which: per source, how often it was
+consulted, answered, answered with nothing, or failed, and the median of the durations it
+reported. `no-data` is kept apart from failure, because a source that said "nothing here"
+answered, and summing the two would make a healthy source with sparse coverage look broken.
 
 `waiveRate` is the most useful number here and the easiest to misread. A rule waived most of
 the times it fires is a rule the team disagrees with, whether or not anyone has said so. It is
