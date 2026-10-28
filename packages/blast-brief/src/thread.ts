@@ -58,12 +58,8 @@ const VERDICT_LABEL: Record<Verdict, string> = {
  * rather than the brief.
  */
 export function readHistory(body: string): VerdictRecord[] {
-  const start = body.indexOf(`${HISTORY_MARKER} `);
-  if (start === -1) return [];
-  const end = body.indexOf("-->", start);
-  if (end === -1) return [];
-
-  const payload = body.slice(start + HISTORY_MARKER.length + 1, end).trim();
+  const payload = lastMarkerPayload(body, HISTORY_MARKER);
+  if (payload === null) return [];
   let parsed: unknown;
   try {
     parsed = JSON.parse(payload);
@@ -106,18 +102,56 @@ export function renderBriefMarker(brief: ImpactBrief): string {
 
 /** The record carried by a rendered brief, or null when the text is not one. */
 export function recordOf(markdown: string): VerdictRecord | null {
-  const start = markdown.indexOf(`${BRIEF_MARKER} `);
-  if (start === -1) return null;
-  const end = markdown.indexOf("-->", start);
-  if (end === -1) return null;
+  const payload = lastMarkerPayload(markdown, BRIEF_MARKER);
+  if (payload === null) return null;
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(markdown.slice(start + BRIEF_MARKER.length + 1, end).trim());
+    parsed = JSON.parse(payload);
   } catch {
     return null;
   }
   return isRecord(parsed) ? parsed : null;
+}
+
+/**
+ * The payload of the *last* marker in a body, and only one that opens a line.
+ *
+ * Last, because the brief's own marker is the final thing `renderBrief` writes and the
+ * title line above it carries the pull request's intent — text a contributor typed. A title
+ * containing a forged `<!-- blast:brief … -->` used to be read as the record: it could pin
+ * the comment to a digest that never changed, so the brief stopped updating, and it could
+ * rewrite the verdict history the thread is the only record of. The intent is also
+ * sanitized at render, and parsing from the end is the half of the defence that holds for
+ * a comment nobody rendered.
+ *
+ * Opening a line, because a reviewer who quote-replies a brief gets its markers back with a
+ * `> ` in front of each. A quote is not the brief, and a comment that merely contains the
+ * marker mid-line is not one this tool wrote.
+ */
+function lastMarkerPayload(body: string, marker: string): string | null {
+  let start = body.lastIndexOf(`${marker} `);
+  while (start !== -1) {
+    if (start === 0 || body[start - 1] === "\n") {
+      const end = body.indexOf("-->", start);
+      if (end === -1) return null;
+      return body.slice(start + marker.length + 1, end).trim();
+    }
+    start = start === 0 ? -1 : body.lastIndexOf(`${marker} `, start - 1);
+  }
+  return null;
+}
+
+/**
+ * Whether a comment body is a brief this tool posted, rather than one that mentions it.
+ *
+ * `post_comment` and the `blast` command replace the comment this matches, so matching the
+ * wrong one overwrites somebody's words with a brief. A quote-reply carries every marker the
+ * brief did, prefixed with `> `; this requires the record to parse from a marker that opens
+ * its line, which a quote never has.
+ */
+export function isBriefComment(body: string): boolean {
+  return recordOf(body) !== null;
 }
 
 /** The digest alone, for callers comparing two briefs rather than recording one. */

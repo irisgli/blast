@@ -1,4 +1,4 @@
-import { BRIEF_MARKER, composeComment, digestOf } from "@blast/brief";
+import { composeComment, digestOf, isBriefComment } from "@blast/brief";
 import type { VerdictRecord } from "@blast/brief";
 import { runCommand } from "./exec.js";
 import type { CommandFailure } from "./exec.js";
@@ -65,7 +65,12 @@ export async function findExistingBrief(
     if (line.trim() === "") continue;
     try {
       const comment = JSON.parse(line) as ExistingComment;
-      if (typeof comment.body === "string" && comment.body.includes(BRIEF_MARKER)) {
+      /**
+       * A comment that carries the marker is not necessarily the brief: a reviewer who
+       * quote-replied it carries the marker too, with `> ` in front. Only a body whose record
+       * parses the way `renderBrief` wrote it is one this tool may replace.
+       */
+      if (typeof comment.body === "string" && isBriefComment(comment.body)) {
         return { ok: true, comment };
       }
     } catch {

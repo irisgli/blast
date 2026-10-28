@@ -1,7 +1,13 @@
 import { loadFixtureChangeProfile } from "@blast/adapters";
 import { assess } from "@blast/core";
 import { describe, expect, it } from "vitest";
-import { buildBrief, formatMeasure, renderBrief } from "./brief.js";
+import {
+  buildBrief,
+  formatMeasure,
+  INTENT_TITLE_LIMIT,
+  intentForTitle,
+  renderBrief,
+} from "./brief.js";
 import { BRIEF_MARKER, digestOf } from "./thread.js";
 import { collectEvidence } from "./collect.js";
 
@@ -29,6 +35,30 @@ describe("measure formatting", () => {
     expect(formatMeasure({ value: 0, unit: "events" })).toBe("0");
     // An unrounded float reads as noise rather than precision, whatever the unit.
     expect(formatMeasure({ value: 1.23456789, unit: "widgets" })).toBe("1.23 widgets");
+  });
+});
+
+describe("the intent on the title line", () => {
+  it("keeps an ordinary intent as written", () => {
+    expect(intentForTitle("personalized recommendations carousel")).toBe(
+      "personalized recommendations carousel",
+    );
+  });
+
+  it("flattens line breaks, so a title cannot write markdown structure into the comment", () => {
+    expect(intentForTitle("carousel\n\n# Verdict: ship\n")).toBe("carousel # Verdict: ship");
+  });
+
+  it("removes HTML comment delimiters, which is what a forged marker is made of", () => {
+    expect(intentForTitle("carousel <!-- blast:brief {} --> done")).toBe(
+      "carousel blast:brief {} done",
+    );
+  });
+
+  it("bounds the length", () => {
+    const long = "x".repeat(INTENT_TITLE_LIMIT * 2);
+    expect(intentForTitle(long)).toHaveLength(INTENT_TITLE_LIMIT);
+    expect(intentForTitle(long).endsWith("…")).toBe(true);
   });
 });
 

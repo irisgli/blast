@@ -58,7 +58,30 @@ export interface CommandOptions {
   /** Output ceiling in bytes. Defaults to 8 MiB. */
   maxBuffer?: number;
   cwd?: string;
+  /** How a rate limit is retried. Defaults to `DEFAULT_RETRY`; `attempts: 1` never retries. */
+  retry?: Partial<RetryPolicy>;
 }
+
+/**
+ * Bounded retry, for the one failure kind that is worth it.
+ *
+ * A rate limit is the host saying "not now", and `gh` relays how long "now" is when the
+ * API said. Everything else — a missing pull request, bad credentials, a timeout, a diff
+ * too large to hold — is the same answer however many times it is asked, so none of those
+ * are retried. Bounded in both count and wait: a job that sleeps twelve minutes inside a
+ * tool call is worse than one that fails with "retry after 720s" and lets the pipeline
+ * decide, so a wait longer than `maxWaitMs` is reported rather than taken.
+ */
+export interface RetryPolicy {
+  /** Total attempts, including the first. */
+  attempts: number;
+  /** The longest single wait this will take before giving the failure back instead. */
+  maxWaitMs: number;
+  /** The first backoff when the host did not say how long to wait. Doubles per attempt. */
+  baseDelayMs: number;
+}
+
+export const DEFAULT_RETRY: RetryPolicy = { attempts: 3, maxWaitMs: 30_000, baseDelayMs: 1_000 };
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_BUFFER = 8 * 1024 * 1024;
@@ -156,26 +179,68 @@ export function classify(error: ExecError, timeoutMs: number): CommandFailure {
   };
 }
 
-export async function runCommand(
+/** What a runner needs from the outside world, so the retry loop can be tested without a host. */
+export interface RunnerDependencies {
+  exec: (
+    file: string,
+    args: string[],
+    options: { timeout: number; maxBuffer: number; killSignal: "SIGTERM"; cwd?: string },
+  ) => Promise<{ stdout: string }>;
+  sleep: (ms: number) => Promise<void>;
+}
+
+export type CommandRunner = (
   file: "git" | "gh",
   args: readonly string[],
-  options: CommandOptions = {},
-): Promise<CommandResult> {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  options?: CommandOptions,
+) => Promise<CommandResult>;
 
-  try {
-    const { stdout } = await run(file, [...args], {
-      timeout: timeoutMs,
-      maxBuffer: options.maxBuffer ?? DEFAULT_MAX_BUFFER,
-      // SIGTERM rather than SIGKILL, so a git holding an index lock can drop it.
-      killSignal: "SIGTERM",
-      ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
-    });
-    return { ok: true, stdout };
-  } catch (error) {
-    return { ok: false, failure: classify(error as ExecError, timeoutMs) };
-  }
+/** How long to wait before the next attempt, or null when the failure is not worth one. */
+export function retryDelayMs(
+  failure: CommandFailure,
+  attempt: number,
+  policy: RetryPolicy,
+): number | null {
+  if (failure.kind !== "rate-limited") return null;
+  if (attempt >= policy.attempts) return null;
+  const wait =
+    failure.retryAfterSeconds === null
+      ? policy.baseDelayMs * 2 ** (attempt - 1)
+      : failure.retryAfterSeconds * 1000;
+  return wait > policy.maxWaitMs ? null : wait;
 }
+
+export function createCommandRunner(dependencies: RunnerDependencies): CommandRunner {
+  return async function runCommand(file, args, options = {}) {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const policy: RetryPolicy = { ...DEFAULT_RETRY, ...options.retry };
+
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        const { stdout } = await dependencies.exec(file, [...args], {
+          timeout: timeoutMs,
+          maxBuffer: options.maxBuffer ?? DEFAULT_MAX_BUFFER,
+          // SIGTERM rather than SIGKILL, so a git holding an index lock can drop it.
+          killSignal: "SIGTERM",
+          ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+        });
+        return { ok: true, stdout };
+      } catch (error) {
+        const failure = classify(error as ExecError, timeoutMs);
+        const delay = retryDelayMs(failure, attempt, policy);
+        if (delay === null) return { ok: false, failure };
+        await dependencies.sleep(delay);
+      }
+    }
+  };
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+export const runCommand: CommandRunner = createCommandRunner({
+  exec: (file, args, options) => run(file, args, options),
+  sleep,
+});
 
 /**
  * Whether a string is safe to hand to git or gh in a ref position.
