@@ -99,6 +99,25 @@ export interface ProduceBriefInput {
   costAccuracy?: AccuracyReport;
 }
 
+/**
+ * How long each stage of a decision took, in ms.
+ *
+ * Returned beside the decision and deliberately not on it: the decision is digested and
+ * signed over what decided, and a wall-clock reading is allowed to vary between runs of an
+ * unchanged change. It is here because the first question about a slow pipeline step is
+ * which stage was slow, and the second is whether it is the sources or the engine — and
+ * neither should need a log nobody kept. The per-source breakdown of `collectMs` is on
+ * each source's `durationMs`.
+ */
+export interface DecisionTiming {
+  /** Null on a replay, where nothing was collected. */
+  collectMs: number | null;
+  assessMs: number;
+  /** Building the brief, rendering the markdown and deriving the remediations. */
+  renderMs: number;
+  totalMs: number;
+}
+
 export interface ProducedBrief {
   brief: ImpactBrief;
   /** The brief as markdown, for a pull request comment. */
@@ -119,6 +138,7 @@ export interface ProducedBrief {
    * is a by-product of making one rather than something a caller has to remember to ask for.
    */
   snapshot: EvidenceSnapshot;
+  timing: DecisionTiming;
 }
 
 /**
@@ -164,6 +184,7 @@ function externalSources(records: readonly EvidenceRecord[]): SourceStatus[] {
  * unavailability as a value.
  */
 export async function produceBrief(input: ProduceBriefInput): Promise<Result<ProducedBrief>> {
+  const started = performance.now();
   let policy = input.policy;
   if (policy === undefined) {
     const loaded = await loadPolicy(input.cwd === undefined ? {} : { cwd: input.cwd });
@@ -181,6 +202,7 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
   const replaying = input.snapshot !== undefined;
   let evidence: Evidence;
   let snapshot: EvidenceSnapshot;
+  let collectMs: number | null = null;
 
   /**
    * One instant for the run, read once. The brief, the decision and a fresh snapshot all
@@ -215,7 +237,9 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
       sources: [...input.snapshot.sources, ...externalSources(contributed)],
     };
   } else {
+    const collectStarted = performance.now();
     const collected = await collectEvidence(input.profile);
+    collectMs = performance.now() - collectStarted;
     const contributed = input.evidence ?? [];
     const contributedFindings: Finding[] = contributed.map(toContributedFinding);
 
@@ -234,6 +258,7 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     });
   }
 
+  const assessStarted = performance.now();
   const assessment = assess({
     findings: evidence.findings,
     context: evidence.context,
@@ -246,6 +271,8 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
      */
     decidedAt: snapshot.capturedAt,
   });
+  const assessMs = performance.now() - assessStarted;
+  const renderStarted = performance.now();
   /**
    * Derived from the adapter-shaped evidence, which a replay does not carry — see
    * `emptyEvidence`. A replay therefore offers no fixes, and that is the honest outcome: the
@@ -304,18 +331,31 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     };
   }
 
+  const markdown = renderBrief(brief);
+  const finished = performance.now();
+
   return ok(
     {
       brief,
-      markdown: renderBrief(brief),
+      markdown,
       assessment,
       evidence,
       remediations,
       decision,
       snapshot,
+      timing: {
+        collectMs: collectMs === null ? null : round(collectMs),
+        assessMs: round(assessMs),
+        renderMs: round(finished - renderStarted),
+        totalMs: round(finished - started),
+      },
     },
     brief.generatedAt,
   );
+}
+
+function round(ms: number): number {
+  return Math.round(ms * 100) / 100;
 }
 
 /**

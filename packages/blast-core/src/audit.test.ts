@@ -5,6 +5,7 @@ import { buildDecision, exitCodeFor, outcomeFor } from "./decision.js";
 import type { Decision } from "./decision.js";
 import { DEFAULT_POLICY } from "./policy.js";
 import type { RuleEvaluation } from "./rules.js";
+import type { Dimension, SourceStatus } from "./schema.js";
 import type { Assessment } from "./verdict.js";
 
 /**
@@ -36,17 +37,24 @@ function evaluation(overrides: Partial<RuleEvaluation> = {}): RuleEvaluation {
   };
 }
 
-function assessment(overrides: Partial<Assessment> = {}): Assessment {
-  const dimension = {
-    status: "acceptable" as const,
+function assessment(
+  overrides: Partial<Assessment> = {},
+  unmeasured: readonly Dimension[] = [],
+): Assessment {
+  const dimension = (name: Dimension) => ({
+    status: unmeasured.includes(name) ? ("unmeasured" as const) : ("acceptable" as const),
     confidence: "high" as const,
     rationale: "",
     triggeredBy: [],
-  };
+  });
   return {
     verdict: "ship",
     confidence: "high",
-    dimensions: { performance: dimension, cost: dimension, measurability: dimension },
+    dimensions: {
+      performance: dimension("performance"),
+      cost: dimension("cost"),
+      measurability: dimension("measurability"),
+    },
     triggered: [],
     waived: [],
     observed: [],
@@ -66,6 +74,8 @@ function decision(
     waived?: RuleEvaluation[];
     observed?: RuleEvaluation[];
     decidedAt?: string;
+    unmeasured?: Dimension[];
+    sources?: SourceStatus[];
   } = {},
 ): Decision {
   const built = buildDecision({
@@ -75,12 +85,15 @@ function decision(
       ref: { kind: "pr", id: "1", base: "main", head: "feature" },
       intent: "a change",
     },
-    assessment: assessment({
-      verdict: overrides.verdict ?? "ship",
-      ...(overrides.triggered === undefined ? {} : { triggered: overrides.triggered }),
-      ...(overrides.waived === undefined ? {} : { waived: overrides.waived }),
-      ...(overrides.observed === undefined ? {} : { observed: overrides.observed }),
-    }),
+    assessment: assessment(
+      {
+        verdict: overrides.verdict ?? "ship",
+        ...(overrides.triggered === undefined ? {} : { triggered: overrides.triggered }),
+        ...(overrides.waived === undefined ? {} : { waived: overrides.waived }),
+        ...(overrides.observed === undefined ? {} : { observed: overrides.observed }),
+      },
+      overrides.unmeasured ?? [],
+    ),
     evidence:
       overrides.cost === undefined || overrides.cost === null
         ? []
@@ -103,7 +116,7 @@ function decision(
               metadata: {},
             },
           ],
-    sources: [],
+    sources: overrides.sources ?? [],
     policy: DEFAULT_POLICY,
     digest: overrides.id ?? "digest-1",
     gate: overrides.gate ?? null,
@@ -272,5 +285,96 @@ describe("the decision carries what a consumer needs to re-derive it", () => {
 
   it("states a schema version, so a consumer can refuse one it does not know", () => {
     expect(decision().schemaVersion).toBe(1);
+  });
+});
+
+/**
+ * The operational questions: where missing data is preventing decisions, and which source
+ * is failing or slow. Neither is answerable from one pull request, and both are the first
+ * thing to look at before tuning a threshold — a dimension unmeasured on most decisions is
+ * a gate that cannot say yes, and a source that fails one call in three is a gate that
+ * cannot be trusted to say anything.
+ */
+describe("where data was missing, and which source was responsible", () => {
+  const source = (
+    id: string,
+    state: SourceStatus["state"],
+    durationMs: number | null,
+    fixture = false,
+  ): SourceStatus => ({
+    id,
+    displayName: id,
+    dimension: "performance",
+    state,
+    freshness: null,
+    detail: null,
+    fixture,
+    durationMs,
+  });
+
+  const records = [
+    record(
+      decision({
+        id: "a",
+        unmeasured: ["performance"],
+        sources: [source("datadog", "unavailable", null), source("funnel", "ok", 4)],
+      }),
+    ),
+    record(
+      decision({
+        id: "b",
+        unmeasured: ["performance", "measurability"],
+        sources: [source("datadog", "unauthorized", 120), source("funnel", "no-data", 2, true)],
+      }),
+    ),
+    record(
+      decision({
+        id: "c",
+        sources: [source("datadog", "ok", 300), source("funnel", "ok", 6)],
+      }),
+    ),
+  ];
+
+  it("counts the decisions each dimension could not be measured on", () => {
+    expect(summarize(records).unmeasured).toEqual({
+      performance: 2,
+      cost: 0,
+      measurability: 1,
+    });
+  });
+
+  it("reports a failure rate per source, keeping no-data apart from failure", () => {
+    const datadog = summarize(records).sources.find((entry) => entry.id === "datadog");
+    expect(datadog).toMatchObject({ calls: 3, ok: 1, noData: 0, failed: 2 });
+    expect(datadog?.failureRate).toBeCloseTo(2 / 3);
+
+    // A source that answered "nothing here" answered. Summing it with failures would make a
+    // healthy source with sparse coverage look like a broken one.
+    const funnel = summarize(records).sources.find((entry) => entry.id === "funnel");
+    expect(funnel).toMatchObject({ calls: 3, ok: 2, noData: 1, failed: 0, failureRate: 0 });
+  });
+
+  it("takes the median of the durations that were reported", () => {
+    const sources = summarize(records).sources;
+    // 120 and 300 reported; the unavailable call never timed.
+    expect(sources.find((entry) => entry.id === "datadog")?.medianDurationMs).toBe(210);
+    expect(sources.find((entry) => entry.id === "funnel")?.medianDurationMs).toBe(4);
+  });
+
+  it("puts the source failing most first", () => {
+    expect(summarize(records).sources[0]?.id).toBe("datadog");
+  });
+
+  it("marks a source as fixture only when every answer was one", () => {
+    const sources = summarize(records).sources;
+    expect(sources.find((entry) => entry.id === "funnel")?.fixture).toBe(false);
+    expect(
+      summarize([records[1] as DecisionRecord]).sources.find((e) => e.id === "funnel")?.fixture,
+    ).toBe(true);
+  });
+
+  it("reports nothing when a source was never consulted", () => {
+    expect(summarize([]).sources).toEqual([]);
+    expect(summarize([]).unmeasured).toEqual({ performance: 0, cost: 0, measurability: 0 });
   });
 });

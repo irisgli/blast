@@ -792,6 +792,35 @@ async function runAudit(options: Options): Promise<number> {
     }
   }
 
+  /**
+   * Where missing data is preventing decisions. An unmeasured dimension caps the verdict at
+   * ship-with-caveats, so a dimension unmeasured on most decisions is a gate that cannot say
+   * yes — usually a source that was never wired up, and the thing to fix before tuning a
+   * threshold.
+   */
+  const missing = (["performance", "cost", "measurability"] as const).filter(
+    (dimension) => summary.unmeasured[dimension] > 0,
+  );
+  if (missing.length > 0) {
+    lines.push("", "decisions a dimension could not be measured on");
+    for (const dimension of missing) {
+      const share = Math.round((summary.unmeasured[dimension] / summary.decisions) * 100);
+      lines.push(`  ${dimension.padEnd(14)}  ${summary.unmeasured[dimension]}  (${share}%)`);
+    }
+  }
+
+  if (summary.sources.length > 0) {
+    lines.push("", "sources");
+    for (const source of summary.sources) {
+      const rate = `${Math.round(source.failureRate * 100)}%`;
+      const duration =
+        source.medianDurationMs === null ? "—" : `${source.medianDurationMs.toFixed(1)}ms`;
+      lines.push(
+        `  ${source.id}  called ${source.calls}  ok ${source.ok}  no-data ${source.noData}  failed ${source.failed}  failure rate ${rate}  median ${duration}${source.fixture ? "  fixture" : ""}`,
+      );
+    }
+  }
+
   process.stdout.write(`${lines.join("\n")}\n`);
   return EXIT_OK;
 }
@@ -943,7 +972,19 @@ async function main(argv: readonly string[]): Promise<number> {
     return EXIT_UNAVAILABLE;
   }
 
-  const { brief, markdown, decision, snapshot: captured } = produced.value;
+  const { brief, markdown, decision, snapshot: captured, timing } = produced.value;
+  /**
+   * To stderr, like every note, so stdout stays the brief or the decision. The number a
+   * pipeline wants when a step is slow is which stage was slow, and a runner's log is the
+   * only place it will still be when somebody asks.
+   */
+  notes.push(
+    `Decided in ${timing.totalMs}ms` +
+      (timing.collectMs === null
+        ? " from the snapshot"
+        : ` (collect ${timing.collectMs}ms, assess ${timing.assessMs}ms, render ${timing.renderMs}ms)`) +
+      ".",
+  );
 
   /**
    * Written before anything else can fail. The snapshot is what makes a decision reproducible,
@@ -964,6 +1005,7 @@ async function main(argv: readonly string[]): Promise<number> {
 
   if (parsed.command === "decide") {
     process.stdout.write(`${JSON.stringify(decision, null, 2)}\n`);
+    for (const note of notes) process.stderr.write(`note: ${note}\n`);
   } else if (parsed.format === "json") {
     process.stdout.write(`${JSON.stringify({ brief, markdown, decision, notes }, null, 2)}\n`);
   } else {

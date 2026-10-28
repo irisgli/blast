@@ -30,6 +30,8 @@ function report(overrides: Partial<BackfillReport> = {}): BackfillReport {
       rules: [],
       lapsedExceptions: [],
       repos: [],
+      unmeasured: { performance: 0, cost: 0, measurability: 0 },
+      sources: [],
     },
     fixtureTelemetry: false,
     ...overrides,
@@ -77,7 +79,9 @@ describe("the report", () => {
 
   it("says nothing about calibration when every rule is within range", () => {
     const lines = renderBackfill(
-      report({ rules: [{ ruleId: "cost.monthly-delta", fired: 2, share: 0.1, miscalibrated: false }] }),
+      report({
+        rules: [{ ruleId: "cost.monthly-delta", fired: 2, share: 0.1, miscalibrated: false }],
+      }),
     ).join("\n");
 
     expect(lines).not.toContain("keep it silent");

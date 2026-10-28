@@ -66,6 +66,17 @@ describe("replaying it", () => {
     );
   });
 
+  it("reports no collection time, because nothing was collected", async () => {
+    const first = await decide();
+    expect(first.timing.collectMs).not.toBeNull();
+    expect(first.timing.totalMs).toBeGreaterThanOrEqual(first.timing.assessMs);
+
+    const replayed = await decide({ snapshot: first.snapshot });
+    // Null rather than zero: a stage that did not run is not a stage that took no time.
+    expect(replayed.timing.collectMs).toBeNull();
+    expect(replayed.timing.totalMs).toBeGreaterThan(0);
+  });
+
   it("says it was a replay rather than a fresh reading of the world", async () => {
     const first = await decide();
     const replayed = await decide({ snapshot: first.snapshot });
