@@ -89,6 +89,9 @@ Colour never decides a verdict's meaning by itself: every dial has a word beside
 - The drawer: 560px from the right on desktop, a bottom sheet at 88vh under 760px. Panels are
   addressed by `#evidence-<id>` and open without a script through `:target`.
 - The playground: rails 1.1fr, the stamp 0.9fr and sticky.
+- The engineering: six sheets, one per pipeline stage, each 0.8fr copy / 1.2fr artifact /
+  0.42fr rows. On desktop each sheet pins under the top bar and the next scrolls up over it;
+  the last is not pinned, and the others let go behind it. Under 760px they read as a list.
 - Radii: 6px on controls and code, 12px on the instrument, the rails and the stamp.
 - Z-index: field -1, topbar 20, progress 21, grain 30, drawer 40, loader 50.
 - Breakpoints: 1000px (instrument and playground stack), 760px (top links hide, drawer becomes a
@@ -103,7 +106,8 @@ Colour never decides a verdict's meaning by itself: every dial has a word beside
   their arcs half a second later. Under 1.6s, never blocking a click.
 - Scroll: Lenis at `lerp 0.09` on GSAP's ticker; a 2px progress hairline; the hero field
   fades as the hero leaves. Heads rise through line masks, the playground rises 16px, the
-  setup steps stagger by 90ms, the pipeline strip draws left to right.
+  setup steps stagger by 90ms. The proof sheets pin and stack, each arriving with a scrubbed
+  36px rise and its data rail drawing down as it lands.
 - Answering a reader: the drawer slides in at 360ms; the rail's span recolours as the ceiling
   passes under the change; the stamp's verdict rises when it changes.
 - Reduced motion: no loader, no entrance, no smooth scroll, no reveals; the field draws one
@@ -129,3 +133,6 @@ Colour never decides a verdict's meaning by itself: every dial has a word beside
   rings and the entrance are the identity, and the problem had been the report layout, not
   the world it sat in. The instrument now sits inside the rings on the night, and every
   animation is back.
+- 2026-10-28, later: the pipeline strip and the two verification panes replaced by the
+  proof stack, after vima's layered proof stack: six sheets that pin and stack on scroll,
+  each showing what that stage produced for the sample change rather than describing it.

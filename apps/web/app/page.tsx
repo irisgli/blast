@@ -6,8 +6,8 @@ import { ExternalIcon } from "./components/icons";
 import { Loader } from "./components/loader";
 import { Motion } from "./components/motion";
 import { CommandDemo } from "./components/panels";
-import { Pipeline, Verify } from "./components/pipeline";
 import { Playground } from "./components/playground";
+import { ProofRail } from "./components/proof-rail";
 import { SiteFooter } from "./components/site-footer";
 import { SiteHeader } from "./components/site-header";
 import { GateSkeleton, PlaySkeleton, TerminalSkeleton } from "./components/skeleton";
@@ -153,9 +153,8 @@ export default function Page() {
                 and a reader who gets a different one has found a bug.
               </p>
             </header>
-            <Pipeline />
             <Suspense fallback={null}>
-              <Verify />
+              <ProofRail />
             </Suspense>
           </div>
         </section>
