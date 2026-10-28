@@ -173,6 +173,15 @@ export interface RuleEvaluation {
   budgetRule: string | null;
   /** Set when an exception suppressed this evaluation. */
   waiver: AppliedWaiver | null;
+  /**
+   * When the evidence that fired this rule was observed, when the source said.
+   *
+   * Carried so a decision can say how old the number a rule fired on was, and so the
+   * freshness policy can be applied to the evaluation rather than guessed at from the
+   * finding it came from. Optional, because a predicate rule fires on a fact about the
+   * change rather than on one observation.
+   */
+  observedAt?: string | null;
 }
 
 export interface AppliedWaiver {
@@ -306,6 +315,7 @@ export function evaluateThresholdRules(input: EvaluateInput): RuleEvaluation[] {
             : rule.message(messageInput),
         budgetRule: surfaceRule?.match ?? null,
         waiver: null,
+        observedAt: finding.observedAt ?? null,
       });
     }
   }

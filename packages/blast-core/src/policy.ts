@@ -247,6 +247,39 @@ const enforcementSchema = z
   .strict();
 
 /**
+ * How old evidence may be before it stops being able to hold a merge on its own.
+ *
+ * Every record carries when it was observed, and until now nothing read it: a Lighthouse
+ * run from three weeks ago fired a rule with the same confidence as one from an hour ago.
+ * A record older than `maxAgeHours` at the time of the decision keeps its number and its
+ * basis — a measurement does not stop being one by ageing — and is held at `low`
+ * confidence, which is the one thing the submission rules already let a source do to its
+ * own evidence. A `block` rule still fires on it and the decision still names it; what a
+ * stale number can no longer do is produce a `hold` by itself.
+ *
+ * Bounded above at a year, below which it is a policy and above which it is a way of
+ * switching the check off while appearing to have it. Absent means no limit, which is the
+ * behaviour every existing policy had.
+ */
+export const evidencePolicySchema = z
+  .object({
+    maxAgeHours: z
+      .number()
+      .positive()
+      .max(24 * 365)
+      .describe(
+        "Evidence observed more than this many hours before the decision is held at low confidence.",
+      ),
+  })
+  .partial()
+  .strict();
+
+export interface EvidencePolicy {
+  /** Hours, or null for no limit. */
+  maxAgeHours: number | null;
+}
+
+/**
  * `strict` so a misspelled key fails rather than being ignored. A team that wrote
  * `monthlyCostUsd` and got the $500 default deserves to hear about it now, not after a
  * brief cleared a change they meant to catch.
@@ -281,6 +314,7 @@ export const policyFileSchema = z
     exceptions: z.array(exceptionSchema).default([]),
     owners: ownersSchema.optional(),
     enforcement: enforcementSchema.optional(),
+    evidence: evidencePolicySchema.default({}),
   })
   .strict();
 
@@ -316,6 +350,8 @@ export interface Policy {
   exceptions: PolicyException[];
   owners: PolicyOwners;
   enforcement: PolicyEnforcement;
+  /** How old evidence may be before it is held at low confidence. */
+  evidence: EvidencePolicy;
   /**
    * Every document that composed this policy, nearest last.
    *
@@ -338,6 +374,7 @@ export const DEFAULT_POLICY: Policy = {
   exceptions: [],
   owners: { default: null, byDimension: {}, byRule: {} },
   enforcement: { default: null, byDimension: {}, byRule: {} },
+  evidence: { maxAgeHours: null },
   sources: [],
 };
 
@@ -425,6 +462,7 @@ export function composePolicy(chain: readonly PolicyDocument[]): Result<Policy> 
   const exceptions: PolicyException[] = [];
   const owners: PolicyOwners = { default: null, byDimension: {}, byRule: {} };
   const enforcement: PolicyEnforcement = { default: null, byDimension: {}, byRule: {} };
+  const evidence: EvidencePolicy = { maxAgeHours: null };
   const sources: string[] = [];
 
   for (const { file, path } of parsed) {
@@ -442,6 +480,9 @@ export function composePolicy(chain: readonly PolicyDocument[]): Result<Policy> 
       Object.assign(enforcement.byDimension, file.enforcement.byDimension ?? {});
       Object.assign(enforcement.byRule, file.enforcement.byRule ?? {});
     }
+    // Nearest wins, like a budget: a repository may trust evidence for longer or shorter
+    // than its organization does, and the one that said so last decides.
+    if (file.evidence.maxAgeHours !== undefined) evidence.maxAgeHours = file.evidence.maxAgeHours;
     if (path !== null) sources.push(path);
   }
 
@@ -470,7 +511,8 @@ export function composePolicy(chain: readonly PolicyDocument[]): Result<Policy> 
     exceptions.length > 0 ||
     enforcement.default !== null ||
     Object.keys(enforcement.byRule).length > 0 ||
-    Object.keys(enforcement.byDimension).length > 0;
+    Object.keys(enforcement.byDimension).length > 0 ||
+    evidence.maxAgeHours !== null;
 
   const nearest = parsed.at(-1)?.path ?? null;
 
@@ -486,6 +528,7 @@ export function composePolicy(chain: readonly PolicyDocument[]): Result<Policy> 
       exceptions,
       owners,
       enforcement,
+      evidence,
       sources,
     },
     // A policy is a checked-in decision rather than an observation, so it has no

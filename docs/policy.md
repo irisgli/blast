@@ -136,6 +136,37 @@ A decision reports waived rules separately from triggered ones. A change that cl
 gate because somebody accepted a risk is a different fact from a change that had no risk,
 and the [audit log](./api.md) counts them separately.
 
+## Evidence freshness
+
+Every record carries when it was observed, and a rule can be told how old is too old:
+
+```json
+{ "evidence": { "maxAgeHours": 72 } }
+```
+
+A record observed more than that many hours before the decision keeps its number and
+its basis — a measurement does not stop being one by ageing — and is held at `low`
+confidence, the one adjustment the evidence contract already lets a source make to its
+own numbers. A `block` rule still fires on it, the decision still names it under
+`staleEvidence`, and the brief lists it under its assumptions. What a stale number can no
+longer do is produce a `hold` by itself: a low-confidence risk is a caveat, by the same
+aggregation that stops a modeled number refusing a change on its own.
+
+The instant age is measured from is when the evidence was collected, which is the
+snapshot's `capturedAt`, never the clock. A replay a month later reproduces the decision,
+and a record that was fresh when the decision was made does not become stale because
+somebody verified it afterwards.
+
+A record with no `observedAt` is of unknown age, and unknown is not stale. blast's own
+fixture sources report freshness per source rather than per record, so a limit has no
+effect on them; it is for the numbers a pipeline contributes — a Lighthouse run against a
+preview that has since been redeployed, an Infracost breakdown of a plan that has since
+changed — which carry their timestamp and used to count the same however old they were.
+
+Absent means no limit, which is what every policy had before the field existed. Nearest
+document wins under `extends`. The limit is bounded at a year: beyond that it is a way of
+appearing to have the check while switching it off.
+
 ## Ownership
 
 `owners` attaches a team to rules, so a brief can say who to argue with. Resolution is

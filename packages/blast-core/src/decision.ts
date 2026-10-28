@@ -7,7 +7,7 @@ import type { DecisionSignature } from "./signature.js";
 import { rulesFor } from "./ruleset.js";
 import type { Confidence, Dimension, DimensionStatus, SourceStatus, Verdict } from "./schema.js";
 import { DIMENSIONS, METRIC } from "./schema.js";
-import type { Assessment } from "./verdict.js";
+import type { Assessment, StaleEvidence } from "./verdict.js";
 
 /**
  * The decision, as something other than a brief.
@@ -107,6 +107,15 @@ export interface Decision {
   observed: RuleEvaluation[];
   /** Exceptions that named a rule that fired, but had expired and so did not apply. */
   lapsedExceptions: { exception: WaivableException; ruleId: string }[];
+  /**
+   * Observations older than the policy's `evidence.maxAgeHours`, held at low confidence.
+   *
+   * Beside the evidence rather than folded into it, so a consumer can see at a glance that
+   * a rule fired on a number the policy no longer trusts to hold a merge, and which source
+   * to re-run to find out whether it should. Optional, because decisions recorded before
+   * the field existed are still read back by the audit log.
+   */
+  staleEvidence?: StaleEvidence[];
   evidence: EvidenceRecord[];
   sources: SourceStatus[];
   policy: DecisionPolicySummary;
@@ -237,6 +246,7 @@ export function buildDecision(input: BuildDecisionInput): Decision {
     waived: input.assessment.waived ?? [],
     observed: input.assessment.observed ?? [],
     lapsedExceptions: input.assessment.lapsed ?? [],
+    staleEvidence: input.assessment.stale ?? [],
     evidence: [...input.evidence],
     sources: [...input.sources],
     policy: summarizePolicy(input.policy),

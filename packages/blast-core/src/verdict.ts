@@ -79,6 +79,25 @@ export interface DimensionAssessment {
   severity?: Severity | null;
 }
 
+/**
+ * One observation older than the policy trusts, and what was done about it.
+ *
+ * Reported rather than dropped. The number is still in the brief with its basis, because a
+ * measurement does not stop being one by ageing; what changed is that it was held at `low`
+ * confidence, so a rule firing on it cannot produce a `hold` by itself. A reader deciding
+ * whether to re-run the source needs to know which record this was and how old.
+ */
+export interface StaleEvidence {
+  metric: string;
+  surface: string | null;
+  sourceId: string | null;
+  observedAt: string;
+  /** How long before the decision the observation was made, in hours, rounded. */
+  ageHours: number;
+  /** The limit it exceeded. */
+  maxAgeHours: number;
+}
+
 export interface Assessment {
   verdict: Verdict;
   confidence: Confidence;
@@ -91,6 +110,8 @@ export interface Assessment {
   observed?: RuleEvaluation[];
   /** Exceptions that named a rule that fired, but had expired. */
   lapsed?: { exception: WaivableException; ruleId: string }[];
+  /** Observations older than the policy's `evidence.maxAgeHours`, held at low confidence. */
+  stale?: StaleEvidence[];
 }
 
 export interface AssessmentInput {
@@ -103,6 +124,92 @@ export interface AssessmentInput {
    * the clock, so replaying an old change reproduces the decision it got at the time.
    */
   asOf?: string;
+  /**
+   * The instant evidence age is measured from, as an ISO instant.
+   *
+   * A parameter for the same reason `asOf` is. On a fresh run it is when the evidence was
+   * collected; on a replay it is when the snapshot was captured, not when it is being
+   * replayed — a record that was fresh when the decision was made does not become stale
+   * because somebody verified the decision a month later. Defaults to now, which only
+   * matters when the policy sets `evidence.maxAgeHours`.
+   */
+  decidedAt?: string;
+}
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * Findings older than the policy trusts, held at low confidence, beside what was done.
+ *
+ * Pure over its inputs: the same findings, policy and instant produce the same adjustment,
+ * which is what lets a replay reproduce a decision that depended on it. A finding with no
+ * `observedAt` is left alone — its age is unknown, and unknown is not stale — and so is
+ * one whose timestamp does not parse, since a guess about a date is worse than no claim.
+ *
+ * The clause is appended to the finding's assumptions rather than its note, because the
+ * brief lists assumptions and a reader deciding whether to re-run a source needs to see it
+ * there without opening the decision.
+ */
+export function applyFreshness(
+  findings: readonly Finding[],
+  policy: Policy,
+  decidedAt: string,
+): { findings: Finding[]; stale: StaleEvidence[] } {
+  const limit = policy.evidence.maxAgeHours;
+  const decided = Date.parse(decidedAt);
+  if (limit === null || Number.isNaN(decided)) return { findings: [...findings], stale: [] };
+
+  const stale: StaleEvidence[] = [];
+  const adjusted = findings.map((finding) => {
+    if (finding.observedAt === null || finding.observedAt === undefined) return finding;
+    const observed = Date.parse(finding.observedAt);
+    if (Number.isNaN(observed)) return finding;
+    const ageMs = decided - observed;
+    if (ageMs <= limit * HOUR_MS) return finding;
+
+    const ageHours = Math.round(ageMs / HOUR_MS);
+    stale.push({
+      metric: finding.metric,
+      surface: finding.surface,
+      sourceId: finding.sourceId,
+      observedAt: finding.observedAt,
+      ageHours,
+      maxAgeHours: limit,
+    });
+    return {
+      ...finding,
+      confidence: "low" as const,
+      assumptions: [...finding.assumptions, staleClause(ageHours, limit)],
+    };
+  });
+
+  return { findings: adjusted, stale };
+}
+
+function staleClause(ageHours: number, maxAgeHours: number): string {
+  return `Observed ${ageHours}h before this decision, past the ${maxAgeHours}h this policy trusts, so it was held at low confidence.`;
+}
+
+/** The clause on an evaluation whose evidence was stale, so the message says why it cannot hold. */
+function withStaleness(
+  evaluations: readonly RuleEvaluation[],
+  stale: readonly StaleEvidence[],
+): RuleEvaluation[] {
+  if (stale.length === 0) return [...evaluations];
+  return evaluations.map((evaluation) => {
+    const match = stale.find(
+      (entry) =>
+        entry.metric === evaluation.metric &&
+        entry.surface === evaluation.surface &&
+        entry.sourceId === evaluation.sourceId &&
+        entry.observedAt === evaluation.observedAt,
+    );
+    if (match === undefined) return evaluation;
+    return {
+      ...evaluation,
+      message: `${evaluation.message} ${staleClause(match.ageHours, match.maxAgeHours)}`,
+    };
+  });
 }
 
 const CONFIDENCE_RANK: Record<Confidence, number> = { high: 2, medium: 1, low: 0 };
@@ -535,12 +642,33 @@ export function overallConfidence(dimensions: Record<Dimension, DimensionAssessm
 export function assess(input: AssessmentInput): Assessment {
   const policy = input.policy ?? DEFAULT_POLICY;
   const asOf = input.asOf ?? todayUtc();
-  const performance = assessPerformance(input.findings, input.context, policy, asOf);
-  const cost = assessCost(input.findings, input.context, policy, asOf);
-  const measurability = assessMeasurability(input.findings, input.context, policy, asOf);
+  const decidedAt = input.decidedAt ?? new Date().toISOString();
+
+  /**
+   * Freshness is applied once, before anything reads a finding, so every dimension and the
+   * single evaluation pass see the same evidence. A stale record keeps its number and its
+   * basis and drops to low confidence; a rule still fires on it, and the verdict rules then
+   * do what they do with a low-confidence risk, which is caveat rather than hold.
+   */
+  const { findings, stale } = applyFreshness(input.findings, policy, decidedAt);
+
+  const evaluations = evaluateThresholdRules({
+    findings,
+    context: input.context,
+    policy,
+    rules: rulesFor(policy),
+  });
+  const threshold = partitionEvaluations(
+    withStaleness(evaluations, stale),
+    policy.exceptions,
+    asOf,
+  );
+
+  const performance = assessPerformance(findings, input.context, policy, asOf, threshold);
+  const cost = assessCost(findings, input.context, policy, asOf, threshold);
+  const measurability = assessMeasurability(findings, input.context, policy, asOf);
   const dimensions = { performance, cost, measurability };
 
-  const threshold = evaluate(input.findings, input.context, policy, asOf);
   const predicates = partitionEvaluations(measurability.evaluations ?? [], policy.exceptions, asOf);
 
   return {
@@ -551,5 +679,6 @@ export function assess(input: AssessmentInput): Assessment {
     waived: [...threshold.waived, ...predicates.waived],
     observed: [...threshold.observed, ...predicates.observed],
     lapsed: [...threshold.lapsed, ...predicates.lapsed],
+    stale,
   };
 }
