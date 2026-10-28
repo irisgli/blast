@@ -324,6 +324,15 @@ function renderBudgets(brief: ImpactBrief): string[] {
     );
   }
 
+  // Named whether or not anything aged out: a limit a reader cannot see is one they cannot
+  // argue with, and it explains a low confidence that would otherwise look like a weak source.
+  if (policy.evidence.maxAgeHours !== null) {
+    lines.push(
+      `Evidence observed more than ${policy.evidence.maxAgeHours}h before the decision is held at low confidence.`,
+      "",
+    );
+  }
+
   return lines;
 }
 

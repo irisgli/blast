@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  composePolicy,
   DEFAULT_THRESHOLDS,
   describePolicy,
   policyFrom,
@@ -165,5 +166,49 @@ describe("resolving the budgets for a surface", () => {
     if (!policy.ok) return;
     expect(ruleFor(policy.value, "/checkout/payment")?.match).toBe("/checkout/*");
     expect(ruleFor(policy.value, "/products/[slug]")).toBeNull();
+  });
+});
+
+describe("how old evidence may be", () => {
+  it("has no limit unless the policy sets one", () => {
+    const policy = policyFrom({}, "blast.json");
+    expect(policy.ok).toBe(true);
+    if (!policy.ok) return;
+    expect(policy.value.evidence.maxAgeHours).toBeNull();
+  });
+
+  it("counts as a file when it sets only the limit", () => {
+    // The brief has to cite the document that decided a confidence, not the defaults.
+    const policy = policyFrom({ evidence: { maxAgeHours: 72 } }, "blast.json");
+    expect(policy.ok).toBe(true);
+    if (!policy.ok) return;
+    expect(policy.value.evidence.maxAgeHours).toBe(72);
+    expect(policy.value.origin).toBe("file");
+    expect(policy.value.path).toBe("blast.json");
+  });
+
+  it("rejects a limit of zero, a year and more, and a misspelled key", () => {
+    // Zero would hold every record at low confidence, and past a year is a way of appearing
+    // to have the check while switching it off.
+    expect(policyFrom({ evidence: { maxAgeHours: 0 } }, "blast.json").ok).toBe(false);
+    expect(policyFrom({ evidence: { maxAgeHours: 24 * 366 } }, "blast.json").ok).toBe(false);
+    expect(policyFrom({ evidence: { maxAgeDays: 3 } }, "blast.json").ok).toBe(false);
+  });
+
+  it("takes the nearest document's limit", () => {
+    const composed = composePolicy([
+      { document: { evidence: { maxAgeHours: 24 } }, path: "org.json" },
+      { document: { evidence: { maxAgeHours: 168 } }, path: "blast.json" },
+    ]);
+    expect(composed.ok).toBe(true);
+    if (!composed.ok) return;
+    expect(composed.value.evidence.maxAgeHours).toBe(168);
+
+    // A repository that says nothing inherits the organization's limit.
+    const inherited = composePolicy([
+      { document: { evidence: { maxAgeHours: 24 } }, path: "org.json" },
+      { document: {}, path: "blast.json" },
+    ]);
+    expect(inherited.ok && inherited.value.evidence.maxAgeHours).toBe(24);
   });
 });

@@ -498,6 +498,19 @@
         }
       },
       "additionalProperties": false
+    },
+    "evidence": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "maxAgeHours": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 8760,
+          "description": "Evidence observed more than this many hours before the decision is held at low confidence."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

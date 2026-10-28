@@ -37,6 +37,11 @@ know something the basis does not. Two cases in the current adapters move it:
   closed-form result over measured traffic with no free parameters, which is more
   reliable than a modeled basis implies.
 
+One thing moves it after the adapter: age. When a policy sets `evidence.maxAgeHours`, a
+record observed longer ago than that is held at `low` confidence, whatever its basis. The
+number stays, the rule still fires, and the decision names the record; what it can no
+longer do is hold a merge on its own. See [Policy](./policy.md#evidence-freshness).
+
 ## Dimension status
 
 **Performance** is `risk` when any of: p75 LCP regresses past 200ms; the projected p75

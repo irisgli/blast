@@ -54,6 +54,11 @@ Replay calls no adapter at all. Calling them and discarding the answer would mak
 verification fail because a vendor was down, and a verification that depends on a vendor
 verifies nothing.
 
+Evidence age is measured from `capturedAt` as well. When a policy sets
+`evidence.maxAgeHours`, a record is judged against the moment the evidence was gathered,
+so a replay a month later reaches the decision the record would have produced at the
+time rather than one where everything has aged out.
+
 A decision says which it was, in `evidenceSource`: `collected` or `snapshot`. A replay
 reproduces an answer; it is not a fresh reading of the world, and a consumer that treated
 them as interchangeable would report a verification as though it were new evidence.
