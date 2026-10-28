@@ -2,8 +2,8 @@ import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadFixtureChangeProfile } from "@blast/adapters";
-import { contentAddress, readSnapshot } from "@blast/core";
-import type { EvidenceSnapshot, SigningKey } from "@blast/core";
+import { contentAddress, DEFAULT_POLICY, policyFrom, readSnapshot } from "@blast/core";
+import type { EvidenceRecord, EvidenceSnapshot, SigningKey } from "@blast/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadPolicy } from "./policy.js";
 import { produceBrief } from "./produce.js";
@@ -277,5 +277,99 @@ describe("inheriting a policy over https", () => {
     const loaded = await loadPolicy({ cwd: root });
     if (!loaded.ok) throw new Error(loaded.detail);
     expect(loaded.value.sources).toHaveLength(2);
+  });
+});
+
+/**
+ * Freshness is judged from when the evidence was captured, never from when it is looked at.
+ * A replay a month later has to reproduce the decision, and the decision has to be the one
+ * the stale record would have produced at the time.
+ */
+describe("evidence freshness under replay", () => {
+  const trusts24h = () => {
+    const policy = policyFrom({ evidence: { maxAgeHours: 24 } }, "blast.json");
+    if (!policy.ok) throw new Error(policy.detail);
+    return policy.value;
+  };
+  const lighthouse = (observedAt: string): EvidenceRecord => ({
+    dimension: "performance",
+    metric: "lighthouse.lcp_ms",
+    surface: "/products/[slug]",
+    base: null,
+    head: { value: 5200, unit: "ms" },
+    delta: null,
+    basis: "measured",
+    sourceId: "lighthouse",
+    provider: "lighthouse",
+    observedAt,
+    baselineRef: null,
+    assumptions: [],
+    note: null,
+    metadata: {},
+  });
+  const rule = {
+    rules: [
+      {
+        id: "lighthouse.lcp",
+        title: "synthetic LCP",
+        dimension: "performance" as const,
+        metric: "lighthouse.lcp_ms",
+        subject: "head" as const,
+        threshold: 4000,
+        enforcement: "block" as const,
+      },
+    ],
+    evidence: { maxAgeHours: 24 },
+  };
+  const policyWithRule = () => {
+    const policy = policyFrom(rule, "blast.json");
+    if (!policy.ok) throw new Error(policy.detail);
+    return policy.value;
+  };
+
+  it("names a stale contributed record in the decision and the brief", async () => {
+    const produced = await decide({
+      policy: policyWithRule(),
+      evidence: [lighthouse("2026-09-10T00:00:00Z")],
+    });
+    expect(produced.decision.staleEvidence).toEqual([
+      expect.objectContaining({ metric: "lighthouse.lcp_ms", maxAgeHours: 24 }),
+    ]);
+    const fired = produced.decision.triggered.find((entry) => entry.ruleId === "lighthouse.lcp");
+    expect(fired?.confidence).toBe("low");
+    expect(produced.markdown).toContain("past the 24h this policy trusts");
+    expect(produced.markdown).toContain(
+      "Evidence observed more than 24h before the decision is held at low confidence.",
+    );
+  });
+
+  it("judges age from the capture time, so a replay reproduces the decision", async () => {
+    // Fresh at capture: three hours old against a 24h limit.
+    const first = await decide({
+      policy: policyWithRule(),
+      evidence: [lighthouse("2026-09-20T08:00:00Z")],
+    });
+    expect(first.decision.staleEvidence).toEqual([]);
+    expect(first.decision.verdict).toBe("hold");
+
+    // Replayed well after the record would have aged out by the clock.
+    const replayed = await decide({
+      policy: policyWithRule(),
+      snapshot: first.snapshot,
+      generatedAt: "2026-12-01T00:00:00.000Z",
+    });
+    expect(replayed.decision.staleEvidence).toEqual([]);
+    expect(replayed.decision.verdict).toBe("hold");
+    expect(replayed.decision.digest).toBe(first.decision.digest);
+  });
+
+  it("leaves the digest alone when nothing aged out", async () => {
+    const without = await decide({ policy: DEFAULT_POLICY });
+    const limited = await decide({ policy: trusts24h() });
+    // The fixture sources carry no per-record timestamp, so a limit changes nothing here:
+    // same verdict, same rules, same digest as a policy that never set one.
+    expect(limited.decision.staleEvidence).toEqual([]);
+    expect(limited.decision.verdict).toBe(without.decision.verdict);
+    expect(limited.decision.digest).toBe(without.decision.digest);
   });
 });

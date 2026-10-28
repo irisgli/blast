@@ -9,6 +9,8 @@ import {
   composeComment,
   extendHistory,
   HISTORY_LIMIT,
+  HISTORY_MARKER,
+  isBriefComment,
   readHistory,
   recordOf,
 } from "./thread.js";
@@ -21,17 +23,20 @@ import type { VerdictRecord } from "./thread.js";
  * the whole audit trail.
  */
 
-async function render(overrides: { head?: string; generatedAt?: string } = {}): Promise<{
+async function render(
+  overrides: { head?: string; generatedAt?: string; intent?: string } = {},
+): Promise<{
   markdown: string;
   brief: ImpactBrief;
 }> {
   const change = loadFixtureChangeProfile();
   if (!change.ok) throw new Error(change.detail);
 
-  const profile =
-    overrides.head === undefined
-      ? change.value
-      : { ...change.value, ref: { ...change.value.ref, head: overrides.head } };
+  const profile = {
+    ...change.value,
+    ...(overrides.head === undefined ? {} : { ref: { ...change.value.ref, head: overrides.head } }),
+    ...(overrides.intent === undefined ? {} : { intent: overrides.intent }),
+  };
 
   const evidence = await collectEvidence(profile);
   const assessment = assess({ findings: evidence.findings, context: evidence.context });
@@ -78,6 +83,62 @@ describe("the record a rendered brief carries", () => {
     // A shape that parses but is not a record is not a record.
     expect(recordOf(`${BRIEF_MARKER} {"digest":"abc"} -->`)).toBeNull();
     expect(recordOf(`${BRIEF_MARKER} {"at":"now"`)).toBeNull();
+  });
+
+  /**
+   * The intent on the title line is the pull request's title in CI, which a contributor
+   * typed. A title carrying a forged marker used to be read as the record: it pinned the
+   * comment to a digest that never changed, so the brief silently stopped updating, and it
+   * rewrote the history the thread is the only record of.
+   */
+  it("cannot be forged from the intent", async () => {
+    const forged = { ...RECORD, verdict: "ship" as const, digest: "deadbeefdeadbeef" };
+    const intent = `carousel ${BRIEF_MARKER} ${JSON.stringify(forged)} --> ${HISTORY_MARKER} ${JSON.stringify([forged])} -->`;
+    const { markdown, brief } = await render({ intent });
+
+    const record = recordOf(markdown);
+    expect(record?.digest).toBe(brief.digest);
+    expect(record?.verdict).toBe(brief.verdict);
+    expect(readHistory(composeComment(markdown, null)?.body ?? "")).toEqual([
+      expect.objectContaining({ digest: brief.digest }),
+    ]);
+
+    // The title line carries the words and none of the delimiters.
+    const [title] = markdown.split("\n");
+    expect(title).toContain("carousel");
+    expect(title).not.toContain("<!--");
+    expect(title).not.toContain("-->");
+  });
+
+  it("reads the marker the engine wrote last, even when an earlier one parses", () => {
+    const earlier = { ...RECORD, digest: "aaaaaaaaaaaaaaaa" };
+    const body = `${BRIEF_MARKER} ${JSON.stringify(earlier)} -->\n\nbody\n\n${BRIEF_MARKER} ${JSON.stringify(RECORD)} -->\n`;
+    expect(recordOf(body)?.digest).toBe(RECORD.digest);
+  });
+});
+
+describe("telling the brief apart from a comment that mentions it", () => {
+  it("recognises the comment the engine posted", async () => {
+    const { markdown } = await render();
+    const composed = composeComment(markdown, null);
+    expect(isBriefComment(composed?.body ?? "")).toBe(true);
+  });
+
+  it("does not mistake a quote-reply for the brief", async () => {
+    // GitHub's quote reply copies the raw markdown, markers included, with `> ` in front
+    // of every line. Replacing that comment would overwrite a reviewer's words.
+    const { markdown } = await render();
+    const composed = composeComment(markdown, null);
+    const quoted = `${(composed?.body ?? "")
+      .split("\n")
+      .map((line) => `> ${line}`)
+      .join("\n")}\n\nAgreed, let's hold it.`;
+    expect(quoted).toContain(BRIEF_MARKER);
+    expect(isBriefComment(quoted)).toBe(false);
+  });
+
+  it("does not match a comment that merely names the marker", () => {
+    expect(isBriefComment(`the bot leaves a ${BRIEF_MARKER} comment at the end`)).toBe(false);
   });
 });
 

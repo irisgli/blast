@@ -105,6 +105,7 @@ runs of an unchanged change. The decision is the integration surface:
   "waived": [],
   "observed": [],
   "lapsedExceptions": [],
+  "staleEvidence": [],
   "evidence": [
     {
       "metric": "monthly_cost_usd",
@@ -125,6 +126,11 @@ answer is in the object, which is what makes it something other than an opinion.
 
 `outcome` is derived from `verdict` and `gate`, never asserted. With no gate nothing is
 blocked, however bad the verdict is.
+
+`staleEvidence` lists records observed longer ago than the policy's `evidence.maxAgeHours`.
+Each was held at `low` confidence, so a rule firing on it is in `triggered` with that
+confidence and could not produce a `hold` on its own. See
+[Policy](./policy.md#evidence-freshness).
 
 Never cached: the response is a function of a body, and a pipeline gating a merge on it must
 not be answered from a store.

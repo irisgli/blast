@@ -204,6 +204,13 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
   let snapshot: EvidenceSnapshot;
   let collectMs: number | null = null;
 
+  /**
+   * One instant for the run, read once. The brief, the decision and a fresh snapshot all
+   * carry it, so the moment evidence age is measured from on a later replay — the snapshot's
+   * `capturedAt` — is the same moment it was measured from when the decision was made.
+   */
+  const generatedAt = input.generatedAt ?? new Date().toISOString();
+
   if (input.snapshot !== undefined) {
     if (!snapshotMatchesRef(input.snapshot, input.profile.ref)) {
       return fail(
@@ -247,7 +254,7 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
       records: evidence.findings.map(fromFinding),
       context: evidence.context,
       sources: evidence.sources,
-      ...(input.generatedAt === undefined ? {} : { capturedAt: input.generatedAt }),
+      capturedAt: generatedAt,
     });
   }
 
@@ -257,6 +264,12 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     context: evidence.context,
     policy,
     ...(input.asOf === undefined ? {} : { asOf: input.asOf }),
+    /**
+     * Evidence age is measured from when the evidence was gathered, never from when it is
+     * being looked at. A replay a month later has to reproduce the decision, and a record
+     * that was fresh at capture does not become stale by being verified.
+     */
+    decidedAt: snapshot.capturedAt,
   });
   const assessMs = performance.now() - assessStarted;
   const renderStarted = performance.now();
@@ -269,6 +282,16 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
   const remediations = remediationsFor(input.profile, evidence, assessment);
 
   const caveat = input.costAccuracy === undefined ? null : accuracyCaveat(input.costAccuracy);
+  /**
+   * Stale evidence is named in the brief's assumptions, one line per record, because the
+   * findings table shows a basis and not a confidence and a reader deciding whether to re-run
+   * a source needs to know which one aged out without opening the decision.
+   */
+  const staleness = (assessment.stale ?? []).map(
+    (entry) =>
+      `${entry.metric}${entry.surface === null ? "" : ` on ${entry.surface}`} was observed ${entry.ageHours}h before this decision, past the ${entry.maxAgeHours}h this policy trusts, and was held at low confidence.`,
+  );
+  const extraAssumptions = [...(caveat === null ? [] : [caveat]), ...staleness];
 
   const brief = buildBrief({
     profile: input.profile,
@@ -278,8 +301,8 @@ export async function produceBrief(input: ProduceBriefInput): Promise<Result<Pro
     headline: input.headline,
     sources: evidence.sources,
     policy,
-    ...(caveat === null ? {} : { extraAssumptions: [caveat] }),
-    ...(input.generatedAt === undefined ? {} : { generatedAt: input.generatedAt }),
+    ...(extraAssumptions.length === 0 ? {} : { extraAssumptions }),
+    generatedAt,
   });
 
   let decision = buildDecision({

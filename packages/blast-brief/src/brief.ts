@@ -190,10 +190,33 @@ function renderFindingsTable(findings: readonly Finding[]): string[] {
   ];
 }
 
+/**
+ * The intent as a title can carry it.
+ *
+ * The intent is the one line of a brief that a contributor wrote rather than the engine: in
+ * CI it is the pull request title. It goes on the first line of a comment the engine later
+ * finds by its marker and reads its own record out of, so an intent is not allowed to carry a
+ * line break, which would let it write markdown structure of its own into the comment, or an
+ * HTML comment delimiter, which is what a forged marker is made of. Both are removed rather
+ * than escaped: there is no reading of a change's purpose that needs either.
+ *
+ * The brief's `intent` field stays as given. This is a rendering concern, and a page or an
+ * API consumer gets the data; the markdown gets a title.
+ */
+export const INTENT_TITLE_LIMIT = 300;
+
+export function intentForTitle(intent: string): string {
+  const flat = intent
+    .replace(/<!--|-->/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return flat.length > INTENT_TITLE_LIMIT ? `${flat.slice(0, INTENT_TITLE_LIMIT - 1)}…` : flat;
+}
+
 export function renderBrief(brief: ImpactBrief): string {
   const title = brief.ref.kind === "pr" ? `#${brief.ref.id}` : brief.ref.id;
   const lines: string[] = [
-    `# Impact brief — ${title} · ${brief.intent}`,
+    `# Impact brief — ${title} · ${intentForTitle(brief.intent)}`,
     "",
     `**Verdict: ${VERDICT_LABEL[brief.verdict]}** · confidence: ${brief.confidence}`,
     "",
@@ -297,6 +320,15 @@ function renderBudgets(brief: ImpactBrief): string[] {
       `For \`${rule.match}\`:`,
       "",
       ...changed.map((budget) => `- ${budget.label}: ${budget.value}`),
+      "",
+    );
+  }
+
+  // Named whether or not anything aged out: a limit a reader cannot see is one they cannot
+  // argue with, and it explains a low confidence that would otherwise look like a weak source.
+  if (policy.evidence.maxAgeHours !== null) {
+    lines.push(
+      `Evidence observed more than ${policy.evidence.maxAgeHours}h before the decision is held at low confidence.`,
       "",
     );
   }

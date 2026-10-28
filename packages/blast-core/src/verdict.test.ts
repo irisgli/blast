@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Confidence, DimensionStatus, Finding, MetricId } from "./schema.js";
 import { confidenceForBasis, METRIC } from "./schema.js";
 import type { Policy, VerdictThresholds } from "./policy.js";
-import { policyFrom, surfaceMatches } from "./policy.js";
+import { DEFAULT_POLICY, policyFrom, surfaceMatches } from "./policy.js";
 import type { DimensionAssessment, VerdictContext } from "./verdict.js";
 import {
+  applyFreshness,
   assess,
   assessCost,
   assessMeasurability,
@@ -465,5 +466,108 @@ describe("matching a surface rule", () => {
   it("anchors at both ends", () => {
     expect(surfaceMatches("/cart", "/cart/items")).toBe(false);
     expect(surfaceMatches("/cart", "/shop/cart")).toBe(false);
+  });
+});
+
+/**
+ * A record older than the policy trusts keeps its number and loses the right to hold a
+ * merge on its own. Both halves matter: dropping the record would turn a stale measurement
+ * into no measurement, and keeping its confidence would let a three-week-old Lighthouse run
+ * block a change with the same certainty as one from an hour ago.
+ */
+describe("evidence older than the policy trusts", () => {
+  const DECIDED = "2026-09-20T12:00:00.000Z";
+  const trusts72h = (): Policy => {
+    const policy = policyFrom({ evidence: { maxAgeHours: 72 } }, "blast.json");
+    if (!policy.ok) throw new Error(policy.detail);
+    return policy.value;
+  };
+  const regression = (observedAt: string | null) =>
+    finding(METRIC.p75Lcp, 400, { surface: PDP, observedAt });
+
+  it("does nothing when the policy sets no limit", () => {
+    const old = regression("2026-01-01T00:00:00Z");
+    const { findings, stale } = applyFreshness([old], DEFAULT_POLICY, DECIDED);
+    expect(stale).toEqual([]);
+    expect(findings[0]?.confidence).toBe("high");
+  });
+
+  it("holds a record past the limit at low confidence, and says so", () => {
+    const old = regression("2026-09-16T12:00:00Z"); // 96h before
+    const { findings, stale } = applyFreshness([old], trusts72h(), DECIDED);
+
+    expect(findings[0]?.confidence).toBe("low");
+    expect(findings[0]?.basis).toBe("measured");
+    expect(findings[0]?.delta?.value).toBe(400);
+    expect(findings[0]?.assumptions.at(-1)).toContain("96h before this decision");
+    expect(stale).toEqual([
+      expect.objectContaining({
+        metric: METRIC.p75Lcp,
+        surface: PDP,
+        ageHours: 96,
+        maxAgeHours: 72,
+      }),
+    ]);
+  });
+
+  it("accepts a record exactly at the limit", () => {
+    const atLimit = regression("2026-09-17T12:00:00Z"); // 72h before
+    const { findings, stale } = applyFreshness([atLimit], trusts72h(), DECIDED);
+    expect(stale).toEqual([]);
+    expect(findings[0]?.confidence).toBe("high");
+  });
+
+  it("leaves a record of unknown age alone", () => {
+    // Unknown is not stale. The fixture adapters report freshness per source rather than per
+    // record, and a guess about a date is worse than no claim.
+    const { findings, stale } = applyFreshness(
+      [regression(null), regression("not a date")],
+      trusts72h(),
+      DECIDED,
+    );
+    expect(stale).toEqual([]);
+    expect(findings.every((entry) => entry.confidence === "high")).toBe(true);
+  });
+
+  it("turns a hold into a caveat, with the rule still firing", () => {
+    const fresh = assess({
+      findings: [regression("2026-09-20T11:00:00Z")],
+      context: context(),
+      policy: trusts72h(),
+      decidedAt: DECIDED,
+    });
+    expect(fresh.verdict).toBe("hold");
+    expect(fresh.stale).toEqual([]);
+
+    const stale = assess({
+      findings: [regression("2026-09-01T11:00:00Z")],
+      context: context(),
+      policy: trusts72h(),
+      decidedAt: DECIDED,
+    });
+    // The rule fired and is named; the dimension is a risk; the risk cannot hold on its own.
+    expect(stale.triggered?.map((entry) => entry.ruleId)).toEqual(["performance.lcp-delta"]);
+    expect(stale.triggered?.[0]?.confidence).toBe("low");
+    expect(stale.triggered?.[0]?.message).toContain("held at low confidence");
+    expect(stale.triggered?.[0]?.observedAt).toBe("2026-09-01T11:00:00Z");
+    expect(stale.dimensions.performance.status).toBe("risk");
+    expect(stale.dimensions.performance.confidence).toBe("low");
+    expect(stale.verdict).toBe("ship-with-caveats");
+    expect(stale.stale).toHaveLength(1);
+  });
+
+  it("names only the stale record when a fresh one fired the same rule", () => {
+    const result = assess({
+      findings: [regression("2026-09-20T11:00:00Z"), regression("2026-09-01T11:00:00Z")],
+      context: context(),
+      policy: trusts72h(),
+      decidedAt: DECIDED,
+    });
+    const messages = result.triggered?.map((entry) => entry.message) ?? [];
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).not.toContain("held at low confidence");
+    expect(messages[1]).toContain("held at low confidence");
+    // The fresh regression still decides: it is first, and it is high confidence.
+    expect(result.verdict).toBe("hold");
   });
 });
