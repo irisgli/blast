@@ -9,7 +9,7 @@ const STAGES = ["change", "evidence", "snapshot", "rules", "decision", "surfaces
 
 export function Pipeline() {
   return (
-    <ol className="pipe" aria-label="How a diff becomes a decision">
+    <ol className="pipe" data-reveal="pipe" aria-label="How a diff becomes a decision">
       {STAGES.map((stage) => (
         <li className="pipe__stage" key={stage}>
           {stage}

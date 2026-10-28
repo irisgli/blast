@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { Besley, Schibsted_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Besley, JetBrains_Mono, Schibsted_Grotesk } from "next/font/google";
+import { NO_SCRIPT_LOADER_CSS } from "./components/loader";
+import { NO_SCRIPT_MOTION_CSS } from "./components/motion";
 import { SITE_URL } from "./site";
 import "./globals.css";
 
 /**
- * Two families and a monospace. A Clarendon for the verdict and the section titles, the
- * words that are the page's own; a newspaper grotesk for every sentence and every
- * figure; the monospace only where the content is code, a file, or a digest.
+ * Three families, one job each. A Clarendon for the words that are the page's own: the
+ * wordmark, the verdict, the section titles. A newspaper grotesk for every sentence and
+ * every figure. A monospace for what is code: a branch, a file, a diff, a digest.
  */
 const display = Besley({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 const sans = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -34,7 +36,29 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    /*
+     * `data-motion` is rendered by the server rather than set by a script before
+     * hydration. Setting it from a script is the usual way to avoid a flash and it cost
+     * an afternoon here: React saw an attribute on `<html>` that its own markup did not
+     * have, treated the tree as mismatched, and stopped hydrating — so the motion layer
+     * never ran and every section below the hero stayed invisible. Rendering it means
+     * server and client agree, and there is nothing to flash.
+     */
+    <html
+      lang="en"
+      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+      data-motion=""
+    >
+      <head>
+        {/*
+          Without JavaScript nothing will ever reveal these or lift the curtain, so both
+          are undone here rather than left forever. A page that renders blank without
+          scripting is not a page with an animation; it is a broken one.
+        */}
+        <noscript>
+          <style>{NO_SCRIPT_MOTION_CSS + NO_SCRIPT_LOADER_CSS}</style>
+        </noscript>
+      </head>
       <body>{children}</body>
     </html>
   );

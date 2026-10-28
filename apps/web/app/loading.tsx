@@ -9,10 +9,10 @@ import { GateSkeleton } from "./components/skeleton";
  */
 export default function Loading() {
   return (
-    <main className="lead">
-      <div className="shell lead__inner">
-        <h1 className="lead__title">What a pull request costs before you merge it.</h1>
-        <p className="lead__text">Deciding the sample pull request…</p>
+    <main className="hero">
+      <div className="shell hero__head">
+        <h1 className="display">What a pull request costs before you merge it.</h1>
+        <p className="hero__lede">Deciding the sample pull request…</p>
       </div>
       <div className="shell">
         <GateSkeleton />
