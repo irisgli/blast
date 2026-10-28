@@ -105,6 +105,19 @@ Colour never decides a verdict's meaning by itself: every state has a word besid
   still frame. Without JavaScript a `<noscript>` rule shows everything.
 - Easing `cubic-bezier(0.16, 1, 0.3, 1)`; nothing bounces.
 
+## The product panels
+
+The brief is a document, not a dashboard. Inside paper: one left column of 220px runs
+down the panel and carries the verdict word in the display serif, then each dimension's
+name; the sentence the engine wrote sits beside it, and the figures sit right-aligned as
+a small ledger so they share one edge. The evidence is under tabs beneath, never behind
+a disclosure. No tiles, no boxes inside the paper, no bar under every row: one
+composition bar for where the money goes, columns from zero for the bill, a deviation
+chart around zero for the model's record, and a ruled table for the measurements. The
+playground draws its dimensions with the same ledger, and each budget slider carries a
+mark where this change sits on its scale, so a reader is moving a ceiling over a measured
+value and can see the moment it passes under.
+
 ## Decisions
 
 - 2026-10-26: a Vercel-derived redesign rejected as borrowed. The mark and the type are
@@ -116,3 +129,7 @@ Colour never decides a verdict's meaning by itself: every state has a word besid
   four compositions, the product panels back on paper so the page has a focal point, the
   aphoristic titles replaced with plain sentences, the properties section cut, the footer
   collapsed to one row, and the stylesheet rewritten as one layer from three.
+- 2026-10-27, later still: the paper panels themselves rejected as a wireframe — grey
+  bands, tiles, a progress bar under every row, a stretched sparkline, footnotes under
+  everything. Retypeset as a report: a verdict word, a ledger, tabs, and four honest
+  charts drawn with boxes.

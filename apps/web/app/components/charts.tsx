@@ -1,10 +1,11 @@
 /**
- * The four shapes this surface needs, drawn as inline SVG.
+ * The four shapes this surface needs, drawn with boxes.
  *
- * No charting library. Each of these is a handful of rectangles with a known domain, and
- * a dependency that renders arbitrary data would be larger than the page it sits on —
- * which, on a tool that reports payload cost, is a sentence somebody would rightly quote
- * back. They inherit colour from CSS variables so light and dark are one definition.
+ * No charting library and no stretched SVG. Each of these is a handful of elements with a
+ * known domain, sized by inline percentages, so nothing distorts when the panel narrows —
+ * and a dependency that renders arbitrary data would be larger than the page it sits on,
+ * which on a tool that reports payload cost is a sentence somebody would rightly quote
+ * back. Colour comes from the panel's tokens, so paper and night are one definition.
  *
  * Every one is labelled for a screen reader and hidden from it as a graphic, because the
  * numbers are always in the markup beside the picture. A chart here is a second way to
@@ -15,51 +16,68 @@ function percent(value: number, total: number): number {
   return total === 0 ? 0 : (value / total) * 100;
 }
 
-export interface BreakdownItem {
+export interface CompositionItem {
   label: string;
   value: number;
   detail?: string;
 }
 
 /**
- * Where a total comes from, largest first.
+ * Where a total comes from: one bar split into its terms, and the terms listed under it.
  *
  * A single figure invites agreement or disagreement and nothing else. Split into its
- * terms, it invites the useful question — which is almost always "why is that first bar
+ * parts, it invites the useful question — which is almost always "why is that first one
  * so much bigger than the others", and on this change the answer is a cache directive.
+ * The parts share one bar rather than getting one each, so their proportion is the first
+ * thing read and the dollar amounts the second.
  */
-export function Breakdown({
+export function Composition({
   items,
   format,
 }: {
-  items: readonly BreakdownItem[];
+  items: readonly CompositionItem[];
   format: (value: number) => string;
 }) {
   const total = items.reduce((sum, item) => sum + Math.abs(item.value), 0);
-  const largest = Math.max(...items.map((item) => Math.abs(item.value)), 0);
+  // Shades of the accent, largest darkest. Past the fifth term a bar is too thin to tell.
+  const shade = (index: number) => Math.max(0.18, 1 - index * 0.2);
 
   return (
-    <ul className="breakdown">
-      {items.map((item) => (
-        <li className="breakdown__row" key={item.label}>
-          <div className="breakdown__head">
-            <span className="breakdown__label">{item.label}</span>
-            <span className="breakdown__value mono">{format(item.value)}</span>
-          </div>
-          <div
-            className="breakdown__track"
-            role="img"
-            aria-label={`${item.label}: ${format(item.value)}, ${percent(Math.abs(item.value), total).toFixed(0)}% of the total`}
-          >
-            <span
-              className="breakdown__fill"
-              style={{ width: `${percent(Math.abs(item.value), largest)}%` }}
-            />
-          </div>
-          {item.detail !== undefined && <p className="breakdown__detail">{item.detail}</p>}
-        </li>
-      ))}
-    </ul>
+    <div className="comp">
+      <div
+        className="comp__bar"
+        role="img"
+        aria-label={items
+          .map(
+            (item) =>
+              `${item.label}: ${format(item.value)}, ${percent(Math.abs(item.value), total).toFixed(0)}% of the total`,
+          )
+          .join("; ")}
+      >
+        {items.map((item, index) => (
+          <span
+            className="comp__seg"
+            key={item.label}
+            style={{
+              width: `${percent(Math.abs(item.value), total)}%`,
+              opacity: shade(index),
+            }}
+          />
+        ))}
+      </div>
+      <ol className="comp__rows">
+        {items.map((item, index) => (
+          <li className="comp__row" key={item.label}>
+            <span className="comp__swatch" style={{ opacity: shade(index) }} aria-hidden="true" />
+            <span className="comp__label">
+              {item.label}
+              {item.detail !== undefined && <small className="comp__detail">{item.detail}</small>}
+            </span>
+            <span className="comp__value mono">{format(item.value)}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -69,13 +87,14 @@ export interface SeriesPoint {
 }
 
 /**
- * A trailing series with the next point projected.
+ * A trailing series with the next point projected, as columns from zero.
  *
- * The projection is drawn dashed and separated by a gap, because it is the only point on
- * the chart that has not happened. Continuing the solid line into it would be the visual
- * form of the basis confusion this whole tool exists to prevent.
+ * From zero, not from the minimum: a bill that grew from $8.9k to $9.5k reads as a bill
+ * that barely moved, which is the truth, and the change's own delta on top of it reads
+ * at its real scale. The projected column is outlined rather than filled, because it is
+ * the only one that has not happened.
  */
-export function Trend({
+export function Columns({
   points,
   projected,
   format,
@@ -86,136 +105,86 @@ export function Trend({
 }) {
   const all = projected === undefined ? points : [...points, projected];
   if (all.length === 0) return null;
-
-  const values = all.map((point) => point.value);
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  // A flat series should read as flat rather than filling the box with noise.
-  const span = max - min === 0 ? Math.max(max, 1) : max - min;
-  const floor = max - min === 0 ? 0 : min - span * 0.25;
-  const ceiling = max + span * 0.15;
-
-  const width = 100;
-  const height = 40;
-  const step = all.length === 1 ? 0 : width / (all.length - 1);
-  const y = (value: number) => height - ((value - floor) / (ceiling - floor)) * height;
-  const coords = all.map((point, index) => ({ x: index * step, y: y(point.value) }));
-  const measured = coords.slice(0, points.length);
-
-  const line = measured.map((point) => `${point.x},${point.y}`).join(" ");
-  const area = `${line} ${measured[measured.length - 1]?.x ?? 0},${height} 0,${height}`;
+  const max = Math.max(...all.map((point) => point.value), 1);
 
   return (
-    <div className="trend">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        className="trend__svg"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <polygon points={area} className="trend__area" />
-        <polyline points={line} className="trend__line" />
-        {projected !== undefined && measured.length > 0 && (
-          <line
-            x1={measured[measured.length - 1]?.x ?? 0}
-            y1={measured[measured.length - 1]?.y ?? 0}
-            x2={coords[coords.length - 1]?.x ?? 0}
-            y2={coords[coords.length - 1]?.y ?? 0}
-            className="trend__projected"
-          />
-        )}
-        {coords.map((point, index) => (
-          <circle
-            key={all[index]?.label ?? index}
-            cx={point.x}
-            cy={point.y}
-            r={2}
-            className={index >= points.length ? "trend__dot trend__dot--projected" : "trend__dot"}
-          />
-        ))}
-      </svg>
-      <ul className="trend__axis">
-        {all.map((point, index) => (
-          <li key={point.label} className={index >= points.length ? "trend__tick--projected" : ""}>
-            <span className="trend__tick-label">{point.label}</span>
-            <span className="mono">{format(point.value)}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ol
+      className="cols"
+      role="img"
+      aria-label={all.map((point) => `${point.label}: ${format(point.value)}`).join(", ")}
+    >
+      {all.map((point, index) => (
+        <li
+          className={`cols__col${index >= points.length ? " cols__col--projected" : ""}`}
+          key={point.label}
+        >
+          <span className="cols__value mono">{format(point.value)}</span>
+          <span className="cols__well">
+            <span className="cols__bar" style={{ height: `${percent(point.value, max)}%` }} />
+          </span>
+          <span className="cols__label">{point.label}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
-export interface PairedBar {
+export interface DeviationRow {
   label: string;
   /** What the model said it would cost. */
   estimated: number;
   /** What the services went on to bill. */
   observed: number;
-  note?: string;
 }
 
 /**
- * This model's own track record: what it said against what was billed.
+ * This model's own track record: how far each estimate was from the bill, around zero.
  *
- * Every other number on this page describes the change. This one describes the tool, and
- * it is the question a reader asks second. Signed values are drawn from a centre line,
- * because a change that saved $310 and a change that cost $310 are not the same fact
- * even though the bars would otherwise be the same length.
+ * A bar to the right is a bill that came in above the estimate, which is the direction
+ * that matters: a model that reads low lets a change through under a ceiling it will go
+ * on to break. Every other figure on this surface describes the change; this one
+ * describes the tool.
  */
-export function Accuracy({ rows }: { rows: readonly PairedBar[] }) {
-  const largest = Math.max(
-    ...rows.flatMap((row) => [Math.abs(row.estimated), Math.abs(row.observed)]),
-    1,
+export function Deviation({ rows }: { rows: readonly DeviationRow[] }) {
+  const misses = rows.map((row) =>
+    row.estimated === 0 ? 0 : ((row.observed - row.estimated) / Math.abs(row.estimated)) * 100,
   );
-  const signed = rows.some((row) => row.estimated < 0 || row.observed < 0);
-
-  function bar(value: number) {
-    const magnitude = (Math.abs(value) / largest) * (signed ? 50 : 100);
-    return signed
-      ? { width: `${magnitude}%`, marginLeft: value < 0 ? `${50 - magnitude}%` : "50%" }
-      : { width: `${magnitude}%` };
-  }
+  const largest = Math.max(...misses.map(Math.abs), 1);
 
   return (
-    <ul className="accuracy">
-      {rows.map((row) => {
-        const missBy =
-          row.estimated === 0
-            ? null
-            : ((row.observed - row.estimated) / Math.abs(row.estimated)) * 100;
+    <ol className="dev">
+      {rows.map((row, index) => {
+        const miss = misses[index] ?? 0;
+        const width = (Math.abs(miss) / largest) * 50;
         return (
-          <li className="accuracy__row" key={row.label}>
-            <div className="accuracy__head">
-              <span className="accuracy__label">{row.label}</span>
-              {missBy !== null && (
-                <span className="accuracy__miss mono">
-                  {missBy > 0 ? "+" : ""}
-                  {missBy.toFixed(1)}%
-                </span>
-              )}
-            </div>
-            <div
-              className="accuracy__bars"
+          <li className="dev__row" key={row.label}>
+            <span className="dev__label">{row.label}</span>
+            <span
+              className="dev__track"
               role="img"
               aria-label={`Estimated $${row.estimated.toFixed(2)}, billed $${row.observed.toFixed(2)}`}
             >
-              <span className="accuracy__bar accuracy__bar--estimated" style={bar(row.estimated)} />
-              <span className="accuracy__bar accuracy__bar--observed" style={bar(row.observed)} />
-            </div>
-            {row.note !== undefined && <p className="accuracy__note">{row.note}</p>}
+              <span className="dev__axis" />
+              <span
+                className={`dev__bar${miss > 0 ? " dev__bar--over" : ""}`}
+                style={{ left: miss < 0 ? `${50 - width}%` : "50%", width: `${width}%` }}
+              />
+            </span>
+            <span className={`dev__value mono${miss > 0 ? " dev__value--over" : ""}`}>
+              {miss > 0 ? "+" : miss < 0 ? "−" : ""}
+              {Math.abs(miss).toFixed(1)}%
+            </span>
           </li>
         );
       })}
-    </ul>
+    </ol>
   );
 }
 
 /**
  * A measured delta against the budget it is being held to.
  *
- * The threshold is a line rather than a colour, so a metric that used three quarters of
+ * The threshold is a mark rather than a colour, so a metric that used three quarters of
  * its allowance reads as close to the line instead of merely "fine" — which is the state
  * worth noticing before it becomes the other one.
  */
@@ -224,11 +193,14 @@ export function Allowance({
   threshold,
   format,
   label,
+  compact = false,
 }: {
   value: number;
   threshold: number;
   format: (value: number) => string;
   label: string;
+  /** Just the track, for a table cell. */
+  compact?: boolean;
 }) {
   const scale = Math.max(Math.abs(value), threshold) * 1.15;
   const used = Math.min((Math.abs(value) / scale) * 100, 100);
@@ -236,19 +208,23 @@ export function Allowance({
   const over = Math.abs(value) > threshold;
 
   return (
-    <div className="allowance">
+    <div className={`allow${compact ? " allow--compact" : ""}${over ? " allow--over" : ""}`}>
       <div
-        className={`allowance__track${over ? " allowance__track--over" : ""}`}
+        className="allow__track"
         role="img"
         aria-label={`${label}: ${format(value)} against a ${format(threshold)} budget`}
       >
-        <span className="allowance__fill" style={{ width: `${used}%` }} />
-        <span className="allowance__mark" style={{ left: `${mark}%` }} />
+        <span className="allow__fill" style={{ width: `${used}%` }} />
+        <span className="allow__mark" style={{ left: `${mark}%` }} />
       </div>
-      <div className="allowance__legend">
-        <span className="mono">{format(value)}</span>
-        <span className="allowance__budget">budget {format(threshold)}</span>
-      </div>
+      {!compact && (
+        <div className="allow__legend">
+          <span className="mono">{format(value)}</span>
+          <span className="allow__budget">
+            ceiling <span className="mono">{format(threshold)}</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

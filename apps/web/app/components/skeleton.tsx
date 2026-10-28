@@ -29,20 +29,20 @@ export function PanelSkeleton() {
         <Bar width="30%" height={10} />
         <Bar width="18%" height={10} />
       </div>
-      <div className="skeleton-card">
-        <Bar width="92%" />
-        <Bar width="76%" />
+      <div className="skeleton-verdict">
+        <Bar width="40%" height={36} />
+        <div className="skeleton-card">
+          <Bar width="92%" />
+          <Bar width="76%" />
+        </div>
       </div>
-      <div className="skeleton-columns">
-        {["performance", "cost", "measurability"].map((dimension) => (
-          <div className="skeleton-card" key={dimension}>
-            <Bar width="45%" height={10} />
-            <Bar width="90%" />
-            <Bar width="80%" />
-            <Bar width="60%" />
-          </div>
-        ))}
-      </div>
+      {["performance", "cost", "measurability"].map((dimension) => (
+        <div className="skeleton-ledger" key={dimension}>
+          <Bar width="60%" height={10} />
+          <Bar width="90%" />
+          <Bar width="70%" height={10} />
+        </div>
+      ))}
     </div>
   );
 }

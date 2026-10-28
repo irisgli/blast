@@ -34,11 +34,8 @@ export async function Playground() {
     <PlaygroundClient
       initial={shapeWhatIf(data, "", {})}
       fixture={{
-        cost:
-          data.evidence.estimate === null
-            ? "unmeasured"
-            : `+$${data.evidence.estimate.totalUsd.toFixed(2)}`,
-        lcp: formatMeasure(lcp?.delta ?? null, { signed: true }),
+        costUsd: data.evidence.estimate === null ? null : data.evidence.estimate.totalUsd,
+        lcpMs: lcp?.delta?.value ?? null,
         events: formatMeasure(events?.head ?? null),
       }}
     />
