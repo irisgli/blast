@@ -3,23 +3,21 @@
 import { useEffect, useId, useState } from "react";
 import type { Enforcement } from "@blast/core";
 import { CopyButton } from "./copy";
-import { Ledger } from "./ledger";
-import { Snippet } from "./snippet";
 import type { WhatIf } from "../what-if-shape";
 
 /**
- * Three knobs, one per dimension, and the decision they produce.
+ * Three ceilings over one measured change, and the verdict they produce.
  *
- * The monthly ceiling and the LCP allowance are budgets; the attributable-events rule has
- * no number to move, so its knob is enforcement — which is the more interesting one, since
- * it is the difference between "this is bad" and "this may stop the merge" that the policy
- * system keeps separate. Moving any of them re-runs the engine on the server. The client
- * draws what comes back and computes nothing: a verdict decided in a browser would be a
- * second engine, and two engines agree until they do not.
+ * Each rail is a scale. The change's own value sits on it as a fixed mark; the ceiling
+ * is the handle a reader drags. The moment the ceiling passes under the mark, the span
+ * between them turns the verdict's colour, the engine is asked again on the server, and
+ * the stamp on the right flips. The attributable-events rule has no number to move, so
+ * its control is enforcement, which is the difference between "this is bad" and "this
+ * may stop the merge".
  *
- * Each budget slider carries a mark where this change sits on its scale, so the reader
- * is not moving a number in the abstract: they are moving a ceiling over a measured
- * value, and can see the moment it passes under.
+ * Nothing is decided here. The client draws what comes back from `/api/what-if` and
+ * computes nothing: a verdict decided in a browser would be a second engine, and two
+ * engines agree until they do not.
  */
 
 const COST = { min: 50, max: 1000, step: 10, initial: 500 } as const;
@@ -31,12 +29,6 @@ const VERDICT_WORD = {
   ship: "Ship",
   "ship-with-caveats": "Ship with caveats",
   hold: "Hold",
-} as const;
-
-const DIMENSION_LABEL = {
-  performance: "Performance",
-  cost: "Infrastructure cost",
-  measurability: "Measurability",
 } as const;
 
 interface Knobs {
@@ -65,10 +57,7 @@ export interface Fixture {
   events: string;
 }
 
-/**
- * A budget slider with the change's own value marked on its scale.
- */
-function Budget({
+function Rail({
   id,
   label,
   value,
@@ -87,24 +76,43 @@ function Budget({
   measuredLabel: string;
   onChange: (value: number) => void;
 }) {
-  const place =
-    measured === null
-      ? null
-      : Math.min(100, Math.max(0, ((measured - range.min) / (range.max - range.min)) * 100));
+  const place = (at: number) =>
+    Math.min(100, Math.max(0, ((at - range.min) / (range.max - range.min)) * 100));
+  const mark = measured === null ? null : place(measured);
+  const ceiling = place(value);
   const over = measured !== null && measured > value;
 
   return (
-    <div className={`control${over ? " control--over" : ""}`}>
-      <label className="control__label" htmlFor={id}>
-        {label}
-      </label>
-      <output className="control__value mono" htmlFor={id}>
-        {format(value)}
-      </output>
-      <div className="control__track">
+    <div className={`rail${over ? " rail--over" : ""}`}>
+      <div className="rail__head">
+        <label className="rail__label" htmlFor={id}>
+          {label}
+        </label>
+        <output className="rail__ceiling" htmlFor={id}>
+          {format(value)}
+        </output>
+      </div>
+      <div className="rail__track">
+        {mark !== null && (
+          <>
+            <span
+              className="rail__span"
+              style={{
+                left: `${Math.min(mark, ceiling)}%`,
+                width: `${Math.abs(mark - ceiling)}%`,
+              }}
+              aria-hidden="true"
+            />
+            <span className="rail__mark" style={{ left: `${mark}%` }} aria-hidden="true">
+              <span className={`rail__mark-label${mark > 70 ? " rail__mark-label--end" : ""}`}>
+                this change {measuredLabel}
+              </span>
+            </span>
+          </>
+        )}
         <input
           id={id}
-          className="range"
+          className="rail__input"
           type="range"
           min={range.min}
           max={range.max}
@@ -114,20 +122,13 @@ function Budget({
             onChange(Number(event.target.value));
           }}
         />
-        {place !== null && (
-          <span
-            className={`control__mark${place < 18 ? " control__mark--start" : place > 82 ? " control__mark--end" : ""}`}
-            style={{ left: `${place}%` }}
-            aria-hidden="true"
-          >
-            <span className="control__mark-label">
-              this change <b className="mono">{measuredLabel}</b>
-            </span>
-          </span>
-        )}
       </div>
-      <p className="control__hint">
-        {over ? "Over the ceiling, so the rule fires." : "Inside the ceiling."}
+      <p className="rail__read" aria-live="polite">
+        {measured === null
+          ? "Unmeasured, so no ceiling applies."
+          : over
+            ? `${measuredLabel} is over ${format(value)}. The rule fires.`
+            : `${measuredLabel} is inside ${format(value)}.`}
       </p>
     </div>
   );
@@ -142,7 +143,6 @@ export function PlaygroundClient({ initial, fixture }: { initial: WhatIf; fixtur
   const query = queryFor(knobs);
 
   useEffect(() => {
-    // Back at the defaults, the answer is the one the server already computed.
     if (query === initial.query) {
       setResult(initial);
       setState("settled");
@@ -151,7 +151,6 @@ export function PlaygroundClient({ initial, fixture }: { initial: WhatIf; fixtur
 
     const controller = new AbortController();
     setState("deciding");
-    // A slider emits dozens of values a second; the engine is asked once it settles.
     const timer = setTimeout(() => {
       fetch(`/api/what-if?${query}`, {
         signal: controller.signal,
@@ -181,11 +180,12 @@ export function PlaygroundClient({ initial, fixture }: { initial: WhatIf; fixtur
 
   const document = JSON.stringify(result.policy.document, null, 2);
   const atDefaults = query === "";
+  const fired = result.rules.filter((rule) => rule.outcome === "triggered");
 
   return (
     <div className="play">
-      <div className="play__controls">
-        <Budget
+      <div className="play__rails">
+        <Rail
           id={`${ids}-cost`}
           label="Monthly spend ceiling"
           value={knobs.cost}
@@ -199,7 +199,7 @@ export function PlaygroundClient({ initial, fixture }: { initial: WhatIf; fixtur
             setKnobs((current) => ({ ...current, cost }));
           }}
         />
-        <Budget
+        <Rail
           id={`${ids}-lcp`}
           label="p75 LCP allowance"
           value={knobs.lcp}
@@ -211,19 +211,21 @@ export function PlaygroundClient({ initial, fixture }: { initial: WhatIf; fixtur
             setKnobs((current) => ({ ...current, lcp }));
           }}
         />
-        <div className="control">
-          <span className="control__label" id={`${ids}-attribution`}>
-            Attributable events rule
-          </span>
-          <output className="control__value mono">{fixture.events} events</output>
-          <div className="seg" role="radiogroup" aria-labelledby={`${ids}-attribution`}>
+        <div className="rail rail--switch">
+          <div className="rail__head">
+            <span className="rail__label" id={`${ids}-attribution`}>
+              Attributable events rule
+            </span>
+            <span className="rail__ceiling">{fixture.events} events</span>
+          </div>
+          <div className="switch" role="radiogroup" aria-labelledby={`${ids}-attribution`}>
             {LEVELS.map((level) => (
               <button
                 key={level}
                 type="button"
                 role="radio"
                 aria-checked={knobs.attribution === level}
-                className={`seg__btn${knobs.attribution === level ? " seg__btn--on" : ""}`}
+                className={`switch__opt${knobs.attribution === level ? " switch__opt--on" : ""}`}
                 onClick={() => {
                   setKnobs((current) => ({ ...current, attribution: level }));
                 }}
@@ -232,7 +234,7 @@ export function PlaygroundClient({ initial, fixture }: { initial: WhatIf; fixtur
               </button>
             ))}
           </div>
-          <p className="control__hint">
+          <p className="rail__read">
             {knobs.attribution === "block"
               ? "A breach can stop the merge."
               : knobs.attribution === "warn"
@@ -240,102 +242,72 @@ export function PlaygroundClient({ initial, fixture }: { initial: WhatIf; fixtur
                 : "A breach is recorded and nothing is said."}
           </p>
         </div>
+        <button
+          type="button"
+          className="play__reset"
+          disabled={atDefaults}
+          onClick={() => {
+            setKnobs(INITIAL);
+          }}
+        >
+          Back to defaults
+        </button>
       </div>
 
-      <div className="play__result" aria-live="polite" aria-busy={state === "deciding"}>
-        <div className="verdict-head verdict-head--play">
-          <div className="verdict-head__word">
-            <p className={`verdict-word verdict-word--${result.verdict}`}>
-              {VERDICT_WORD[result.verdict]}
-              <span className="verdict-word__point">.</span>
-            </p>
-            <p className="verdict-head__meta mono">
-              confidence {result.confidence} · exit <b>{result.exitCode}</b> under{" "}
-              <code>--fail-on hold</code>
-            </p>
-          </div>
-          <div className="play__aside">
-            <span className="play__state mono" role="status">
-              {state === "deciding" ? "deciding…" : state === "failed" ? failure : ""}
+      <div
+        className={`stamp stamp--${result.verdict}${state === "deciding" ? " stamp--deciding" : ""}`}
+        aria-live="polite"
+        aria-busy={state === "deciding"}
+      >
+        <p className={`verdict verdict--${result.verdict}`} key={result.digest}>
+          {VERDICT_WORD[result.verdict]}
+          <span className="verdict__point">.</span>
+        </p>
+        <p className="stamp__exit">
+          exit <b>{result.exitCode}</b> under <code>--fail-on {result.gate}</code>
+          <span className="stamp__state" role="status">
+            {state === "deciding" ? "deciding…" : state === "failed" ? failure : ""}
+          </span>
+        </p>
+
+        <div className="stamp__rules">
+          <h3 className="stamp__h">Rules that fired</h3>
+          {fired.length === 0 ? (
+            <p className="stamp__none">None. Nothing crossed a line under these budgets.</p>
+          ) : (
+            <ul className="fired">
+              {fired.map((rule) => (
+                <li key={rule.id} className={`fired__row fired__row--${rule.enforcement}`}>
+                  <span className="fired__title">{rule.title}</span>
+                  <span className="fired__enf">{rule.enforcement}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <details className="stamp__file" open={!atDefaults}>
+          <summary>
+            <span>blast.json</span>
+            <span className="stamp__digest">digest {result.digest}</span>
+          </summary>
+          <pre className="stamp__pre">
+            <code>{document}</code>
+          </pre>
+          <div className="stamp__file-foot">
+            <span>
+              {atDefaults
+                ? "Nothing set, so the defaults apply."
+                : "Commit this and the gate decides the same way in CI."}
             </span>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={atDefaults}
-              onClick={() => {
-                setKnobs(INITIAL);
-              }}
-            >
-              Back to defaults
-            </button>
-          </div>
-        </div>
-
-        <div className="play__grid">
-          <div className="play__column">
-            <Ledger
-              rows={(Object.keys(DIMENSION_LABEL) as (keyof typeof DIMENSION_LABEL)[]).map(
-                (dimension) => ({
-                  id: dimension,
-                  name: DIMENSION_LABEL[dimension],
-                  status: result.dimensions[dimension].status,
-                  rationale: result.dimensions[dimension].rationale,
-                }),
-              )}
+            <CopyButton
+              value={document}
+              label="Copy"
+              copiedLabel="Copied"
+              className="stamp__copy"
             />
-
-            <div className="fired">
-              <h4 className="fired__label">Rules that fired</h4>
-              {result.rules.length === 0 ? (
-                <p className="fired__none">
-                  None. Nothing crossed a threshold under these budgets.
-                </p>
-              ) : (
-                <ul className="fired__list">
-                  {result.rules.map((rule) => (
-                    <li className="fired__row" key={`${rule.id}-${rule.outcome}`}>
-                      <span className="fired__id mono">{rule.id}</span>
-                      <span className={`fired__tag fired__tag--${rule.enforcement}`}>
-                        {rule.enforcement}
-                      </span>
-                      <span className="fired__tag">{rule.severity}</span>
-                      {rule.outcome !== "triggered" && (
-                        <span className="fired__tag">{rule.outcome}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <p className="play__digest">
-              <span className="play__digest-label">Digest</span>
-              <b className="mono">{result.digest}</b>
-              <span className="play__digest-note">
-                {atDefaults
-                  ? "The page's own. Change a budget and it changes."
-                  : "The budgets changed, so the digest did. Same budgets, same digest, anywhere."}
-              </span>
-            </p>
           </div>
-
-          <div className="play__column">
-            <Snippet
-              name="blast.json"
-              action={
-                <CopyButton
-                  value={document}
-                  label="Copy"
-                  copiedLabel="Copied"
-                  className="snippet__copy"
-                />
-              }
-              foot={atDefaults ? "Nothing is set, so the defaults apply." : undefined}
-            >
-              {document}
-            </Snippet>
-          </div>
-        </div>
+        </details>
       </div>
     </div>
   );

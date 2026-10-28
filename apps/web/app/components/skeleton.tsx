@@ -11,38 +11,55 @@ function Bar({ width, height = 12 }: { width: string; height?: number }) {
   return <span className="skeleton" style={{ width, height }} aria-hidden="true" />;
 }
 
-export function ChangeCardSkeleton() {
+export function GateSkeleton() {
   return (
-    <div className="skeleton-card" role="status" aria-label="Pricing the change">
-      <Bar width="40%" height={10} />
-      <Bar width="85%" />
-      <Bar width="70%" />
-      <Bar width="55%" height={10} />
+    <div className="gate gate--skeleton" role="status" aria-label="Deciding the change">
+      <div className="gate__in">
+        <Bar width="46%" height={10} />
+        <Bar width="72%" height={44} />
+      </div>
+      <div className="gate__out">
+        <div className="gate__verdict">
+          <Bar width="52%" height={64} />
+          <Bar width="40%" height={10} />
+        </div>
+        <ul className="dials">
+          {[0, 1, 2].map((dial) => (
+            <li key={dial} className="dial">
+              <span className="skeleton skeleton--round" aria-hidden="true" />
+              <Bar width="60%" height={10} />
+            </li>
+          ))}
+        </ul>
+        <div className="gate__why">
+          <Bar width="30%" height={10} />
+          <Bar width="92%" />
+          <Bar width="80%" />
+          <Bar width="30%" height={10} />
+          <Bar width="70%" height={36} />
+          <Bar width="70%" height={36} />
+        </div>
+      </div>
     </div>
   );
 }
 
-export function PanelSkeleton() {
+export function PlaySkeleton() {
   return (
-    <div className="skeleton-panel" role="status" aria-label="Assessing the change">
-      <div className="skeleton-card skeleton-card--bar">
-        <Bar width="30%" height={10} />
-        <Bar width="18%" height={10} />
+    <div className="play" role="status" aria-label="Preparing the playground">
+      <div className="play__rails">
+        {[0, 1, 2].map((rail) => (
+          <div key={rail} className="rail">
+            <Bar width="40%" height={10} />
+            <Bar width="100%" height={6} />
+            <Bar width="55%" height={10} />
+          </div>
+        ))}
       </div>
-      <div className="skeleton-verdict">
-        <Bar width="40%" height={36} />
-        <div className="skeleton-card">
-          <Bar width="92%" />
-          <Bar width="76%" />
-        </div>
+      <div className="stamp">
+        <Bar width="60%" height={64} />
+        <Bar width="45%" height={10} />
       </div>
-      {["performance", "cost", "measurability"].map((dimension) => (
-        <div className="skeleton-ledger" key={dimension}>
-          <Bar width="60%" height={10} />
-          <Bar width="90%" />
-          <Bar width="70%" height={10} />
-        </div>
-      ))}
     </div>
   );
 }

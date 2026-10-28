@@ -3,17 +3,14 @@ import type { Finding } from "@blast/core";
 import { formatMeasure } from "@blast/brief";
 import { getDemoBrief } from "../brief";
 import { shapeWhatIf } from "../what-if";
-import { Unavailable } from "./panels";
 import { PlaygroundClient } from "./playground-client";
 
 /**
  * The server half of the playground.
  *
  * The first answer is the page's own brief, shaped exactly as `/api/what-if` would shape
- * it, so the result panel is in the markup before any script arrives and the first
- * interaction is a change rather than a load. The three figures beside the controls are
- * the change's own numbers, so a reader moving a ceiling can see what it is being
- * compared to.
+ * it, so the stamp is in the markup before any script arrives and the first interaction
+ * is a change rather than a load. The marks on the rails are the change's own numbers.
  */
 
 function pick(findings: readonly Finding[], metric: string): Finding | undefined {
@@ -23,7 +20,12 @@ function pick(findings: readonly Finding[], metric: string): Finding | undefined
 export async function Playground() {
   const result = await getDemoBrief();
   if (!result.ok) {
-    return <Unavailable title="Playground unavailable" detail={result.detail} />;
+    return (
+      <div className="gate gate--off">
+        <p className="gate__off-title">Playground unavailable</p>
+        <p className="gate__off-text">{result.detail}</p>
+      </div>
+    );
   }
 
   const data = result.value;

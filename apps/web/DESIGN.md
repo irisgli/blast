@@ -1,8 +1,8 @@
 # Design — blast
 
-> A dark room, one luminous trace, and the brief printed on paper. The page is the readout
-> of an instrument: the night carries the identity, the paper carries the product, and
-> nothing on it is a figure written into markup.
+> One material, one instrument. The page is stone; the only dark object on it is the
+> instrument, where a pull request goes in at the top and a verdict comes out. Nothing
+> on it is a figure written into markup.
 
 ## Product context
 
@@ -10,113 +10,89 @@
   pull request at request time, lets the reader move the budgets, and prints the digest they
   can reproduce. See `PRODUCT.md`.
 - Register: brand. Platform: web. Next.js 16 app router, one plain stylesheet
-  (`app/globals.css`), `next/font/google`, GSAP 3 and Lenis for motion, raw WebGL for the field.
-  No Tailwind, no component library, no icon set beyond the hand-drawn 16px set in
-  `app/components/icons.tsx`.
-- Four sections and a close. Hero (the priced line), the decision (the brief as it lands),
-  the budgets (the playground), the setup (three steps), the engineering (pipeline and
-  verification). Each has its own composition; none has a number or a label above its title.
+  (`app/globals.css`), `next/font/google`. No animation library, no component library, no
+  icon set beyond the hand-drawn 16px set in `app/components/icons.tsx`.
+- One instrument, three sections and a close. The instrument (the decision), the budgets (the
+  playground), the setup (three steps), the engineering (the pipeline and the verification).
 
 ## Aesthetic direction
 
-- Direction: blast radius. The tool measures how far a one-line change travels once it is
-  merged. The hero draws that: the changed line on a white card, and the rings leaving it
-  across the dark. Everything else is the quiet chrome of a measuring instrument.
-- Two materials. **Night** is the page: `#070a14`, blue-black, never pure black, with the
-  signal blue `#7c9cff` as the only light. **Paper** is the product: the brief and the
-  playground are near-white panels, the way a comment sits on a pull request. Code,
-  terminals and diffs are **ink**, a shade darker than the night. The alternation is the
-  page's rhythm; no section repeats the one before it.
-- Decoration level: one. The field is the only ornament; grain sits over the page at 12%.
-  No gradients, no glass, no glow outside the field's own.
-- Memorable thing: a priced line of code, bright on the dark, with rings leaving it.
-- Anchors: Stripe and Plaid for the standard of craft; a seismograph trace for the field;
-  the hackathon set (vima, iris, bip) for the engineering of the motion and the dark world
-  with white paper panels, not for their copy or their type.
+- Direction: the gate. blast is a merge gate, and the page is the gate seen once: the change,
+  the verdict, how much of each budget it used, why, and what to do next, in one object a
+  reader takes in before they scroll. Everything else is behind a question they ask of it.
+- Two materials. **Stone** is the page: `#e4e5e1`, a cool matte grey that reads as a desk, not
+  a screen. **Ink** is the instrument: `#0b0e16`, blue-black, the single dark object. Code is
+  always on ink, because a diff is part of the instrument. The verdict's colour is the only
+  saturated thing on the page: where it appears, something was decided.
+- Decoration level: zero. No field, no grain, no loader, no gradients. The dials are the
+  memorable thing, and they are a measurement.
+- Memorable thing: a verdict word and three dials, each showing how much of a budget one
+  pull request spent, with the one that failed drawn empty and red.
 
 ### Never shipped
 
-- A number or tracked label above every section title. Numbers appear only where the
-  content is a sequence: the three setup steps and the six pipeline stages.
-- The same head composition twice in a row. The decision splits title and lede; the
-  budgets put the title in a rail beside the panel; the setup and the engineering stack a
-  short title over a line.
-- Gradient text, glass cards, pill-shaped decoration, side-stripe borders, three identical
-  icon cards, a hero made of a big number and a label.
+- A number or tracked label above a section title. Numbers appear only where the content is a
+  sequence: the three setup steps and the six pipeline stages.
+- Six tabs of the same long document. Evidence opens in a drawer, from the dial or the line
+  that raised the question, one panel at a time, and each panel answers its question in its
+  first line.
+- A progress bar under every row, a card with an icon, a table of every measurement by
+  default. The performance panel is six readouts; the cost panel is one stacked bar and a
+  cause; the measurability panel is two unchecked event names.
+- Gradient text, glass cards, three identical icon cards, a hero made of a big number and a
+  label, a dark page with white panels on it.
 - Aphorisms and "X, not Y" pairs in titles or ledes. Plain sentences, sentence case.
-- Monospace as costume. Mono appears where the content is a number, a digest, a command, a
-  file or a navigation label; sentences are set in the grotesk.
+- Monospace as costume. Mono appears where the content is code, a file, a branch or a digest.
 - A modeled figure presented as a saving, or any number without its basis.
 
 ## Typography
 
-Three families, one job each.
-
-| Role                        | Family            | Weight    | Size                                    | Notes                                                                |
-| --------------------------- | ----------------- | --------- | --------------------------------------- | -------------------------------------------------------------------- |
-| Wordmark (h1)               | Besley            | 500       | `clamp(4.25rem, 2rem + 9vw, 8.5rem)`    | `blast.`, line-height 0.9, tracking -0.03em, the point in `--signal` |
-| Section title (h2)          | Besley            | 500       | `clamp(1.9rem, 1.4rem + 1.9vw, 2.9rem)` | line-height 1.05, tracking -0.02em, `text-wrap: balance`, max 18ch   |
-| Closing title               | Besley            | 500       | `clamp(2.4rem, 1.6rem + 3.2vw, 4.5rem)` | the one centred element                                              |
-| Lede                        | Schibsted Grotesk | 400       | 17px                                    | line-height 1.6, `--ghost-70`, max 52ch                              |
-| Panel body                  | Schibsted Grotesk | 400 / 500 | 14px                                    | inside paper; 65ch max, `text-wrap: pretty`                          |
-| Nav, labels, readouts, code | JetBrains Mono    | 400 / 500 | 12px / 13px                             | `tabular-nums`, ligatures off; labels lowercase with 0.04em tracking |
-| Buttons                     | Schibsted Grotesk | 500       | 14px                                    | 44px tall on the page, 28px inside panels                            |
+| Role                  | Family            | Weight | Size                                     | Notes                                           |
+| --------------------- | ----------------- | ------ | ---------------------------------------- | ----------------------------------------------- |
+| Verdict               | Besley            | 500    | `clamp(3.2rem, 2rem + 5vw, 5.75rem)`     | line-height 0.95, the point in the verdict colour |
+| Lead title (h1)       | Besley            | 500    | `clamp(1.7rem, 1.1rem + 2vw, 2.6rem)`    | max 24ch                                        |
+| Section title (h2)    | Besley            | 500    | `clamp(1.9rem, 1.3rem + 2vw, 2.9rem)`    | max 20ch, `text-wrap: balance`                  |
+| Drawer title          | Besley            | 500    | 1.9rem                                   |                                                 |
+| Lede                  | Schibsted Grotesk | 400    | 16.5px                                   | `--text-2`, max 56ch                            |
+| Dial value, readouts  | Schibsted Grotesk | 600    | 19px / 1.5rem                            | tabular figures                                 |
+| Body on ink           | Schibsted Grotesk | 400    | 14px                                     | `--ink-text-2`                                  |
+| Code, branch, digest  | JetBrains Mono    | 400    | 12.5px / 13px                            | ligatures off                                   |
 
 Sentence case everywhere. No all-caps, no lowercase headline affectation.
 
 ## Color
 
-| Token                                | Value                                 | Role                                               |
-| ------------------------------------ | ------------------------------------- | -------------------------------------------------- |
-| `--night` / `--night-2`              | `#070a14` / `#0b1020`                 | page, raised page                                  |
-| `--signal`                           | `#7c9cff`                             | the field, the point, links and focus on the night |
-| `--ghost-90 … 40`                    | white at 0.9 … 0.4                    | text on the night, by hierarchy                    |
-| `--line` / `--line-2`                | white at 0.1 / 0.2                    | hairlines on the night                             |
-| `--paper` / `--paper-2`              | `#f6f6f3` / `#ececе7`                 | the product panels and their tinted bands          |
-| `--ink-text` / `--ink-2` / `--ink-3` | `#121420` / `#4b5064` / `#6f7489`     | text on paper, 15:1 / 7:1 / 4.9:1                  |
-| `--paper-line`                       | `#dededa`                             | hairlines on paper                                 |
-| `--accent-paper`                     | `#2a5bd7`                             | links and selected controls on paper               |
-| `--warn` / `--ok`                    | amber / green, one value per material | attention, within budget; grey is unmeasured       |
-| `--ink`                              | `#060910`                             | code, terminals, diffs                             |
+| Token                               | Value                             | Role                                        |
+| ----------------------------------- | --------------------------------- | ------------------------------------------- |
+| `--stone` … `--stone-4`             | `#e4e5e1` … `#b3b7b0`             | the page, tints, rules                      |
+| `--text` / `--text-2` / `--text-3`  | `#15171c` / `#4b505a` / `#727782` | text on stone                               |
+| `--ink` / `--ink-2` / `--ink-3`     | `#0b0e16` / `#131828` / `#1b2135` | the instrument, its raised parts            |
+| `--ink-text` / `--ink-text-2`       | `#e9ecf4` / `#aeb5c8`             | text on ink                                 |
+| `--signal` / `--signal-ink`         | `#3f63f0` / `#8ea6ff`             | the mark, controls, the fix blast can open  |
+| `--hold` / `--caveat` / `--ship`    | `#ff5a36` / `#f0b429` / `#3ccb86` | the three verdicts, on ink                  |
+| `--hold-stone` … `--ship-stone`     | darker, on stone                  | the same three on the page                  |
 
-Colour never decides a verdict's meaning by itself: every state has a word beside its dot.
+Colour never decides a verdict's meaning by itself: every dial has a word beside it.
 
 ## Spacing and layout
 
-- Shell `min(1160px, 100% - 3rem)`. Sections `clamp(5rem, 8vw, 8rem)` apart with a hairline.
-- Hero: 1.1fr / 0.9fr, wordmark and lede left, the card right at `min(100%, 500px)`, the
-  field behind the whole section with its origin at the card.
-- Decision head: 5/7 split. Budgets: 4/8 with a sticky rail. Setup: three columns.
-  Engineering: the pipeline strip, then two verification panes.
-- Radii: 4px on controls and code, 6px on paper. Nothing rounder except the status dots.
-- Breakpoints: 1000px (hero stacks), 900px (rail and heads stack, pipeline wraps), 720px
-  (setup and verify stack), 560px (actions stack).
-- Z-index: field -1, topbar 20, progress 21, grain 30, loader 50.
+- Shell `min(1120px, 100% - 2.5rem)`. Sections `clamp(4.5rem, 7vw, 7rem)` apart with a hairline.
+- The instrument: a header strip (the change), a two-column body (verdict and dials left at
+  1.15fr, why and next right at 0.85fr), a footline (provenance). Fits a 1280×900 viewport
+  whole.
+- The drawer: 560px from the right on desktop, a bottom sheet at 88vh under 760px. Panels are
+  addressed by `#evidence-<id>` and open without a script through `:target`.
+- The playground: rails 1.1fr, the stamp 0.9fr and sticky.
+- Radii: 6px on controls and code, 12px on the instrument, the drawer and the stamp.
+- Breakpoints: 1000px (instrument and playground stack), 760px (top links hide, drawer becomes a
+  sheet, readouts single-column), 480px (dials become rows).
 
 ## Motion
 
-- Entrance, once: the field fades up; the mark draws its rings; the wordmark rises through a
-  line mask; the lede and actions follow; the card settles in from the right. Under 1.6s,
-  never blocking a click.
-- Scroll: Lenis at `lerp 0.09` on GSAP's ticker; a 2px progress hairline; the hero field
-  fades as the hero leaves. Heads rise through line masks, paper panels rise 16px, the setup
-  steps stagger by 90ms, the pipeline strip draws left to right.
-- Reduced motion: no loader, no entrance, no smooth scroll, no reveals; the field draws one
-  still frame. Without JavaScript a `<noscript>` rule shows everything.
-- Easing `cubic-bezier(0.16, 1, 0.3, 1)`; nothing bounces.
-
-## The product panels
-
-The brief is a document, not a dashboard. Inside paper: one left column of 220px runs
-down the panel and carries the verdict word in the display serif, then each dimension's
-name; the sentence the engine wrote sits beside it, and the figures sit right-aligned as
-a small ledger so they share one edge. The evidence is under tabs beneath, never behind
-a disclosure. No tiles, no boxes inside the paper, no bar under every row: one
-composition bar for where the money goes, columns from zero for the bill, a deviation
-chart around zero for the model's record, and a ruled table for the measurements. The
-playground draws its dimensions with the same ledger, and each budget slider carries a
-mark where this change sits on its scale, so a reader is moving a ceiling over a measured
-value and can see the moment it passes under.
+- The dials draw their arcs once, 1.2s, on load. The cost badge on the diff slides in after
+  600ms. The stamp's verdict rises when it changes. The drawer slides in at 360ms. Nothing else
+  moves unasked.
+- Reduced motion: the arcs are drawn, nothing animates, the drawer appears.
 
 ## Decisions
 
@@ -124,12 +100,11 @@ value and can see the moment it passes under.
   blast's own.
 - 2026-10-27: the field replaces decorative washes; eyebrows removed; the page moves to the
   night with a loader once per session.
-- 2026-10-27, later: the five numbered stages, each a giant title over a dark panel, were
-  the same composition five times and read as a template. Rebuilt as four sections with
-  four compositions, the product panels back on paper so the page has a focal point, the
-  aphoristic titles replaced with plain sentences, the properties section cut, the footer
-  collapsed to one row, and the stylesheet rewritten as one layer from three.
-- 2026-10-27, later still: the paper panels themselves rejected as a wireframe — grey
-  bands, tiles, a progress bar under every row, a stretched sparkline, footnotes under
-  everything. Retypeset as a report: a verdict word, a ledger, tabs, and four honest
-  charts drawn with boxes.
+- 2026-10-27, later: rebuilt as four sections with four compositions, the product panels on
+  paper, and the stylesheet rewritten as one layer.
+- 2026-10-27, later still: the paper panels retypeset as a report with a ledger and tabs.
+- 2026-10-28: the report rejected as six versions of one long document on white panels over a
+  dark page. Rebuilt around one instrument on a light page: the verdict and three dials first,
+  the evidence in a drawer, the playground as draggable ceilings over the measured values with
+  a stamp that flips. The field, the loader, the grain, the smooth scroll and the animation
+  library removed; the page now ships no motion dependency.
