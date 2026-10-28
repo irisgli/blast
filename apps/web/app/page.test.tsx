@@ -1,6 +1,7 @@
 import { renderToReadableStream } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import Page from "./page";
+import { NO_SCRIPT_MOTION_CSS } from "./components/motion";
 
 /**
  * The page is `force-dynamic`, so `next build` never renders it. A data layer that throws
@@ -95,6 +96,20 @@ describe("the page", () => {
     // Each rail marks where this change sits on its scale.
     expect(html).toContain("this change");
     expect(html).toContain('class="stamp stamp--hold"');
+  });
+
+  it("does not leave the page invisible when nothing reveals it", async () => {
+    const html = await render();
+
+    // The hero starts hidden for the entrance and the section heads for the scroll
+    // reveals. Without scripting nothing ever shows them, so a noscript rule unhides
+    // both: a page that renders blank without JavaScript is not a page with an
+    // animation, it is a broken one.
+    expect(html).toContain("data-intro");
+    expect(html).toContain("data-reveal");
+    expect(NO_SCRIPT_MOTION_CSS).toContain("opacity:1 !important");
+    expect(NO_SCRIPT_MOTION_CSS).toContain("[data-intro]");
+    expect(NO_SCRIPT_MOTION_CSS).toContain("[data-reveal]");
   });
 
   it("prints a verification a reader can run from their own machine", async () => {

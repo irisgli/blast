@@ -1,60 +1,76 @@
 /*
  * blast — the page, in one layer.
  *
- * One material and one instrument. The page is stone: a cool, matte grey that reads
- * as a desk rather than a screen. The instrument is ink: the single dark object on it,
- * where a pull request goes in at the top and a verdict comes out. Code is set on ink
- * wherever it appears, because a diff is part of the instrument. The verdict's colour
- * is the only saturated thing on the page, so where it appears, something is decided.
+ * One world and one instrument. The night is the page: blue-black, never pure black,
+ * with the signal blue as its only light, and the field drawing the rings a change
+ * sends out. The instrument is the product: a raised panel on the night where a pull
+ * request goes in at the top and a verdict comes out. Code is set on ink, a shade
+ * darker than the night. The verdict's colour is the only other saturated thing on the
+ * page, so where it appears, something was decided.
  *
- * Order: tokens, base, type, buttons, topbar, lead, the instrument, the dials, why and
- * next, the drawer, the evidence, the playground, code and terminals, setup,
- * engineering, closing, footer, plain pages, records, skeletons, motion.
+ * Order: tokens, base, type, buttons, topbar, the hero and the field, the instrument,
+ * the dials, why and next, the drawer, the evidence, the playground, code and
+ * terminals, setup, engineering, closing, footer, plain pages, records, skeletons,
+ * loader and grain, motion.
  */
 
 /* ── tokens ──────────────────────────────────────────────────────────────── */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --stone: #e4e5e1;
-  --stone-2: #d9dbd6;
-  --stone-3: #cbcec8;
-  --stone-4: #b3b7b0;
-  --text: #15171c;
-  --text-2: #4b505a;
-  --text-3: #727782;
+  /* the night */
+  --night: #070a14;
+  --night-2: #0b1020;
+  --night-3: #121833;
+  --signal: #7c9cff;
+  --signal-2: #a7bcff;
+  --ghost-90: rgba(255, 255, 255, 0.9);
+  --ghost-70: rgba(255, 255, 255, 0.7);
+  --ghost-50: rgba(255, 255, 255, 0.5);
+  --ghost-40: rgba(255, 255, 255, 0.4);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-2: rgba(255, 255, 255, 0.22);
 
-  --ink: #0b0e16;
-  --ink-2: #131828;
-  --ink-3: #1b2135;
+  /* the page, by the names the components use */
+  --stone: var(--night);
+  --stone-2: rgba(255, 255, 255, 0.05);
+  --stone-3: var(--line);
+  --stone-4: var(--line-2);
+  --text: #ffffff;
+  --text-2: var(--ghost-70);
+  --text-3: var(--ghost-50);
+
+  /* ink: the instrument, code, the drawer */
+  --ink: #060910;
+  --ink-2: #0d1222;
+  --ink-3: #161c33;
   --ink-line: rgba(255, 255, 255, 0.1);
-  --ink-line-2: rgba(255, 255, 255, 0.2);
+  --ink-line-2: rgba(255, 255, 255, 0.22);
   --ink-text: #e9ecf4;
   --ink-text-2: #aeb5c8;
   --ink-muted: #7f879d;
 
-  --signal: #3f63f0;
-  --signal-ink: #8ea6ff;
+  --signal-ink: var(--signal);
   --hold: #ff5a36;
-  --hold-stone: #cf3a1a;
+  --hold-stone: #ff6b4a;
   --caveat: #f0b429;
-  --caveat-stone: #9c6307;
+  --caveat-stone: #f0b429;
   --ship: #3ccb86;
-  --ship-stone: #167a4b;
+  --ship-stone: #3ccb86;
   --mute: #8a92a6;
 
   /* semantic, for the records page and the shared bits */
-  --surface: #ebece8;
-  --surface-2: var(--stone-2);
-  --rule: var(--stone-3);
-  --rule-2: var(--stone-4);
+  --surface: var(--night-2);
+  --surface-2: rgba(255, 255, 255, 0.04);
+  --rule: var(--line);
+  --rule-2: var(--line-2);
   --accent: var(--signal);
-  --accent-bg: #dfe6ff;
-  --ok: var(--ship-stone);
-  --ok-bg: #d9f0e3;
-  --warn: var(--caveat-stone);
-  --warn-bg: #f7e9c9;
-  --mute-bg: var(--stone-2);
+  --accent-bg: rgba(124, 156, 255, 0.14);
+  --ok: var(--ship);
+  --ok-bg: rgba(60, 203, 134, 0.12);
+  --warn: var(--caveat);
+  --warn-bg: rgba(240, 180, 41, 0.12);
+  --mute-bg: rgba(255, 255, 255, 0.06);
   --focus: var(--signal);
 
   --shell: min(1120px, 100% - 2.5rem);
@@ -63,6 +79,13 @@
   --radius: 6px;
   --radius-2: 12px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --z-field: -1;
+  --z-topbar: 20;
+  --z-progress: 21;
+  --z-grain: 30;
+  --z-sheet: 40;
+  --z-loader: 50;
 
   --sans: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
@@ -79,7 +102,6 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-padding-top: calc(var(--topbar) + 1rem);
-  scroll-behavior: smooth;
 }
 
 html[data-sheet="open"] {
@@ -154,13 +176,8 @@ summary {
   border-radius: var(--radius);
 }
 
-.gate :where(a, button, input, summary, [tabindex]):focus-visible,
-.sheet :where(a, button, input, summary, [tabindex]):focus-visible {
-  outline-color: var(--signal-ink);
-}
-
 ::selection {
-  background: #c9d4ff;
+  background: rgba(124, 156, 255, 0.35);
 }
 
 .shell {
@@ -195,7 +212,7 @@ summary {
 .lede a,
 .verify__note a,
 .ev__lead a {
-  color: var(--signal);
+  color: var(--signal-2);
   text-underline-offset: 3px;
 }
 
@@ -207,10 +224,10 @@ summary {
   gap: 0.5rem;
   height: 44px;
   padding-inline: 1.2rem;
-  border: 1px solid var(--stone-4);
+  border: 1px solid var(--line-2);
   border-radius: 999px;
   background: transparent;
-  color: var(--text);
+  color: #ffffff;
   font-family: var(--sans);
   font-size: 14px;
   font-weight: 500;
@@ -218,21 +235,24 @@ summary {
   white-space: nowrap;
   transition:
     background 160ms ease,
-    border-color 160ms ease;
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 .btn:hover {
-  background: var(--stone-2);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .btn--primary {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: #ffffff;
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #0b0f1d;
 }
 
 .btn--primary:hover {
-  background: var(--ink-2);
+  background: var(--signal-2);
+  border-color: var(--signal-2);
 }
 
 .btn--small {
@@ -245,11 +265,23 @@ summary {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: var(--z-topbar);
   height: var(--topbar);
-  background: color-mix(in srgb, var(--stone) 86%, transparent);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--stone-3);
+  background: rgba(7, 10, 20, 0.6);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid var(--line);
+}
+
+.progress {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: var(--z-progress);
+  height: 2px;
+  background: var(--signal);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  pointer-events: none;
 }
 
 .topbar__inner {
@@ -278,62 +310,99 @@ summary {
   display: flex;
   gap: 1.5rem;
   margin-left: auto;
-  font-size: 14px;
-  color: var(--text-2);
 }
 
 .topbar__links a {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ghost-50);
   text-decoration: none;
+  transition: color 120ms ease;
 }
 
 .topbar__links a:hover {
-  color: var(--text);
+  color: #ffffff;
 }
 
-/* ── the lead ────────────────────────────────────────────────────────────── */
-.lead {
-  padding-block: clamp(2rem, 4vw, 3rem) var(--section);
+/* ── the hero and the field ──────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  padding-block: clamp(2.5rem, 5vw, 4rem) var(--section);
 }
 
-.lead__inner {
+.hero__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-field);
+  pointer-events: none;
+}
+
+.hero__backdrop::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 30%;
+  background: linear-gradient(to bottom, rgba(7, 10, 20, 0), var(--night));
+}
+
+.field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+html[data-motion] .hero .field {
+  opacity: 0;
+}
+
+.hero__head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem 3rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
-.lead__title {
+.display {
   font-family: var(--display-face);
   font-weight: 500;
-  font-size: clamp(1.7rem, 1.1rem + 2vw, 2.6rem);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  max-width: 24ch;
+  font-size: clamp(2rem, 1.2rem + 2.6vw, 3.2rem);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  max-width: 22ch;
+  color: #ffffff;
   text-wrap: balance;
 }
 
-.lead__text {
+.hero__lede {
   max-width: 44ch;
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--text-2);
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--ghost-70);
   text-wrap: pretty;
 }
 
 /* ── the instrument ──────────────────────────────────────────────────────── */
 .gate {
-  --line: var(--ink-line);
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-2);
-  background: var(--ink);
+  background: rgba(6, 9, 16, 0.82);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   color: var(--ink-text);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 40px 80px -30px rgba(11, 14, 22, 0.55);
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 0 0 1px rgba(7, 10, 20, 0.6),
+    0 40px 100px -30px rgba(124, 156, 255, 0.25);
   overflow: clip;
 }
 
@@ -357,7 +426,7 @@ summary {
   gap: 1rem 2rem;
   padding: 1.1rem 1.5rem;
   border-bottom: 1px solid var(--line);
-  background: var(--ink-2);
+  background: rgba(13, 18, 34, 0.7);
 }
 
 .gate__ref {
@@ -496,16 +565,16 @@ summary {
 }
 
 .gauge__mask {
-  stroke: var(--ink);
+  stroke: #0a0e19;
 }
 
 .dial:hover .gauge__mask {
-  stroke: var(--ink-2);
+  stroke: #0f1527;
 }
 
 .gauge__fill {
   stroke: var(--signal-ink);
-  animation: gauge-in 1.2s var(--ease) both;
+  animation: gauge-in 1.2s var(--ease) 0.5s both;
 }
 
 .gauge--ok .gauge__fill {
@@ -773,8 +842,8 @@ summary {
 .sheet__veil {
   position: fixed;
   inset: 0;
-  z-index: 40;
-  background: rgba(11, 14, 22, 0.45);
+  z-index: var(--z-sheet);
+  background: rgba(7, 10, 20, 0.55);
   opacity: 0;
   pointer-events: none;
   transition: opacity 220ms ease;
@@ -788,13 +857,14 @@ summary {
 .sheet {
   position: fixed;
   inset: 0 0 0 auto;
-  z-index: 41;
+  z-index: calc(var(--z-sheet) + 1);
   width: min(560px, 100%);
   display: flex;
   flex-direction: column;
   background: var(--ink);
   color: var(--ink-text);
-  box-shadow: -30px 0 80px rgba(11, 14, 22, 0.4);
+  border-left: 1px solid var(--line-2);
+  box-shadow: -30px 0 80px rgba(0, 0, 0, 0.5);
   transform: translateX(100%);
   visibility: hidden;
   transition:
@@ -1329,26 +1399,7 @@ summary {
 /* ── sections ────────────────────────────────────────────────────────────── */
 .section {
   padding-block: var(--section);
-  border-top: 1px solid var(--stone-3);
-}
-
-.section--dark {
-  --rule: var(--ink-line);
-  background: var(--ink);
-  color: var(--ink-text);
-  border-top: 0;
-}
-
-.section--dark .title {
-  color: #ffffff;
-}
-
-.section--dark .lede {
-  color: var(--ink-text-2);
-}
-
-.section--dark .lede code {
-  color: #ffffff;
+  border-top: 1px solid var(--line);
 }
 
 .head {
@@ -1371,9 +1422,9 @@ summary {
   display: grid;
   gap: 2rem;
   padding: 1.75rem 1.5rem 1.5rem;
-  border: 1px solid var(--stone-3);
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-2);
-  background: var(--surface);
+  background: var(--night-2);
 }
 
 .rail {
@@ -1417,7 +1468,7 @@ summary {
   height: 6px;
   margin-top: -3px;
   border-radius: 3px;
-  background: var(--stone-3);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .rail__span {
@@ -1426,7 +1477,7 @@ summary {
   height: 6px;
   margin-top: -3px;
   border-radius: 3px;
-  background: var(--stone-4);
+  background: rgba(124, 156, 255, 0.45);
   transition:
     left 80ms linear,
     width 80ms linear,
@@ -1444,8 +1495,8 @@ summary {
   height: 12px;
   margin: -6px 0 0 -6px;
   border-radius: 50%;
-  background: var(--ink);
-  box-shadow: 0 0 0 3px var(--surface);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px var(--night-2);
 }
 
 .rail--over .rail__mark {
@@ -1495,16 +1546,16 @@ summary {
   width: 14px;
   height: 30px;
   margin-top: 7px;
-  border: 2px solid var(--surface);
+  border: 2px solid var(--night-2);
   border-radius: 7px;
   background: var(--signal);
-  box-shadow: 0 2px 8px rgba(11, 14, 22, 0.25);
+  box-shadow: 0 0 16px rgba(124, 156, 255, 0.5);
 }
 
 .rail__input::-moz-range-thumb {
   width: 10px;
   height: 26px;
-  border: 2px solid var(--surface);
+  border: 2px solid var(--night-2);
   border-radius: 7px;
   background: var(--signal);
   box-shadow: 0 2px 8px rgba(11, 14, 22, 0.25);
@@ -1531,7 +1582,7 @@ summary {
   display: inline-flex;
   padding: 3px;
   border-radius: 999px;
-  background: var(--stone-2);
+  background: rgba(255, 255, 255, 0.07);
   justify-self: start;
 }
 
@@ -1547,15 +1598,15 @@ summary {
 }
 
 .switch__opt--on {
-  background: var(--ink);
-  color: #ffffff;
+  background: #ffffff;
+  color: #0b0f1d;
 }
 
 .play__reset {
   justify-self: start;
   height: 34px;
   padding-inline: 0.9rem;
-  border: 1px solid var(--stone-4);
+  border: 1px solid var(--line-2);
   border-radius: 999px;
   background: transparent;
   font-size: 13px;
@@ -1574,9 +1625,11 @@ summary {
   display: grid;
   gap: 1.25rem;
   padding: 1.75rem 1.5rem 1.5rem;
+  border: 1px solid var(--line-2);
   border-radius: var(--radius-2);
   background: var(--ink);
   color: var(--ink-text);
+  box-shadow: 0 30px 80px -30px rgba(124, 156, 255, 0.2);
   transition: opacity 160ms ease;
 }
 
@@ -1716,15 +1769,9 @@ summary {
 .verify__block {
   border: 1px solid var(--ink-line);
   border-radius: var(--radius);
-  background: var(--ink-2);
+  background: var(--ink);
   color: var(--ink-text);
   overflow: hidden;
-}
-
-.section--dark .snippet,
-.section--dark .term {
-  background: var(--ink-2);
-  border-color: var(--ink-line-2);
 }
 
 .snippet__name,
@@ -1889,7 +1936,7 @@ summary {
   margin: 0;
   padding: 0.5rem 0;
   border-radius: var(--radius);
-  background: var(--ink-2);
+  background: var(--ink);
   color: var(--ink-text);
   font-family: var(--mono);
   font-size: 13px;
@@ -2005,9 +2052,9 @@ summary {
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--stone-2);
+  background: rgba(255, 255, 255, 0.08);
   font-size: 12px;
-  color: var(--text-2);
+  color: var(--ghost-70);
 }
 
 .setup__foot {
@@ -2026,7 +2073,7 @@ summary {
 
 .pipe__stage {
   padding: 0.4rem 1rem;
-  border: 1px solid var(--stone-4);
+  border: 1px solid var(--line-2);
   margin-left: -1px;
 }
 
@@ -2053,8 +2100,18 @@ summary {
 
 /* ── closing ─────────────────────────────────────────────────────────────── */
 .closing {
-  padding-block: var(--section);
-  border-top: 1px solid var(--stone-3);
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  padding-block: clamp(7rem, 14vw, 12rem);
+  border-top: 1px solid var(--line);
+}
+
+.closing__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-field);
+  pointer-events: none;
 }
 
 .closing__inner {
@@ -2084,7 +2141,7 @@ summary {
 /* ── footer ──────────────────────────────────────────────────────────────── */
 .foot {
   padding: 1.5rem 0 2rem;
-  border-top: 1px solid var(--stone-3);
+  border-top: 1px solid var(--line);
   font-size: 13px;
   color: var(--text-2);
 }
@@ -2188,8 +2245,8 @@ summary {
 }
 
 .badge--risk {
-  background: #f8ddd4;
-  color: var(--hold-stone);
+  background: rgba(255, 90, 54, 0.14);
+  color: var(--hold);
 }
 
 .note {
@@ -2323,14 +2380,14 @@ summary {
   animation: skeleton 1.4s ease-in-out infinite;
 }
 
-.play .skeleton {
-  background: var(--stone-2);
-}
-
 .skeleton--round {
   width: 112px;
   aspect-ratio: 1;
   border-radius: 50%;
+}
+
+.gate--skeleton {
+  min-height: 560px;
 }
 
 .gate--skeleton .gate__in,
@@ -2388,7 +2445,7 @@ summary {
     display: none;
   }
 
-  .lead__inner {
+  .hero__head {
     margin-bottom: 1.25rem;
   }
 
@@ -2522,17 +2579,146 @@ summary {
   }
 }
 
+/* ── loader and grain ────────────────────────────────────────────────────── */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loader);
+  display: grid;
+  place-items: center;
+  background: var(--night);
+  color: #ffffff;
+}
+
+.loader[data-done] {
+  pointer-events: none;
+}
+
+.loader[hidden] {
+  display: none;
+}
+
+.loader__mark {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.loader__mark svg {
+  color: var(--signal);
+}
+
+.loader__name {
+  font-family: var(--display-face);
+  font-size: 2.25rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.loader__readout {
+  position: absolute;
+  right: clamp(1.25rem, 3vw, 2.5rem);
+  bottom: clamp(1.25rem, 3vw, 2.5rem);
+  display: flex;
+  gap: 1rem;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ghost-50);
+}
+
+/* if the script never lifts it, the curtain goes on its own */
+html[data-motion=""] .loader {
+  animation: loader-safety 1ms linear 2.6s forwards;
+}
+
+@keyframes loader-safety {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* grain: one SVG tile, rasterised once and repeated; texture, never UI */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0.12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 240px 240px;
+}
+
 /* ── motion ──────────────────────────────────────────────────────────────── */
+/*
+ * The hidden state is rendered by the server, as `data-motion` on `<html>`, so it applies
+ * before the first paint rather than after it. `components/motion.tsx` moves things from
+ * here and sets the attribute to `live` once it is running; nothing in this file animates.
+ *
+ * Only static elements carry `data-intro` or `data-reveal`. Anything that streams in
+ * behind a boundary is never hidden, so a slow source never leaves a blank.
+ *
+ * Two safeties. Without JavaScript the attribute is never cleared, but a `<noscript>` rule
+ * in the layout unhides everything. And while the script has not run, the animation below
+ * shows everything under two seconds in; a script that arrives after that skips the
+ * entrance rather than hiding what the reader is already looking at.
+ */
+html[data-motion] [data-intro],
+html[data-motion] [data-reveal] {
+  opacity: 0;
+}
+
+html[data-motion=""] [data-intro],
+html[data-motion=""] [data-reveal] {
+  animation: motion-safety 1ms linear 1.8s forwards;
+}
+
+@keyframes motion-safety {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Lenis scrolls the window itself; these are the rules it ships. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* the line boxes a heading is split into while its lines rise through a mask */
+.line {
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
+  /* someone who asked for less motion has not asked for faster motion */
+  html[data-motion] [data-intro],
+  html[data-motion] [data-reveal] {
+    opacity: 1;
+    animation: none;
+  }
+
+  .loader {
+    display: none;
   }
 
   .gauge__fill,
   .code__cost,
   .stamp .verdict,
-  .skeleton {
+  .skeleton,
+  .term__caret {
     animation: none;
+  }
+
+  .term__line {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 
   .sheet,
