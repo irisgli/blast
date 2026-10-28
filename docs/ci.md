@@ -69,6 +69,30 @@ six months ago can be reproduced exactly without depending on a vendor still bei
 Pair it with `--sign` and `blast verify` when the record has to prove something. See
 [Reproducibility](./reproducibility.md).
 
+## One decision per run
+
+A job that runs `decide` for the gate and then `brief --post` for the thread has run the
+engine twice, and with a live source in the mix the two could disagree. Replay the
+snapshot the first step wrote instead:
+
+```sh
+pnpm blast decide "$PR_NUMBER" --intent "$PR_TITLE" --write-snapshot snapshot.json > decision.json
+pnpm blast brief  "$PR_NUMBER" --intent "$PR_TITLE" --snapshot snapshot.json --no-log --post
+```
+
+No source is called a second time, and the digest on the comment is the digest the gate
+acted on by construction. This repository's own workflow does exactly this.
+
+## Retrying the host
+
+Every `git` and `gh` call has a timeout, and a rate limit from GitHub is retried up to
+three times, waiting as long as the API asked for when it said, and backing off from one
+second when it did not. A wait longer than thirty seconds is not taken: the run fails
+with the wait the host asked for in the message, because a job that sleeps twelve
+minutes inside one command is worse than one that fails and lets the pipeline retry.
+Nothing else is retried. A missing pull request, bad credentials and a diff too large to
+hold give the same answer however many times they are asked.
+
 ## The decision log
 
 Both commands append to `BLAST_DECISION_LOG` (default `.blast/decisions.jsonl`) unless
@@ -130,14 +154,25 @@ jobs:
       - name: Brief
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          pnpm blast brief "${{ github.event.pull_request.number }}" \
-            --intent "${{ github.event.pull_request.title }}" \
+          pnpm blast brief "$PR_NUMBER" \
+            --intent "$PR_TITLE" \
             --post \
             --fail-on hold
 ```
 
-Two things worth setting deliberately.
+Three things worth setting deliberately.
+
+**The title goes through `env`, not `${{ }}` in `run:`.** An expression is substituted
+into the script before the shell reads it, so a pull request titled `"; curl … | sh; "`
+would run on the runner, with write access to the thread. An environment variable is data
+to the shell whatever it contains. blast also treats the intent as untrusted on its own
+side: the title line of a brief carries no line breaks and no HTML comment delimiters, and
+the record a comment is updated from is read from the marker the engine wrote last, not
+the first one found — so a title cannot forge the marker, pin the comment to a stale
+digest, or rewrite the verdict history.
 
 **`fetch-depth: 0`.** The profile comes from `git diff base...head`, and the default
 shallow clone has neither ref in full. Without it every brief reads as a change that

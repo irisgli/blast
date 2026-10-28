@@ -43,27 +43,40 @@ jobs:
       # run reproducible later: `blast decide --snapshot` reaches the same digest without
       # calling a single source. It is uploaded rather than kept, because an ephemeral
       # runner's filesystem is not a record.
+      #
+      # The title and the number reach the shell through the environment, never through
+      # `${{ }}` inside `run:`. An expression is substituted into the script before the
+      # shell reads it, so a pull request titled `"; curl … | sh; "` would run on this
+      # runner with write access to the thread. An environment variable is data to the
+      # shell, whatever it contains.
       - name: Decide
         run: |
-          pnpm blast decide "${{ github.event.pull_request.number }}" \
-            --intent "${{ github.event.pull_request.title }}" \
-            --repo "${{ github.repository }}" \
+          pnpm blast decide "$PR_NUMBER" \
+            --intent "$PR_TITLE" \
+            --repo "$GITHUB_REPOSITORY" \
             --write-snapshot blast-snapshot.json \
             --log blast-decisions.jsonl \
             > blast-decision.json
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
 
       # Posted from the decision that was already made, so the comment and the gate cannot
-      # disagree about what was decided.
+      # disagree about what was decided. `--snapshot` replays the evidence the step above
+      # froze: no source is called a second time, and the digest on the comment is the digest
+      # the gate acted on, by construction rather than by coincidence.
       - name: Post the brief
         run: |
-          pnpm blast brief "${{ github.event.pull_request.number }}" \
-            --intent "${{ github.event.pull_request.title }}" \
+          pnpm blast brief "$PR_NUMBER" \
+            --intent "$PR_TITLE" \
+            --snapshot blast-snapshot.json \
             --no-log \
             --post
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
 
       - name: Upload the decision and its evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

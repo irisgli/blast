@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { classify, isSafeRef, runCommand, unsafeRef } from "./exec.js";
+import {
+  classify,
+  createCommandRunner,
+  DEFAULT_RETRY,
+  isSafeRef,
+  retryDelayMs,
+  runCommand,
+  unsafeRef,
+} from "./exec.js";
+import type { CommandFailure } from "./exec.js";
 
 /**
  * Four situations used to look identical to the model: a pull request that does not
@@ -145,5 +154,104 @@ describe("running a command", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.failure.kind).toBe("timeout");
+  });
+});
+
+/**
+ * A rate limit is the one failure worth asking again about, and only within bounds: a tool
+ * call that sleeps for the twelve minutes GitHub sometimes asks for is worse than one that
+ * fails with the wait in its message and lets the pipeline decide.
+ */
+describe("retrying a rate limit", () => {
+  const limited = (stderr: string) => ({ code: 1, stderr });
+
+  function runner(outcomes: (string | { stdout: string })[]) {
+    const waits: number[] = [];
+    let calls = 0;
+    const run = createCommandRunner({
+      exec: async () => {
+        const outcome = outcomes[calls];
+        calls += 1;
+        if (outcome === undefined) throw new Error("ran out of scripted outcomes");
+        if (typeof outcome === "string") throw limited(outcome);
+        return outcome;
+      },
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+    });
+    return { run, waits, calls: () => calls };
+  }
+
+  it("waits as long as the host asked and tries again", async () => {
+    const { run, waits, calls } = runner([
+      "HTTP 403: API rate limit exceeded. Retry after 2 seconds",
+      { stdout: "done" },
+    ]);
+    const result = await run("gh", ["api", "x"]);
+    expect(result).toEqual({ ok: true, stdout: "done" });
+    expect(waits).toEqual([2000]);
+    expect(calls()).toBe(2);
+  });
+
+  it("backs off from a second when the host did not say how long", async () => {
+    const { run, waits } = runner([
+      "HTTP 403: You have exceeded a secondary rate limit",
+      "HTTP 403: You have exceeded a secondary rate limit",
+      { stdout: "done" },
+    ]);
+    const result = await run("gh", ["api", "x"]);
+    expect(result.ok).toBe(true);
+    expect(waits).toEqual([1000, 2000]);
+  });
+
+  it("gives the failure back, with the wait, rather than sleeping past the bound", async () => {
+    const { run, waits, calls } = runner([
+      "HTTP 403: API rate limit exceeded. Try again in 12 minutes",
+    ]);
+    const result = await run("gh", ["api", "x"]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.kind).toBe("rate-limited");
+    expect(result.failure.retryAfterSeconds).toBe(720);
+    expect(waits).toEqual([]);
+    expect(calls()).toBe(1);
+  });
+
+  it("stops after the configured attempts", async () => {
+    const { run, calls } = runner([
+      "HTTP 403: secondary rate limit",
+      "HTTP 403: secondary rate limit",
+      "HTTP 403: secondary rate limit",
+      { stdout: "never reached" },
+    ]);
+    const result = await run("gh", ["api", "x"]);
+    expect(result.ok).toBe(false);
+    expect(calls()).toBe(DEFAULT_RETRY.attempts);
+  });
+
+  it("retries nothing else", async () => {
+    // The same question gets the same answer for a missing pull request, bad credentials,
+    // or a timeout; a retry loop on those only makes a job slower to fail.
+    const { run, waits, calls } = runner(["HTTP 404: Not Found", { stdout: "never" }]);
+    const result = await run("gh", ["api", "x"]);
+    expect(result.ok).toBe(false);
+    expect(waits).toEqual([]);
+    expect(calls()).toBe(1);
+
+    const timeout: CommandFailure = {
+      kind: "timeout",
+      detail: "",
+      exitCode: null,
+      retryAfterSeconds: null,
+    };
+    expect(retryDelayMs(timeout, 1, DEFAULT_RETRY)).toBeNull();
+  });
+
+  it("can be switched off per call", async () => {
+    const { run, calls } = runner(["HTTP 403: secondary rate limit", { stdout: "never" }]);
+    const result = await run("gh", ["api", "x"], { retry: { attempts: 1 } });
+    expect(result.ok).toBe(false);
+    expect(calls()).toBe(1);
   });
 });
