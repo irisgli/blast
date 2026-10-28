@@ -1,25 +1,21 @@
-import { ChangeCardSkeleton } from "./components/skeleton";
+import { GateSkeleton } from "./components/skeleton";
 
 /**
  * The route-level fallback.
  *
  * The page streams, so this is rarely what a visitor sees: the shell paints first and the
- * panels fill in behind their own boundaries. It covers the window before the first flush,
- * and it holds the hero's shape so nothing jumps when the document arrives.
+ * instrument fills in behind its own boundary. It covers the window before the first
+ * flush, and it holds the instrument's shape so nothing jumps when the document arrives.
  */
 export default function Loading() {
   return (
-    <main className="hero">
-      <div className="shell hero__grid">
-        <div className="hero__copy">
-          <h1 className="display">
-            blast<span className="display__point">.</span>
-          </h1>
-          <p className="hero__lede">Computing the brief for the sample pull request…</p>
-        </div>
-        <div className="hero__card paper">
-          <ChangeCardSkeleton />
-        </div>
+    <main className="lead">
+      <div className="shell lead__inner">
+        <h1 className="lead__title">What a pull request costs before you merge it.</h1>
+        <p className="lead__text">Deciding the sample pull request…</p>
+      </div>
+      <div className="shell">
+        <GateSkeleton />
       </div>
     </main>
   );
